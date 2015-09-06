@@ -166,14 +166,16 @@ Entry* get_entry(EnvObj* env, char* name){
 }
 
 int entry_type(Entry* e){
-	return e->tag;
+	return e->type;
 }
 
 VarEntry* make_var_entry(Obj* value){
 	VarEntry* t = malloc(sizeof(VarEntry));
-	t->tag = VAR_ENTRY;
+	t->type = VAR_ENTRY;
 	t->value = value;
+	return t;
 }
+
 Obj* get_value(VarEntry* v){ // for consistency
 	return v->value;
 }
@@ -183,15 +185,22 @@ void set_value(VarEntry* v, Obj* t){ // for consistency
 
 CodeEntry* make_code_entry(ScopeFn* fn){
 	CodeEntry* t = malloc(sizeof(CodeEntry));
-	t->tag = CODE_ENTRY;
+	t->type = CODE_ENTRY;
 	t->fn= fn;
 	return t;
 }
+
 ScopeFn* get_scope_fn(CodeEntry* t){ // for consistency
 	return t->fn;
 }
 
-
+static EnvObj* global_env = NULL;
+EnvObj* get_global_env_obj () {
+	if (global_env == NULL) {
+		global_env = make_env_obj((Obj*)make_null_obj());
+	}
+	return global_env;
+}
 
 //---------------------------------------
 // implementation of util functions

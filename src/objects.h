@@ -42,16 +42,16 @@ typedef struct {
 typedef enum {VAR_ENTRY, CODE_ENTRY} EntryTag;
 
 typedef struct {
-	EntryTag tag;
+	EntryTag type;
 } Entry;
 
 typedef struct {
-	EntryTag tag;
+	EntryTag type;
 	Obj* value;
 } VarEntry;
 
 typedef struct {
-	EntryTag tag;
+	EntryTag type;
 	ScopeFn * fn;
 } CodeEntry;
 
@@ -75,31 +75,35 @@ Obj* ge (IntObj* x, IntObj* y);
 Obj* eq (IntObj* x, IntObj* y);
 
 // array object operations
-void create_array_elem (Obj* obj, ArrayElem *ptr_elem);
-ArrayObj* make_array_obj(IntObj* length, Obj* init);
 IntObj* array_length(ArrayObj* a);
-NullObj* array_set(ArrayObj* a, IntObj* i, Obj* v);
 Obj* array_get(ArrayObj* a, IntObj* i);
+NullObj* array_set(ArrayObj* a, IntObj* i, Obj* v);
+ArrayObj* make_array_obj(IntObj* length, Obj* init);
+void create_array_elem (Obj* obj, ArrayElem *ptr_elem);
 
+// environment object operations
+EnvObj* get_global_env_obj ();
 EnvObj* make_env_obj(Obj* parent);
-void add_entry(EnvObj* env, char* name, Entry* entry);
-Entry* get_entry(EnvObj* env, char* name);
 
+// entry operations
 int entry_type(Entry*);
+Entry* get_entry(EnvObj* env, char* name);
+void add_entry(EnvObj* env, char* name, Entry* entry);
 
-VarEntry* make_var_entry(Obj* value);
+// variable entry operations
 Obj* get_value(VarEntry* v); // for consistency
 void set_value(VarEntry* v, Obj*); // for consistency
+VarEntry* make_var_entry(Obj* value);
 
-CodeEntry* make_code_entry(ScopeFn* fn);
+// code entry operations
 ScopeFn* get_scope_fn(CodeEntry* t); // for consistency
-
+CodeEntry* make_code_entry(ScopeFn* fn);
 
 // util functions
+char* intToString(int i);
+char* toString(Obj *obj_ptr);
 char *copy_string (const char *string);
 char *str_replace(char *orig, char *rep, char *with);
 char *str_replace_all(char *orig, char *rep, char *with);
-char* toString(Obj *obj_ptr);
-char* intToString(int i);
 
 #endif

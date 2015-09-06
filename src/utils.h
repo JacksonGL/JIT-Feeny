@@ -25,4 +25,6 @@ void* vector_get (Vector* v, int i);
 void vector_set (Vector* v, int i, void* x);
 void vector_set_length (Vector* v, int len, void* x);
 
+void error(char *err_msg);
+
 #endif

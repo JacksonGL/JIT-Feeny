@@ -1,21 +1,21 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "utils.h"
 #include "ast.h"
 #include "interpreter.h"
+
 
 //----------------------------------------
 // implementation of interpreter functions
 //----------------------------------------
 
 void interpret (ScopeStmt* s) {
+  EnvObj* global_env = get_global_env_obj();
   switch (s->tag) {
   case VAR_STMT: {
-    // TBD
-    ScopeVar* s2 = (ScopeVar*)s;
-    printf("var %s = ", s2->name);
-    eval_exp(NULL, NULL, s2->exp);
+    exec_var_stmt(global_env, global_env, s);
     break;
   }
   case FN_STMT: {
@@ -27,21 +27,19 @@ void interpret (ScopeStmt* s) {
       printf("%s", s2->args[i]);
     }
     printf(") : (");
-    interpret_scopestmt(s2->body);
+    interpret_scopestmt(global_env, global_env, s2->body);
     printf(")");
     break;
   }
   case SEQ_STMT: {
-    // TBD
     ScopeSeq* s2 = (ScopeSeq*)s;
-    interpret_scopestmt(s2->a);
-    //printf(" ");
-    interpret_scopestmt(s2->b);
+    interpret_scopestmt(global_env, global_env, s2->a);
+    interpret_scopestmt(global_env, global_env, s2->b);
     break;
   }
   case EXP_STMT: {
     ScopeExp* s2 = (ScopeExp*)s;
-    eval_exp(NULL, NULL, s2->exp);
+    eval_exp(global_env, global_env, s2->exp);
     break;
   }
   default:
@@ -50,13 +48,49 @@ void interpret (ScopeStmt* s) {
   }
 }
 
-void interpret_slotstmt (SlotStmt* s) {
+void interpret_scopestmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+  switch (s->tag) {
+  case VAR_STMT: {
+    exec_var_stmt(genv, env, s);
+    break;
+  }
+  case FN_STMT: {
+    // TBD
+    ScopeFn* s2 = (ScopeFn*)s;
+    printf("defn %s (", s2->name);
+    for (int i = 0; i < s2->nargs; i++) {
+      if (i > 0) printf(", ");
+      printf("%s", s2->args[i]);
+    }
+    printf(") : (");
+    interpret_scopestmt(genv, env, s2->body);
+    printf(")");
+    break;
+  }
+  case SEQ_STMT: {
+    ScopeSeq* s2 = (ScopeSeq*)s;
+    interpret_scopestmt(genv, env, s2->a);
+    interpret_scopestmt(genv, env, s2->b);
+    break;
+  }
+  case EXP_STMT: {
+    ScopeExp* s2 = (ScopeExp*)s;
+    eval_exp(genv, env, s2->exp);
+    break;
+  }
+  default:
+    printf("Unrecognized scope statement with tag %d\n", s->tag);
+    exit(-1);
+  }
+}
+
+void interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
   switch (s->tag) {
   case VAR_STMT: {
     // TBD
     SlotVar* s2 = (SlotVar*)s;
     printf("var %s = ", s2->name);
-    eval_exp(NULL, NULL, s2->exp);
+    eval_exp(genv, env, s2->exp);
     break;
   }
   case FN_STMT: {
@@ -68,7 +102,7 @@ void interpret_slotstmt (SlotStmt* s) {
       printf("%s", s2->args[i]);
     }
     printf(") : (");
-    interpret_scopestmt(s2->body);
+    interpret_scopestmt(genv, env, s2->body);
     printf(")");
     break;
   }
@@ -78,46 +112,7 @@ void interpret_slotstmt (SlotStmt* s) {
   }
 }
 
-void interpret_scopestmt (ScopeStmt* s) {
-  switch (s->tag) {
-  case VAR_STMT: {
-    // TBD
-    ScopeVar* s2 = (ScopeVar*)s;
-    printf("var %s = ", s2->name);
-    eval_exp(NULL, NULL, s2->exp);
-    break;
-  }
-  case FN_STMT: {
-    // TBD
-    ScopeFn* s2 = (ScopeFn*)s;
-    printf("defn %s (", s2->name);
-    for (int i = 0; i < s2->nargs; i++) {
-      if (i > 0) printf(", ");
-      printf("%s", s2->args[i]);
-    }
-    printf(") : (");
-    interpret_scopestmt(s2->body);
-    printf(")");
-    break;
-  }
-  case SEQ_STMT: {
-    // TBD
-    ScopeSeq* s2 = (ScopeSeq*)s;
-    interpret_scopestmt(s2->a);
-    // printf(" ");
-    interpret_scopestmt(s2->b);
-    break;
-  }
-  case EXP_STMT: {
-    ScopeExp* s2 = (ScopeExp*)s;
-    eval_exp(NULL, NULL, s2->exp);
-    break;
-  }
-  default:
-    printf("Unrecognized scope statement with tag %d\n", s->tag);
-    exit(-1);
-  }
-}
+
 
 Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   switch (e->tag) {
@@ -134,12 +129,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     return eval_array_exp(genv, env, e);
   }
   case OBJECT_EXP: {
-    ObjectExp* e2 = (ObjectExp*)e;
-    EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
-    for (int i = 0; i < e2->nslots; i++) {
-      exec_stmt(genv, nenv, e2->slots[i]);
-    }
-    return (Obj*)env;
+    return eval_obj_exp(genv, env, e);
   }
   case SLOT_EXP: {
     // TBD
@@ -184,9 +174,9 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     printf("if ");
     eval_exp(genv, env, e2->pred);
     printf(" : (");
-    interpret_scopestmt(e2->conseq);
+    interpret_scopestmt(genv, env, e2->conseq);
     printf(") else : (");
-    interpret_scopestmt(e2->alt);
+    interpret_scopestmt(genv, env, e2->alt);
     printf(")");
     break;
   }
@@ -196,20 +186,22 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     printf("while ");
     eval_exp(genv, env, e2->pred);
     printf(" : (");
-    interpret_scopestmt(e2->body);
+    interpret_scopestmt(genv, env, e2->body);
     printf(")");
     break;
   }
   case REF_EXP: {
-    // TBD
-    RefExp* e2 = (RefExp*)e;
-    printf("%s", e2->name);
+    return eval_ref_exp(genv, env, e);
     break;
   }
   default:
     printf("Unrecognized Expression with tag %d\n", e->tag);
     exit(-1);
   }
+}
+
+Obj* eval_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+  return NULL;
 }
 
 Obj* eval_callslot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
@@ -355,23 +347,23 @@ Obj* eval_int_exp(EnvObj* genv, EnvObj* env, Exp *e) {
 
 Obj* eval_array_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   ArrayExp* e2 = (ArrayExp*)e;
-  Obj* array_length_ptr = eval_exp(NULL, NULL, e2->length);
+  Obj* array_length_ptr = eval_exp(genv, env, e2->length);
   if (obj_type(array_length_ptr) != INT_OBJ) {
     printf("call array() function: array length is not an integer.\n");
     exit(-1);
   }
-  Obj* init_ptr = eval_exp(NULL, NULL, e2->init);
+  Obj* init_ptr = eval_exp(genv, env, e2->init);
   return (Obj*) make_array_obj((IntObj*)array_length_ptr, init_ptr);
 }
 
 Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
   char replace_char[] = "~";
   PrintfExp* e2 = (PrintfExp*)e;
-  // replace all ~ in formats into the corresponding arguments
+  // replace all ~ in format string into the corresponding arguments
   char *new_str = copy_string(e2->format);
   for (int i = 0; i < e2->nexps; i++) {
     char *old_str = new_str;
-    Obj *argObj = eval_exp(NULL, NULL, e2->exps[i]);
+    Obj *argObj = eval_exp(genv, env, e2->exps[i]);
     char *arg_str = toString(argObj);
     new_str = str_replace(old_str, replace_char, arg_str);
     if (arg_str != NULL) free(arg_str);
@@ -385,10 +377,48 @@ Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
   return (Obj*)make_null_obj();
 }
 
-void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s){
-
-}
-Obj* eval_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s){
+void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
 
 }
 
+void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+  ScopeVar* s2 = (ScopeVar*)s;
+  VarEntry* var_entry = (VarEntry*)get_entry(env, s2->name);
+  if (var_entry != NULL) {
+    printf("Variable %s already defined.", s2->name);
+    exit(-1);
+  }
+  Obj* obj_ptr = eval_exp(genv, env, s2->exp);
+  var_entry = make_var_entry(obj_ptr);
+  add_entry(env, s2->name, (Entry*)var_entry);
+}
+
+Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+  ObjectExp* e2 = (ObjectExp*)e;
+    EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
+    for (int i = 0; i < e2->nslots; i++) {
+      exec_stmt(genv, nenv, e2->slots[i]);
+    }
+    return (Obj*)env;
+}
+
+Obj* eval_ref_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+  RefExp* e2 = (RefExp*)e;
+  // try to locate the entry in the local scope
+  Entry* entry_ptr = get_entry(env, e2->name);
+  if (entry_ptr == NULL) {
+    // try to locate the entry in the global scope
+    entry_ptr = get_entry(genv, e2->name);
+    if (entry_ptr == NULL) {
+      printf("undefined reference: %s", e2->name);
+      exit(-1);
+    }
+  }
+  if (entry_type(entry_ptr) == VAR_ENTRY) {
+    return get_value((VarEntry*)entry_ptr);
+  } else {
+    printf("cannot refer to code entry");
+    exit(-1);
+    return NULL;
+  }
+}

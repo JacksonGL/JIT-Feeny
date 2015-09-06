@@ -29,3 +29,6 @@
 
 # output files
 output/*
+
+# the compiled binary
+./cfeeny
