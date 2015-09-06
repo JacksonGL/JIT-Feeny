@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Compile
-gcc -std=c99 -O3 src/cfeeny.c src/utils.c src/ast.c src/interpreter.c -o cfeeny -Wno-int-to-void-pointer-cast
+gcc -std=c99 -O3 src/cfeeny.c src/utils.c src/ast.c src/objects.c src/interpreter.c -o cfeeny -Wno-int-to-void-pointer-cast
 
 # Clean output folder
 rm output/*.out
