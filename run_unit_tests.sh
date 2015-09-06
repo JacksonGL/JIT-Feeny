@@ -14,7 +14,7 @@ function test {
       ./parser_osx -i tests/unit_test/$1.feeny -oast output/$1.ast    
   elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
       # Do something under Linux platform
-      ./parser_osx -i tests/unit_test/$1.feeny -oast output/$1.ast   
+      ./parser -i tests/unit_test/$1.feeny -oast output/$1.ast   
   elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
       # Do something under Windows NT platform
       echo "current build does not support windows"
