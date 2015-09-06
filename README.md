@@ -31,3 +31,11 @@ Finally, call the cfeeny executable with the binary AST file as its argument to 
 ```
 ./cfeeny output/cplx.ast
 ```
+
+Run Unit Tests
+---------------
+
+To run unit tests:
+```
+./run_unit_tests.sh
+```

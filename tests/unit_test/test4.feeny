@@ -1,0 +1,1 @@
+printf("test result: ~, ~", 100, 123123);

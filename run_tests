@@ -7,7 +7,7 @@ rm output/*.ast
 
 # Run output
 function test {
-   ./parser -i tests/$1.feeny -oast output/$1.ast
+   ./parser_osx -i tests/$1.feeny -oast output/$1.ast
    ./cfeeny output/$1.ast > output/$1.out
 }
 test hello
