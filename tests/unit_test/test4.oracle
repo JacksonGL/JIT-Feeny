@@ -2,5 +2,5 @@ test result: 100, 123123
 11 > 3
 101 > 100
 final: 11
-final: NULL
+final: Null
 final: 55

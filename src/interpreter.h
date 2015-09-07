@@ -18,6 +18,7 @@ Obj* eval_slot_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_null_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_array_exp (EnvObj* genv, EnvObj* env, Exp* e);
+Obj* eval_call_exp (EnvObj* genv, EnvObj* env, CallExp* e);
 Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, Exp *e);
 
 // statement evaluation operations
