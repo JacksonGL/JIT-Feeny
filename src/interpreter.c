@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include "utils.h"
 #include "ast.h"
 #include "interpreter.h"
@@ -18,24 +19,24 @@ void interpret (ScopeStmt* s) {
 Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   switch (s->tag) {
   case VAR_STMT: {
-    exec_var_stmt(genv, genv, s);
+    exec_var_stmt(genv, env, s);
     return (Obj*)make_null_obj();
     break;
   }
   case FN_STMT: {
-    exec_fn_stmt(genv, genv, s);
+    exec_fn_stmt(genv, env, s);
     return (Obj*)make_null_obj();
     break;
   }
   case SEQ_STMT: {
     ScopeSeq* s2 = (ScopeSeq*)s;
-    eval_stmt(genv, genv, s2->a);
-    return eval_stmt(genv, genv, s2->b);
+    eval_stmt(genv, env, s2->a);
+    return eval_stmt(genv, env, s2->b);
     break;
   }
   case EXP_STMT: {
     ScopeExp* s2 = (ScopeExp*)s;
-    return eval_exp(genv, genv, s2->exp);
+    return eval_exp(genv, env, s2->exp);
     break;
   }
   default:
@@ -43,36 +44,6 @@ Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
     exit(-1);
   }
 }
-
-/*
-Obj* interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
-  switch (s->tag) {
-  case VAR_STMT: {
-    // TBD
-    SlotVar* s2 = (SlotVar*)s;
-    printf("var %s = ", s2->name);
-    eval_exp(genv, env, s2->exp);
-    break;
-  }
-  case FN_STMT: {
-    // TBD
-    SlotMethod* s2 = (SlotMethod*)s;
-    printf("method %s (", s2->name);
-    for (int i = 0; i < s2->nargs; i++) {
-      if (i > 0) printf(", ");
-      printf("%s", s2->args[i]);
-    }
-    printf(") : (");
-    return interpret_scopestmt(genv, env, s2->body);
-    printf(")");
-    break;
-  }
-  default:
-    printf("Unrecognized slot statement with tag %d\n", s->tag);
-    exit(-1);
-  }
-}
-*/
 
 Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   switch (e->tag) {
@@ -107,15 +78,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     break;
   }
   case CALL_EXP: {
-    // TBD
-    CallExp* e2 = (CallExp*)e;
-    printf("%s(", e2->name);
-    for (int i = 0; i < e2->nargs; i++) {
-      if (i > 0) printf(", ");
-      print_exp(e2->args[i]);
-    }
-    printf(")");
-    break;
+    return eval_call_exp(genv, env, (CallExp*)e);
   }
   case SET_EXP: {
     return eval_set_exp(genv, env, e);
@@ -208,6 +171,22 @@ Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   }
   // TODO: free the branch environment object
   return result;
+}
+
+Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e){
+	Entry* t = get_entry(genv, e->name);
+	assert(entry_type(t) == CODE_ENTRY);
+	ScopeFn* f = get_scope_fn((CodeEntry*)t);
+	EnvObj * fnEnv = make_env_obj((Obj*)env);
+	assert(fnEnv != env);
+	for(int i = 0; i < e->nargs; ++i){
+		Obj* r = eval_exp(genv, env, e->args[i]);
+		add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
+		assert(get_entry(fnEnv, f->args[i]) != NULL);
+	}
+	Obj* result = eval_stmt(genv, fnEnv, f->body);
+	//TODO: free fnEnv
+	return result;
 }
 
 Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
@@ -385,20 +364,21 @@ Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
 }
 
 void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
-
+	printf("Why us be called?\n");
 }
 
 void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeFn* s2 = (ScopeFn*)s;
 
+  // FUNCTIONS CAN BE DEFINED AS METHODS
   // function can only be defined in the global environment
-  CodeEntry* code_entry = (CodeEntry*)get_entry(genv, s2->name);
+  /*CodeEntry* code_entry = (CodeEntry*)get_entry(genv, s2->name);
   if (code_entry != NULL) {
     printf("Entry %s has been defined.", s2->name);
     exit(-1);
-  }
+  }*/
 
-  code_entry = make_code_entry(s2);
+  CodeEntry* code_entry = make_code_entry(s2);
   add_entry(genv, s2->name, (Entry*)code_entry);
 }
 
@@ -418,7 +398,7 @@ Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   ObjectExp* e2 = (ObjectExp*)e;
   EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
   for (int i = 0; i < e2->nslots; i++) {
-    exec_stmt(genv, nenv, e2->slots[i]);
+    eval_stmt(genv, nenv, (ScopeStmt*) e2->slots[i]);
   }
   return (Obj*)nenv;
 }
@@ -440,6 +420,5 @@ Obj* eval_ref_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   } else {
     printf("cannot refer to code entry");
     exit(-1);
-    return NULL;
   }
 }
