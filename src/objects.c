@@ -158,27 +158,27 @@ EnvObj* get_global_env_obj () {
 
 void print_tabs(int t){
 	for(int i = 0; i < t; ++i){
-		fprintf(stderr, "\t");
+		debugf("\t");
 	}
 }
 
 void _print_env(EnvObj* e, int tabs){
 	print_tabs(tabs);
 	if( e != get_global_env_obj()){
-		fprintf(stderr, "Env %p\n", e);
+		debugf("Env %p\n", e);
 	} else {
-		fprintf(stderr, "GlobalEnv %p\n", e);
+		debugf("GlobalEnv %p\n", e);
 	}
 	for(int i = 0; i < e->names->size; ++i){
 		print_tabs(tabs);
-		fprintf(stderr, "%s : %s\n",
+		debugf("%s : %s\n",
 				vector_get(e->names, i),
 				entry_type((Entry*)vector_get(e->entries, i)) == VAR_ENTRY ? "var" : "code");
 	}
 
 	if(obj_type(e->parent) == NULL_OBJ){
 		print_tabs(tabs+1);
-		fprintf(stderr, "Null parent\n");
+		debugf("Null parent\n");
 	} else {
 		_print_env((EnvObj*)e->parent, tabs+1);
 	}
@@ -186,6 +186,13 @@ void _print_env(EnvObj* e, int tabs){
 
 void print_env(EnvObj* e){
 	_print_env(e, 0);
+}
+
+void debugf(const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
 }
 
 //---------------------------------------

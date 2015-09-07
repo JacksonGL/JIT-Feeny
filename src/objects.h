@@ -1,6 +1,8 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdarg.h>
+#include <stdio.h>
 #include "ast.h"
 #include "utils.h"
 typedef enum { NULL_OBJ, INT_OBJ, ARRAY_OBJ, ENV_OBJ} ObjTag;
@@ -96,5 +98,7 @@ char* toString(Obj *obj_ptr);
 char *copy_string (const char *string);
 char *str_replace(char *orig, char *rep, char *with);
 char *str_replace_all(char *orig, char *rep, char *with);
+
+void debugf(const char *fmt, ...);
 
 #endif

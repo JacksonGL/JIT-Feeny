@@ -3,6 +3,7 @@ gcc -g -std=c99 -O3 src/cfeeny.c src/utils.c src/ast.c src/objects.c src/$1 -o c
 
 # Clean output folder
 mkdir -p output/reference
+mkdir fail
 rm output/*.out
 rm output/reference/*.out
 rm output/*.ast
@@ -43,8 +44,18 @@ function test {
 	else
 		./cfeeny output/"$OUTPUT".ast > output/"$OUTPUT".out
 	fi
-	diff output/"$OUTPUT".out output/reference/"$OUTPUT".out || exit 1
+	diff output/"$OUTPUT".out output/reference/"$OUTPUT".out
+	if [ "$?" != "0" ]
+	then
+		cp "$INPUT" fail/
+		exit 1
+	fi
 }
+
+for a in `find fail/ -maxdepth 1 -type f -name "*.feeny" -exec wc -l {} \; | sort -n | awk '{ print $2 }'`
+do
+	test "$a"
+done
 
 for a in `find tests/unit_test/ -maxdepth 1 -type f -name "*.feeny" -exec wc -l {} \; | sort -n | awk '{ print $2 }'`
 do
