@@ -20,7 +20,6 @@ typedef struct {
 
 typedef struct {
 	ObjTag type;
-	ObjTag subtype;
 	Vector* v;
 } ArrayObj;
 

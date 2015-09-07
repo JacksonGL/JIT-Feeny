@@ -13,6 +13,7 @@ NullObj* make_null_obj() {
 }
 
 IntObj* make_int_obj(int value) {
+	//cache for memory usage - could make the cache larger
 	static IntObj zero = {INT_OBJ, 0}, one = {INT_OBJ, 1};
 	if (value == 0) { return &zero; }
 	if (value == 1) { return &one; }
@@ -63,7 +64,6 @@ Obj* ge(IntObj* x, IntObj* y) {
 ArrayObj* make_array_obj(IntObj* length, Obj* init) {
 	ArrayObj* t = malloc(sizeof(ArrayObj));
 	t->type = ARRAY_OBJ;
-	t->subtype = obj_type(init);
 	t->v = make_vector();
 	for (int i = 0; i < length->value; ++i) {
 		vector_add(t->v, init);
@@ -78,10 +78,6 @@ IntObj* array_length(ArrayObj* a) {
 NullObj* array_set (ArrayObj* a, IntObj* i, Obj* v) {
 	if (i->value >= a->v->size || i->value < 0) {
 		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
-		exit(-1);
-	}
-	if (v->type != NULL_OBJ && v->type != (a->subtype)) {
-		printf("array set error: element type does not equal to array type");
 		exit(-1);
 	}
 
@@ -152,8 +148,8 @@ ScopeFn* get_scope_fn(CodeEntry* t) { // for consistency
 	return t->fn;
 }
 
-static EnvObj* global_env = NULL;
 EnvObj* get_global_env_obj () {
+	static EnvObj* global_env = NULL;
 	if (global_env == NULL) {
 		global_env = make_env_obj((Obj*)make_null_obj());
 	}
