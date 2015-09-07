@@ -9,15 +9,16 @@ rm output/reference/*.out
 rm output/*.ast
 
 function all_but_last () {
+    LAST2='&*^&^%*^&%*&'
 	while read A
 	do
-		if [ ! -z "$LAST" ]
+		if [ "$LAST2" != '&*^&^%*^&%*&' ]
 		then
-			echo $LAST
+			echo $LAST2
 		fi
-		LAST="$A"
+		LAST2="$A"
 	done
-	unset LAST
+	unset LAST2
 }
 
 # Run output
@@ -29,11 +30,11 @@ function test {
 	if [ "$(uname)" == "Darwin" ]; then
     	# Do something under Mac OS X platform
     	./parser_osx -i "$INPUT" -oast output/"$OUTPUT".ast
-		./osx_feeny -e "$INPUT" | (read A ; cat /dev/stdin ) | all_but_last > output/reference/"$OUTPUT".out
+		./osx_feeny -e "$INPUT" | tail -n +2 | sed -e '$ d'  > output/reference/"$OUTPUT".out
 	elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     	# Do something under Linux platform
     	./parser -i "$INPUT" -oast output/"$OUTPUT".ast
-		./feeny -e "$INPUT" | ( read A ; cat /dev/stdin ) > output/reference/"$OUTPUT".out
+		./feeny -e "$INPUT" | tail -n +2 | head -n -1 > output/reference/"$OUTPUT".out
 	elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
     	# Do something under Windows NT platform
 		echo 'Huh?'
