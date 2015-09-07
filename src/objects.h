@@ -18,18 +18,10 @@ typedef struct {
 	int value;
 } IntObj;
 
-// array element can be an
-// integer, null or an array
 typedef struct {
 	ObjTag type;
-	Obj* elem;
-} ArrayElem;
-
-typedef struct {
-	ObjTag type;
-	int length;
-	int subtype;
-	ArrayElem *array_elem_list;
+	ObjTag subtype;
+	Vector* v;
 } ArrayObj;
 
 typedef struct {
@@ -79,7 +71,6 @@ IntObj* array_length(ArrayObj* a);
 Obj* array_get(ArrayObj* a, IntObj* i);
 NullObj* array_set(ArrayObj* a, IntObj* i, Obj* v);
 ArrayObj* make_array_obj(IntObj* length, Obj* init);
-void create_array_elem (Obj* obj, ArrayElem *ptr_elem);
 
 // environment object operations
 EnvObj* get_global_env_obj ();

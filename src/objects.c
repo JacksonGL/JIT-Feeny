@@ -30,22 +30,6 @@ IntObj* copy_int_obj (IntObj *intObj) {
 	return ptr_obj;
 }
 
-void create_array_elem (Obj* obj, ArrayElem *ptr_elem) {
-	ptr_elem->type = obj->type;
-	switch (obj->type) {
-	case INT_OBJ: {
-		ptr_elem->elem = (Obj*)copy_int_obj((IntObj*)obj);
-		break;
-	}
-	case ENV_OBJ:
-	case NULL_OBJ:
-	case ARRAY_OBJ: {
-		ptr_elem->elem = obj;
-		break;
-	}
-	}
-}
-
 IntObj* int_obj_add (IntObj* x, IntObj* y) {
 	return make_int_obj(x->value + y->value);
 }
@@ -83,23 +67,9 @@ Obj* ge(IntObj* x, IntObj* y) {
 	       (Obj*)make_int_obj(0) : (Obj*)make_null_obj();
 }
 
-// all elements of an array in Feeny are integers
-ArrayObj* make_array_obj (IntObj* length, Obj* init) {
-	ArrayObj* ptr_array_obj = malloc(sizeof(ArrayObj));
-	ptr_array_obj->type = ARRAY_OBJ;
-	int len = ptr_array_obj->length = length->value;
-	ptr_array_obj->array_elem_list = malloc(len * sizeof(ArrayElem));
-	for (int i = 0; i < len; i++) {
-		ArrayElem *elem_ptr = (ptr_array_obj->array_elem_list) + i;
-		create_array_elem(init, elem_ptr);
-	}
-	return ptr_array_obj;
-}
-
-/*
 ArrayObj* make_array_obj(IntObj* length, Obj* init){
 	ArrayObj* t = malloc(sizeof(ArrayObj));
-	t->type = ARRAYOBJ;
+	t->type = ARRAY_OBJ;
 	t->subtype = obj_type(init);
 	t->v = make_vector();
 	for(int i = 0; i < length->value; ++i){
@@ -107,36 +77,31 @@ ArrayObj* make_array_obj(IntObj* length, Obj* init){
 	}
 	return t;
 }
-*/
 
 IntObj* array_length(ArrayObj* a) {
-	return make_int_obj(a->length);
+	return make_int_obj(a->v->size);
 }
 
 NullObj* array_set (ArrayObj* a, IntObj* i, Obj* v) {
-	if (i->value >= a->length || i->value < 0) {
-		printf("array index out of bound. array length: %d. index: %d", a->length, i->value);
+	if (i->value >= a->v->size || i->value < 0) {
+		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
 		exit(-1);
 	}
-	if (v->type != NULL_OBJ && v->type != (a->array_elem_list->type)) {
+	if (v->type != NULL_OBJ && v->type != (a->subtype)) {
 		printf("array set error: element type does not equal to array type");
 		exit(-1);
 	}
 
-	if (v->type == INT_OBJ) {
-		a->array_elem_list[i->value].elem = (Obj*)make_int_obj(((IntObj*)v)->value);
-	} else {
-		a->array_elem_list[i->value].elem = v;
-	}
+	vector_set(a->v, i->value, v);
 	return make_null_obj();
 }
 
 Obj* array_get (ArrayObj* a, IntObj* i) {
-	if (i->value >= a->length || i->value < 0) {
-		printf("array index out of bound. array length: %d. index: %d", a->length, i->value);
+	if (i->value >= a->v->size || i->value < 0) {
+		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
 		exit(-1);
 	}
-	return (Obj*)a->array_elem_list[i->value].elem;
+	return vector_get(a->v, i->value);
 }
 
 EnvObj* make_env_obj(Obj* parent) {
