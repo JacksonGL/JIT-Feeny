@@ -1,7 +1,7 @@
 
 
 Test Harness
--------------
+------------
 
 The provided bash script run_tests will compile, parse, and interpret the test programs in the test directory. To run it, type:
 ```
@@ -32,8 +32,8 @@ Finally, call the cfeeny executable with the binary AST file as its argument to 
 ./cfeeny output/cplx.ast
 ```
 
-Run Unit Tests
----------------
+Running Unit Tests
+------------------
 
 To run unit tests:
 ```

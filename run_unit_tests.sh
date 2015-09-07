@@ -22,8 +22,7 @@ function test {
   fi
 
   ./cfeeny output/$1.ast > output/$1.out
-  if [[ `cat output/$1.out` == `cat tests/unit_test/$1.oracle` ]] 
-    then
+  if diff output/$1.out tests/unit_test/$1.oracle >/dev/null ; then
     echo $1": pass"
   else
     echo $1": fail"

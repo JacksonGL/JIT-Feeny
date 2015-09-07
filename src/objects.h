@@ -22,7 +22,7 @@ typedef struct {
 // integer, null or an array
 typedef struct {
 	ObjTag type;
-	Obj *elem;
+	Obj* elem;
 } ArrayElem;
 
 typedef struct {
