@@ -64,9 +64,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   case SET_SLOT_EXP: {
     // TBD
     SetSlotExp* e2 = (SetSlotExp*)e;
-    eval_exp(genv, env, e2->exp);
-    printf(".%s = ", e2->name);
-    eval_exp(genv, env, e2->value);
+	 eval_set_slot_exp(genv, env, e2);
     break;
   }
   case CALL_SLOT_EXP: {
@@ -92,6 +90,22 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     exit(-1);
   }
   return NULL;
+}
+
+Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e) {
+  Obj* obj_ptr = eval_exp(genv, env, e->exp);
+  if (obj_type(obj_ptr) != ENV_OBJ) {
+    printf("Cannot get slot %s from non-env object.", e->name);
+    exit(-1);
+  }
+  Entry* entry = get_entry((EnvObj*)obj_ptr, e->name);
+  if (entry == NULL || entry_type(entry) != VAR_ENTRY) {
+    printf("Var slot %s does not exist in object.", e->name);
+    exit(-1);
+  }
+  Obj* val = eval_exp(genv, env, e->value);
+  set_value((VarEntry*)entry, val );
+	return val;
 }
 
 Obj* eval_slot_exp(EnvObj* genv, EnvObj* env, Exp* e) {
@@ -189,130 +203,87 @@ Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
   CallSlotExp* e2 = (CallSlotExp*)e;
   Obj *receiver_ptr = eval_exp(genv, env, e2->exp);
   char *method_name_ptr = e2->name;
+  assert(obj_type(receiver_ptr) != NULL_OBJ);
 
-  // TODO: make the error message more informative
-  // handle built in functions
-  if (strcmp(method_name_ptr, "add") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)int_obj_add((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "sub") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)int_obj_sub((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "mul") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)int_obj_mul((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "div") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)int_obj_div((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "mod") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)int_obj_mod((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "lt") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)lt((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "gt") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)gt((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "le") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)le((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "ge") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)ge((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "eq") == 0) {
-    if ((receiver_ptr->type == INT_OBJ) && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return (Obj*)eq((IntObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native function error\n");
-      exit(-1);
-    }
-  }
-
-  // array getter and setter
-  if (strcmp(method_name_ptr, "set") == 0) {
-    if ((receiver_ptr->type == ARRAY_OBJ) && (e2->nargs == 2)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ
-        && ((second_arg_obj_ptr = eval_exp(genv, env, e2->args[1])) != NULL)) {
-
-      return (Obj*)array_set((ArrayObj*)receiver_ptr,
-                             (IntObj*)first_arg_obj_ptr, second_arg_obj_ptr);
-    } else {
-      printf("native get function error\n");
-      exit(-1);
-    }
-  } else if (strcmp(method_name_ptr, "get") == 0) {
-    if (receiver_ptr->type == ARRAY_OBJ && (e2->nargs == 1)
-        && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
-        && first_arg_obj_ptr->type == INT_OBJ) {
-      return array_get((ArrayObj*)receiver_ptr, (IntObj*)first_arg_obj_ptr);
-    } else {
-      printf("native set function error\n");
-      exit(-1);
-    }
-  }
-  // TODO: handle getting array length
-  // TODO: handle other method calls
-  /*
-  for(int i=0; i<e2->nargs; i++) {}
-  */
-  return NULL;
+	// TODO: make the error message more informative
+	switch(obj_type(receiver_ptr)){
+		// handle built in functions
+		case INT_OBJ:{
+			Obj* arg;
+			if(e2->nargs != 1 ||
+					obj_type(arg = eval_exp(genv, env, e2->args[0])) != INT_OBJ){
+				printf("native int function error - %s\n",
+						e2->nargs != 1 ? "not enough arguments!":
+						"wrong argument type!"
+						);
+				exit(-1);
+			}
+			if(!strcmp(e2->name, "add")){
+				return (Obj*) int_obj_add((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "sub")){
+				return (Obj*) int_obj_sub((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "mul")){
+				return (Obj*) int_obj_mul((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "div")){
+				return (Obj*) int_obj_div((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "mod")){
+				return (Obj*) int_obj_mod((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "gt")){
+				return (Obj*) gt((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "ge")){
+				return (Obj*) ge((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "lt")){
+				return (Obj*) lt((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "le")){
+				return (Obj*) le((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else if (!strcmp(e2->name, "eq")){
+				return (Obj*) eq((IntObj*) receiver_ptr, (IntObj*)arg);
+			} else {
+				printf("unknown native int function\n");
+				exit(-1);
+			}
+		}
+		case ARRAY_OBJ:{
+			if(!strcmp(e2->name, "length") && e2->nargs == 0){
+				return (Obj*)array_length((ArrayObj*) receiver_ptr);
+			}
+			Obj* first_arg;
+			if(e2->nargs < 1 || obj_type(first_arg = eval_exp(genv, env, e2->args[0])) != INT_OBJ){
+				printf("native array function error - %s\n",
+						e2->nargs < 1? "not enough arguments!":
+						"incorrect argument type!");
+				exit(-1);
+			}
+			if(!strcmp(e2->name, "set") && e2->nargs == 2){
+				return (Obj*)array_set((ArrayObj*)receiver_ptr,
+						(IntObj*)first_arg, eval_exp(genv, env, e2->args[1]));
+			} else if (!strcmp(e2->name, "get") && e2->nargs == 1){
+				return (Obj*)array_get((ArrayObj*)receiver_ptr, (IntObj*)first_arg);
+			} else {
+				printf("unknown native array function\n");
+				exit(-1);
+			}
+		}
+		case ENV_OBJ: {
+			Entry* code = get_entry((EnvObj*)receiver_ptr, e2->name);
+			assert(code && entry_type(code) == CODE_ENTRY);
+			ScopeFn* f = get_scope_fn((CodeEntry*)code);
+			EnvObj * fnEnv = make_env_obj((Obj*)genv);
+			assert(fnEnv != env);
+			for (int i = 0; i < e2->nargs; ++i) {
+				Obj* r = eval_exp(genv, env, e2->args[i]);
+				add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
+				assert(get_entry(fnEnv, f->args[i]) != NULL);
+			}
+			add_entry(fnEnv, "this", (Entry*) make_var_entry(receiver_ptr));
+			Obj* result = eval_stmt(genv, fnEnv, f->body);
+			//TODO: free fnEnv
+			return result;
+		}
+		default:
+			// TODO: complain about null obj
+			assert(0);
+	}
 }
 
 Obj* eval_null_exp(EnvObj* genv, EnvObj* env, Exp *e) {
@@ -362,28 +333,14 @@ void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
 
 void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeFn* s2 = (ScopeFn*)s;
-
-  // FUNCTIONS CAN BE DEFINED AS METHODS
-  // function can only be defined in the global environment
-  /*CodeEntry* code_entry = (CodeEntry*)get_entry(genv, s2->name);
-  if (code_entry != NULL) {
-    printf("Entry %s has been defined.", s2->name);
-    exit(-1);
-  }*/
-
   CodeEntry* code_entry = make_code_entry(s2);
-  add_entry(genv, s2->name, (Entry*)code_entry);
+  add_entry(env, s2->name, (Entry*)code_entry);
 }
 
 void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeVar* s2 = (ScopeVar*)s;
-  VarEntry* var_entry = (VarEntry*)get_entry(env, s2->name);
-  if (var_entry != NULL) {
-    printf("Entry %s has been defined.", s2->name);
-    exit(-1);
-  }
   Obj* obj_ptr = eval_exp(genv, env, s2->exp);
-  var_entry = make_var_entry(obj_ptr);
+  VarEntry* var_entry = make_var_entry(obj_ptr);
   add_entry(env, s2->name, (Entry*)var_entry);
 }
 
@@ -391,7 +348,13 @@ Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   ObjectExp* e2 = (ObjectExp*)e;
   EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
   for (int i = 0; i < e2->nslots; i++) {
-    eval_stmt(genv, nenv, (ScopeStmt*) e2->slots[i]);
+	 switch(e2->slots[i]->tag){
+		 case VAR_STMT:
+			 eval_stmt(env, nenv, (ScopeStmt*)e2->slots[i]);
+			 break;
+		default:
+			eval_stmt(genv, nenv, (ScopeStmt*) e2->slots[i]);
+		}
   }
   return (Obj*)nenv;
 }
