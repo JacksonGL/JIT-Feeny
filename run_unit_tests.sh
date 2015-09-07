@@ -8,28 +8,16 @@ rm output/*.out
 rm output/*.ast
 rm output/reference/*.out
 
-function all_but_last () {
-  while read A
-  do
-    if [ ! -z "$LAST" ]
-    then
-      echo $LAST
-    fi
-    LAST="$A"
-  done
-  unset LAST
-}
-
 # Run output
 function test {
   if [ "$(uname)" == "Darwin" ]; then
       # Do something under Mac OS X platform    
       ./parser_osx -i tests/unit_test/$1.feeny -oast output/$1.ast
-      ./osx_feeny -e tests/unit_test/$1.feeny | (read A ; cat /dev/stdin ) | all_but_last > output/reference/$1.out
+      ./osx_feeny -e tests/unit_test/$1.feeny | tail -n +2 | sed -e '$ d'  > output/reference/$1.out
   elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
       # Do something under Linux platform
       ./parser -i tests/unit_test/$1.feeny -oast output/$1.ast
-      ./feeny -e tests/unit_test/$1.feeny > output/reference/$1.out   
+      ./feeny -e tests/unit_test/$1.feeny | tail -n +2 > output/reference/$1.out   
   elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
       # Do something under Windows NT platform
       echo "current build does not support windows"
