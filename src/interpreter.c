@@ -170,7 +170,8 @@ Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e) {
   Entry* t = get_entry(genv, e->name);
   assert(entry_type(t) == CODE_ENTRY);
   ScopeFn* f = get_scope_fn((CodeEntry*)t);
-  EnvObj * fnEnv = make_env_obj((Obj*)env);
+  // EnvObj * fnEnv = make_env_obj((Obj*)env);
+  EnvObj * fnEnv = make_env_obj((Obj*)make_null_obj());
   assert(fnEnv != env);
   for (int i = 0; i < e->nargs; ++i) {
     Obj* r = eval_exp(genv, env, e->args[i]);
