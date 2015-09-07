@@ -324,7 +324,6 @@ char* intToString(int i) {
 }
 
 char* arrayToString(ArrayObj *obj_ptr) {
-	// TODO: convert [0, 1, 2] into [0 1 2]
 	char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
 	int size_of_str = 1; //opening brace
 	for(int i = 0; i< obj_ptr->v->size; ++i){

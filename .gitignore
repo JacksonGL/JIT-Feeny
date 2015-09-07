@@ -29,6 +29,7 @@
 
 # output files
 output/*
+tests/*.oracle
 
 # the compiled binary
 cfeeny

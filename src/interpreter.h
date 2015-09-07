@@ -14,13 +14,13 @@ Obj* eval_obj_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_ref_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_int_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_set_exp (EnvObj* genv, EnvObj* env, Exp* e);
-Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e);
 Obj* eval_slot_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_null_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_array_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_call_exp (EnvObj* genv, EnvObj* env, CallExp* e);
 Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, Exp *e);
+Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e);
 
 // statement evaluation operations
 Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s);
