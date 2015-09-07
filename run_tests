@@ -1,37 +1,45 @@
 # Compile
-gcc -std=c99 -O3 src/cfeeny.c src/utils.c src/ast.c src/objects.c src/$1 -o cfeeny -Wno-int-to-void-pointer-cast
+gcc -g -std=c99 -O3 src/cfeeny.c src/utils.c src/ast.c src/objects.c src/$1 -o cfeeny -Wno-int-to-void-pointer-cast
 
 # Clean output folder
+mkdir -p output/reference
 rm output/*.out
+rm output/reference/*.out
 rm output/*.ast
 
 # Run output
 function test {
+	INPUT="$1"
+	OUTPUT="$(basename "$INPUT")"
+	echo "INPUT" "$INPUT"
+	echo "OUTPUT" "$OUTPUT"
 	if [ "$(uname)" == "Darwin" ]; then
-    	# Do something under Mac OS X platform    
-    	./parser_osx -i tests/$1.feeny -oast output/$1.ast    
+    	# Do something under Mac OS X platform
+    	./parser_osx -i "$INPUT" -oast output/"$OUTPUT".ast
+		./osx_feeny -e "$INPUT" | (read A ; cat /dev/stdin ) > output/reference/"$OUTPUT".out
 	elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     	# Do something under Linux platform
-    	./parser -i tests/$1.feeny -oast output/$1.ast   
+    	./parser -i "$INPUT" -oast output/"$OUTPUT".ast
+		./feeny -e "$INPUT" | ( read A ; cat /dev/stdin ) > output/reference/"$OUTPUT".out
 	elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
     	# Do something under Windows NT platform
+		echo 'Huh?'
 	fi
-   ./cfeeny output/$1.ast > output/$1.out
+	if which valgrind
+	then
+		(valgrind --log-file="valgrind.out" --error-exitcode=1 ./cfeeny output/"$OUTPUT".ast || exit 1 ) > output/"$OUTPUT".out
+	else
+		./cfeeny output/"$OUTPUT".ast > output/"$OUTPUT".out
+	fi
+	diff output/"$OUTPUT".out output/reference/"$OUTPUT".out || exit 1
 }
-test hello
-test hello2
-test hello3
-test hello4
-test hello5
-test hello6
-test hello7
-test hello8
-test hello9
-test cplx
-test bsearch
-test fibonacci
-test inheritance
-test lists
-test vector
-test sudoku
-test sudoku2
+
+for a in `find tests/unit_test/ -maxdepth 1 -type f -name "*.feeny" -exec wc -l {} \; | sort -n | awk '{ print $2 }'`
+do
+	test "$a"
+done
+
+for a in `find tests/ -maxdepth 1 -type f -name "*.feeny" -exec wc -l {} \; | sort -n | awk '{ print $2 }'`
+do
+	test "$a"
+done
