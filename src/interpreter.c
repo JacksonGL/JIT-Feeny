@@ -123,10 +123,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     break;
   }
   case SET_EXP: {
-    // TBD
-    SetExp* e2 = (SetExp*)e;
-    printf("%s = ", e2->name);
-    eval_exp(genv, env, e2->exp);
+    return eval_set_exp(genv, env, e);
     break;
   }
   case IF_EXP: {
@@ -134,13 +131,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     break;
   }
   case WHILE_EXP: {
-    // TBD
-    WhileExp* e2 = (WhileExp*)e;
-    printf("while ");
-    eval_exp(genv, env, e2->pred);
-    printf(" : (");
-    eval_stmt(genv, env, e2->body);
-    printf(")");
+    return eval_while_exp(genv, env, e);
     break;
   }
   case REF_EXP: {
@@ -154,8 +145,44 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   return NULL;
 }
 
+Obj* eval_set_exp (EnvObj* genv, EnvObj* env, Exp *e) {
+  SetExp* e2 = (SetExp*)e;
+  VarEntry* var_entry = (VarEntry*)get_entry(env, e2->name);
+  if (var_entry == NULL) {
+    var_entry = (VarEntry*)get_entry(genv, e2->name);
+    if (var_entry == NULL) {
+      printf("Entry %s is not defined.", e2->name);
+      exit(-1);
+    }
+  }
+
+  Obj* new_val_ptr = eval_exp(genv, env, e2->exp);
+  set_value(var_entry, new_val_ptr);
+  return new_val_ptr;
+}
+
+Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp *e) {
+  WhileExp* e2 = (WhileExp*)e;
+  Obj* cond_ptr = NULL;
+  Obj* result = NULL;
+  while (1) {
+    cond_ptr = eval_exp(genv, env, e2->pred);
+    if (obj_type(cond_ptr) == INT_OBJ && (((IntObj*)cond_ptr)->value) == 0) {
+      // create branch environment/scope
+      EnvObj* body_env = make_env_obj((Obj*)env);
+      result = eval_stmt(genv, body_env, e2->body);
+    } else if (obj_type(cond_ptr) == NULL_OBJ) {
+      break;
+    } else {
+      printf("Invalid conditional value");
+      exit(-1);
+    }
+  }
+  return result;
+}
+
 Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
-  IfExp* e2 = (IfExp*)e; 
+  IfExp* e2 = (IfExp*)e;
   Obj* result = NULL;
   // create branch environment/scope
   EnvObj* branch_env = make_env_obj((Obj*)env);

@@ -13,7 +13,9 @@ Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e);
 Obj* eval_obj_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_ref_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_int_exp (EnvObj* genv, EnvObj* env, Exp *e);
+Obj* eval_set_exp (EnvObj* genv, EnvObj* env, Exp *e);
 Obj* eval_null_exp (EnvObj* genv, EnvObj* env, Exp *e);
+Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp *e);
 Obj* eval_array_exp (EnvObj* genv, EnvObj* env, Exp* e);
 Obj* eval_callslot_exp (EnvObj* genv, EnvObj* env, Exp *e);
 
