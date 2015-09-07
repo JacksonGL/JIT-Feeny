@@ -114,7 +114,7 @@ Entry* get_entry(EnvObj* env, char* name) {
 		}
 	}
 	if (obj_type(env->parent) != NULL_OBJ) {
-		return get_entry((EnvObj*) env, name);
+		return get_entry((EnvObj*) env->parent, name);
 	}
 	return NULL;
 }
@@ -154,6 +154,38 @@ EnvObj* get_global_env_obj () {
 		global_env = make_env_obj((Obj*)make_null_obj());
 	}
 	return global_env;
+}
+
+void print_tabs(int t){
+	for(int i = 0; i < t; ++i){
+		fprintf(stderr, "\t");
+	}
+}
+
+void _print_env(EnvObj* e, int tabs){
+	print_tabs(tabs);
+	if( e != get_global_env_obj()){
+		fprintf(stderr, "Env %p\n", e);
+	} else {
+		fprintf(stderr, "GlobalEnv %p\n", e);
+	}
+	for(int i = 0; i < e->names->size; ++i){
+		print_tabs(tabs);
+		fprintf(stderr, "%s : %s\n",
+				vector_get(e->names, i),
+				entry_type((Entry*)vector_get(e->entries, i)) == VAR_ENTRY ? "var" : "code");
+	}
+
+	if(obj_type(e->parent) == NULL_OBJ){
+		print_tabs(tabs+1);
+		fprintf(stderr, "Null parent\n");
+	} else {
+		_print_env((EnvObj*)e->parent, tabs+1);
+	}
+}
+
+void print_env(EnvObj* e){
+	_print_env(e, 0);
 }
 
 //---------------------------------------
@@ -284,10 +316,28 @@ char* intToString(int i) {
 	return b;
 }
 
-char* arrayToString(Obj *obj_ptr) {
+char* arrayToString(ArrayObj *obj_ptr) {
 	// TODO: convert [0, 1, 2] into [0 1 2]
-	char *result = malloc(8 * sizeof(char));
-	strcpy(result, "[ARRAY]");
+	char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
+	int size_of_str = 1; //opening brace
+	for(int i = 0; i< obj_ptr->v->size; ++i){
+		strs[i] = toString(vector_get(obj_ptr->v, i));
+		size_of_str += strlen(strs[i]);
+		if(i){
+			size_of_str += 1; //space
+		}
+	}
+	size_of_str += 1; // closing brace
+	size_of_str += 1; // null at end of string
+
+	char *result = malloc(size_of_str * sizeof(char));
+
+	char* t = result;
+	t = strcat(t, "[");
+	for(int i = 0; i < obj_ptr->v->size; ++i){
+		t = strcat(t, strs[i]);
+	}
+	t = strcat(t, "]");
 	return result;
 }
 
@@ -304,11 +354,11 @@ char* toString(Obj *obj_ptr) {
 	}
 	case NULL_OBJ: {
 		char *result = malloc(5 * sizeof(char));
-		strcpy(result, "NULL");
+		strcpy(result, "Null");
 		return result;
 	}
 	case ARRAY_OBJ: {
-		return arrayToString(obj_ptr);
+		return arrayToString((ArrayObj*)obj_ptr);
 	}
 	}
 	return NULL;

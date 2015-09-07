@@ -88,6 +88,8 @@ VarEntry* make_var_entry(Obj* value);
 ScopeFn* get_scope_fn(CodeEntry* t); // for consistency
 CodeEntry* make_code_entry(ScopeFn* fn);
 
+void print_env(EnvObj* e);
+
 // util functions
 char* intToString(int i);
 char* toString(Obj *obj_ptr);
