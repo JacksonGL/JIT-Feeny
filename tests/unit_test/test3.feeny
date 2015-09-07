@@ -12,4 +12,4 @@ printf("arr1[9]: ~\n", arr1[9])
 arr1[5] = 4
 printf("arr1[0]: ~\n", arr1[0])
 printf("arr1[5]: ~\n", arr1[5])
-printf("arr1[9]: ~", arr1[9])
+printf("arr1[9]: ~\n", arr1[9])

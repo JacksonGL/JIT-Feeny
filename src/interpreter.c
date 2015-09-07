@@ -21,23 +21,19 @@ Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   case VAR_STMT: {
     exec_var_stmt(genv, env, s);
     return (Obj*)make_null_obj();
-    break;
   }
   case FN_STMT: {
     exec_fn_stmt(genv, env, s);
     return (Obj*)make_null_obj();
-    break;
   }
   case SEQ_STMT: {
     ScopeSeq* s2 = (ScopeSeq*)s;
     eval_stmt(genv, env, s2->a);
     return eval_stmt(genv, env, s2->b);
-    break;
   }
   case EXP_STMT: {
     ScopeExp* s2 = (ScopeExp*)s;
     return eval_exp(genv, env, s2->exp);
-    break;
   }
   default:
     printf("Unrecognized scope statement with tag %d\n", s->tag);
@@ -75,26 +71,21 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   }
   case CALL_SLOT_EXP: {
     return eval_call_slot_exp(genv, env, e);
-    break;
   }
   case CALL_EXP: {
     return eval_call_exp(genv, env, (CallExp*)e);
   }
   case SET_EXP: {
     return eval_set_exp(genv, env, e);
-    break;
   }
   case IF_EXP: {
     return eval_if_exp(genv, env, e);
-    break;
   }
   case WHILE_EXP: {
     return eval_while_exp(genv, env, e);
-    break;
   }
   case REF_EXP: {
     return eval_ref_exp(genv, env, e);
-    break;
   }
   default:
     printf("Unrecognized Expression with tag %d\n", e->tag);
@@ -140,15 +131,16 @@ Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   Obj* result = (Obj*)make_null_obj();
   while (1) {
     cond_ptr = eval_exp(genv, env, e2->pred);
+    if (cond_ptr == NULL) {
+      printf("Invalid conditional value");
+      exit(-1);
+    }
     if (obj_type(cond_ptr) != NULL_OBJ) {
       // create branch environment/scope
       EnvObj* body_env = make_env_obj((Obj*)env);
       result = eval_stmt(genv, body_env, e2->body);
-    } else if (obj_type(cond_ptr) == NULL_OBJ) {
-      break;
     } else {
-      printf("Invalid conditional value");
-      exit(-1);
+      break;
     }
   }
   return result;
@@ -161,32 +153,33 @@ Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   EnvObj* branch_env = make_env_obj((Obj*)env);
 
   Obj* cond_ptr = eval_exp(genv, env, e2->pred);
-  if (obj_type(cond_ptr) == INT_OBJ && (((IntObj*)cond_ptr)->value) == 0) {
-    result = eval_stmt(genv, branch_env, e2->conseq);
-  } else if (obj_type(cond_ptr) == NULL_OBJ) {
-    result = eval_stmt(genv, branch_env, e2->alt);
-  } else {
+  if (cond_ptr == NULL) {
     printf("Invalid conditional value");
     exit(-1);
+  }
+  if (obj_type(cond_ptr) != NULL_OBJ) {
+    result = eval_stmt(genv, branch_env, e2->conseq);
+  } else {
+    result = eval_stmt(genv, branch_env, e2->alt);
   }
   // TODO: free the branch environment object
   return result;
 }
 
-Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e){
-	Entry* t = get_entry(genv, e->name);
-	assert(entry_type(t) == CODE_ENTRY);
-	ScopeFn* f = get_scope_fn((CodeEntry*)t);
-	EnvObj * fnEnv = make_env_obj((Obj*)env);
-	assert(fnEnv != env);
-	for(int i = 0; i < e->nargs; ++i){
-		Obj* r = eval_exp(genv, env, e->args[i]);
-		add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
-		assert(get_entry(fnEnv, f->args[i]) != NULL);
-	}
-	Obj* result = eval_stmt(genv, fnEnv, f->body);
-	//TODO: free fnEnv
-	return result;
+Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e) {
+  Entry* t = get_entry(genv, e->name);
+  assert(entry_type(t) == CODE_ENTRY);
+  ScopeFn* f = get_scope_fn((CodeEntry*)t);
+  EnvObj * fnEnv = make_env_obj((Obj*)env);
+  assert(fnEnv != env);
+  for (int i = 0; i < e->nargs; ++i) {
+    Obj* r = eval_exp(genv, env, e->args[i]);
+    add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
+    assert(get_entry(fnEnv, f->args[i]) != NULL);
+  }
+  Obj* result = eval_stmt(genv, fnEnv, f->body);
+  //TODO: free fnEnv
+  return result;
 }
 
 Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
@@ -364,7 +357,7 @@ Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
 }
 
 void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
-	printf("Why us be called?\n");
+  printf("Why us be called?\n");
 }
 
 void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
