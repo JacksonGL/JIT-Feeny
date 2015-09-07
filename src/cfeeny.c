@@ -7,7 +7,7 @@
 
 int main (int argc, char** argvs) {
   // Check number of arguments
-  if(argc != 2){
+  if (argc != 2) {
     printf("Expected 1 argument to commandline.\n");
     exit(-1);
   }

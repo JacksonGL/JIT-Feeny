@@ -12,34 +12,31 @@
 //----------------------------------------
 
 void interpret (ScopeStmt* s) {
-  EnvObj* global_env = get_global_env_obj();
+  EnvObj* genv = get_global_env_obj();
+  Obj* result = eval_stmt(genv, genv, s);
+}
+
+Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   switch (s->tag) {
   case VAR_STMT: {
-    exec_var_stmt(global_env, global_env, s);
+    exec_var_stmt(genv, genv, s);
+    return (Obj*)make_null_obj();
     break;
   }
   case FN_STMT: {
-    // TBD
-    ScopeFn* s2 = (ScopeFn*)s;
-    printf("defn %s (", s2->name);
-    for (int i = 0; i < s2->nargs; i++) {
-      if (i > 0) printf(", ");
-      printf("%s", s2->args[i]);
-    }
-    printf(") : (");
-    interpret_scopestmt(global_env, global_env, s2->body);
-    printf(")");
+    exec_fn_stmt(genv, genv, s);
+    return (Obj*)make_null_obj();
     break;
   }
   case SEQ_STMT: {
     ScopeSeq* s2 = (ScopeSeq*)s;
-    interpret_scopestmt(global_env, global_env, s2->a);
-    interpret_scopestmt(global_env, global_env, s2->b);
+    eval_stmt(genv, genv, s2->a);
+    return eval_stmt(genv, genv, s2->b);
     break;
   }
   case EXP_STMT: {
     ScopeExp* s2 = (ScopeExp*)s;
-    eval_exp(global_env, global_env, s2->exp);
+    return eval_exp(genv, genv, s2->exp);
     break;
   }
   default:
@@ -48,43 +45,8 @@ void interpret (ScopeStmt* s) {
   }
 }
 
-void interpret_scopestmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
-  switch (s->tag) {
-  case VAR_STMT: {
-    exec_var_stmt(genv, env, s);
-    break;
-  }
-  case FN_STMT: {
-    // TBD
-    ScopeFn* s2 = (ScopeFn*)s;
-    printf("defn %s (", s2->name);
-    for (int i = 0; i < s2->nargs; i++) {
-      if (i > 0) printf(", ");
-      printf("%s", s2->args[i]);
-    }
-    printf(") : (");
-    interpret_scopestmt(genv, env, s2->body);
-    printf(")");
-    break;
-  }
-  case SEQ_STMT: {
-    ScopeSeq* s2 = (ScopeSeq*)s;
-    interpret_scopestmt(genv, env, s2->a);
-    interpret_scopestmt(genv, env, s2->b);
-    break;
-  }
-  case EXP_STMT: {
-    ScopeExp* s2 = (ScopeExp*)s;
-    eval_exp(genv, env, s2->exp);
-    break;
-  }
-  default:
-    printf("Unrecognized scope statement with tag %d\n", s->tag);
-    exit(-1);
-  }
-}
-
-void interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
+/*
+Obj* interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
   switch (s->tag) {
   case VAR_STMT: {
     // TBD
@@ -102,7 +64,7 @@ void interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
       printf("%s", s2->args[i]);
     }
     printf(") : (");
-    interpret_scopestmt(genv, env, s2->body);
+    return interpret_scopestmt(genv, env, s2->body);
     printf(")");
     break;
   }
@@ -111,8 +73,7 @@ void interpret_slotstmt (EnvObj* genv, EnvObj* env, SlotStmt* s) {
     exit(-1);
   }
 }
-
-
+*/
 
 Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   switch (e->tag) {
@@ -169,15 +130,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     break;
   }
   case IF_EXP: {
-    // TBD
-    IfExp* e2 = (IfExp*)e;
-    printf("if ");
-    eval_exp(genv, env, e2->pred);
-    printf(" : (");
-    interpret_scopestmt(genv, env, e2->conseq);
-    printf(") else : (");
-    interpret_scopestmt(genv, env, e2->alt);
-    printf(")");
+    return eval_if_exp(genv, env, e);
     break;
   }
   case WHILE_EXP: {
@@ -186,7 +139,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     printf("while ");
     eval_exp(genv, env, e2->pred);
     printf(" : (");
-    interpret_scopestmt(genv, env, e2->body);
+    eval_stmt(genv, env, e2->body);
     printf(")");
     break;
   }
@@ -198,10 +151,26 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     printf("Unrecognized Expression with tag %d\n", e->tag);
     exit(-1);
   }
+  return NULL;
 }
 
-Obj* eval_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
-  return NULL;
+Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
+  IfExp* e2 = (IfExp*)e; 
+  Obj* result = NULL;
+  // create branch environment/scope
+  EnvObj* branch_env = make_env_obj((Obj*)env);
+
+  Obj* cond_ptr = eval_exp(genv, env, e2->pred);
+  if (obj_type(cond_ptr) == INT_OBJ && (((IntObj*)cond_ptr)->value) == 0) {
+    result = eval_stmt(genv, branch_env, e2->conseq);
+  } else if (obj_type(cond_ptr) == NULL_OBJ) {
+    result = eval_stmt(genv, branch_env, e2->alt);
+  } else {
+    printf("Invalid conditional value");
+    exit(-1);
+  }
+  // TODO: free the branch environment object
+  return result;
 }
 
 Obj* eval_callslot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
@@ -381,11 +350,26 @@ void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
 
 }
 
+void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+  ScopeFn* s2 = (ScopeFn*)s;
+
+  // function can only be defined in the global environment
+  CodeEntry* code_entry = (CodeEntry*)get_entry(genv, s2->name);
+  if (code_entry != NULL) {
+    printf("Entry %s has been defined.", s2->name);
+    exit(-1);
+  }
+
+  code_entry = make_code_entry(s2);
+  add_entry(genv, s2->name, (Entry*)code_entry);
+}
+
+
 void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeVar* s2 = (ScopeVar*)s;
   VarEntry* var_entry = (VarEntry*)get_entry(env, s2->name);
   if (var_entry != NULL) {
-    printf("Variable %s already defined.", s2->name);
+    printf("Entry %s has been defined.", s2->name);
     exit(-1);
   }
   Obj* obj_ptr = eval_exp(genv, env, s2->exp);
@@ -395,11 +379,11 @@ void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
 
 Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   ObjectExp* e2 = (ObjectExp*)e;
-    EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
-    for (int i = 0; i < e2->nslots; i++) {
-      exec_stmt(genv, nenv, e2->slots[i]);
-    }
-    return (Obj*)env;
+  EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
+  for (int i = 0; i < e2->nslots; i++) {
+    exec_stmt(genv, nenv, e2->slots[i]);
+  }
+  return (Obj*)env;
 }
 
 Obj* eval_ref_exp(EnvObj* genv, EnvObj* env, Exp* e) {

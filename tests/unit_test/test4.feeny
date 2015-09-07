@@ -1,1 +1,42 @@
-printf("test result: ~, ~", 100, 123123);
+printf("test result: ~, ~\n", 100, 123123);
+
+var a = 11
+var b = 3
+
+; expected output:
+; 11 > 3
+;
+if (a > b) :
+    printf("~ > ~\n", a, b)
+else :
+    printf("~ < ~\n", a, b)
+
+
+; expected output:
+; 101 > 100
+; final: 11
+;
+printf("final: ~\n",
+if (a > b) :
+    var c = 100
+    if (c > a) :
+        var d = 101
+        if (d > c) :
+            printf("~ > ~\n", d, c)
+            d
+        c
+    a
+else :
+    printf("~ < ~\n", a, b)
+    b
+)
+
+; expected output:
+; final: NULL
+printf("final: ~\n",
+if (a < b) : 1)
+
+; expected output:
+; final: NULL
+printf("final: ~\n",
+if (a > b) : 55)

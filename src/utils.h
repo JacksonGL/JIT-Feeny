@@ -9,10 +9,10 @@ void print_string (char* str);
 //===================== VECTORS ==============================
 //============================================================
 
-typedef struct {  
-  int size;
-  int capacity;
-  void** array;
+typedef struct {
+	int size;
+	int capacity;
+	void** array;
 } Vector;
 
 Vector* make_vector ();

@@ -18,7 +18,7 @@ typedef struct {
 	int value;
 } IntObj;
 
-// array element can be an 
+// array element can be an
 // integer, null or an array
 typedef struct {
 	ObjTag type;

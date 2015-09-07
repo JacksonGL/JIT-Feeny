@@ -1,1 +1,12 @@
-printf("~, ~", array(1, 100), 1);
+printf("~, ~\n", array(1, 100), 1);
+var arr = array(10, null)
+var arr2 = array(100, arr)
+var arr3 = array(10, 12)
+arr2[1] = arr3
+
+printf("~\n", arr2[0][0])  ; NULL
+printf("~\n", arr2[1][0])  ; 12
+
+arr2[1][1] = 8
+printf("~\n", arr2[0][1])  ; NULL
+printf("~\n", arr2[1][1])  ; 8
