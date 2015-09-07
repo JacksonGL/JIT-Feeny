@@ -6,7 +6,6 @@
 #include "ast.h"
 #include "interpreter.h"
 
-
 //----------------------------------------
 // implementation of interpreter functions
 //----------------------------------------
@@ -93,11 +92,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     return eval_obj_exp(genv, env, e);
   }
   case SLOT_EXP: {
-    // TBD
-    SlotExp* e2 = (SlotExp*)e;
-    eval_exp(genv, env, e2->exp);
-    printf(".%s", e2->name);
-    break;
+    return eval_slot_exp(genv, env, e);
   }
   case SET_SLOT_EXP: {
     // TBD
@@ -108,7 +103,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     break;
   }
   case CALL_SLOT_EXP: {
-    return eval_callslot_exp(genv, env, e);
+    return eval_call_slot_exp(genv, env, e);
     break;
   }
   case CALL_EXP: {
@@ -145,6 +140,21 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   return NULL;
 }
 
+Obj* eval_slot_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+  SlotExp* e2 = (SlotExp*)e;
+  Obj* obj_ptr = eval_exp(genv, env, e2->exp);
+  if (obj_type(obj_ptr) != ENV_OBJ) {
+    printf("Cannot get slot %s from non-env object.", e2->name);
+    exit(-1);
+  }
+  Entry* entry = get_entry((EnvObj*)obj_ptr, e2->name);
+  if (entry == NULL || entry_type(entry) != VAR_ENTRY) {
+    printf("Var slot %s does not exist in object.", e2->name);
+    exit(-1);
+  }
+  return get_value((VarEntry*)entry);
+}
+
 Obj* eval_set_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   SetExp* e2 = (SetExp*)e;
   VarEntry* var_entry = (VarEntry*)get_entry(env, e2->name);
@@ -164,10 +174,10 @@ Obj* eval_set_exp (EnvObj* genv, EnvObj* env, Exp *e) {
 Obj* eval_while_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   WhileExp* e2 = (WhileExp*)e;
   Obj* cond_ptr = NULL;
-  Obj* result = NULL;
+  Obj* result = (Obj*)make_null_obj();
   while (1) {
     cond_ptr = eval_exp(genv, env, e2->pred);
-    if (obj_type(cond_ptr) == INT_OBJ && (((IntObj*)cond_ptr)->value) == 0) {
+    if (obj_type(cond_ptr) != NULL_OBJ) {
       // create branch environment/scope
       EnvObj* body_env = make_env_obj((Obj*)env);
       result = eval_stmt(genv, body_env, e2->body);
@@ -200,7 +210,7 @@ Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   return result;
 }
 
-Obj* eval_callslot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
+Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
   Obj* first_arg_obj_ptr = NULL;
   Obj* second_arg_obj_ptr = NULL;
 
@@ -302,6 +312,7 @@ Obj* eval_callslot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
     }
   }
 
+  // array getter and setter
   if (strcmp(method_name_ptr, "set") == 0) {
     if ((receiver_ptr->type == ARRAY_OBJ) && (e2->nargs == 2)
         && ((first_arg_obj_ptr = eval_exp(genv, env, e2->args[0])) != NULL)
@@ -324,8 +335,8 @@ Obj* eval_callslot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
       exit(-1);
     }
   }
-
-  // TODO: handle method call
+  // TODO: handle getting array length
+  // TODO: handle other method calls
   /*
   for(int i=0; i<e2->nargs; i++) {}
   */
@@ -391,7 +402,6 @@ void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   add_entry(genv, s2->name, (Entry*)code_entry);
 }
 
-
 void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeVar* s2 = (ScopeVar*)s;
   VarEntry* var_entry = (VarEntry*)get_entry(env, s2->name);
@@ -410,7 +420,7 @@ Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   for (int i = 0; i < e2->nslots; i++) {
     exec_stmt(genv, nenv, e2->slots[i]);
   }
-  return (Obj*)env;
+  return (Obj*)nenv;
 }
 
 Obj* eval_ref_exp(EnvObj* genv, EnvObj* env, Exp* e) {

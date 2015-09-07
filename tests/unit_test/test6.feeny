@@ -1,1 +1,1 @@
-printf("~", null)
+printf("~\n", null)
