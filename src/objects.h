@@ -52,7 +52,6 @@ int obj_type(Obj* o);
 // integer object operations
 NullObj* make_null_obj();
 IntObj* make_int_obj (int value);
-IntObj* copy_int_obj (IntObj *intObj);
 IntObj* int_obj_add (IntObj* x, IntObj* y);
 IntObj* int_obj_sub (IntObj* x, IntObj* y);
 IntObj* int_obj_mul (IntObj* x, IntObj* y);

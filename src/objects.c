@@ -23,13 +23,6 @@ IntObj* make_int_obj(int value) {
 	return t;
 }
 
-IntObj* copy_int_obj (IntObj *intObj) {
-	IntObj* ptr_obj = malloc(sizeof(IntObj));
-	ptr_obj->type = INT_OBJ;
-	ptr_obj->value = intObj->value;
-	return ptr_obj;
-}
-
 IntObj* int_obj_add (IntObj* x, IntObj* y) {
 	return make_int_obj(x->value + y->value);
 }
@@ -67,12 +60,12 @@ Obj* ge(IntObj* x, IntObj* y) {
 	       (Obj*)make_int_obj(0) : (Obj*)make_null_obj();
 }
 
-ArrayObj* make_array_obj(IntObj* length, Obj* init){
+ArrayObj* make_array_obj(IntObj* length, Obj* init) {
 	ArrayObj* t = malloc(sizeof(ArrayObj));
 	t->type = ARRAY_OBJ;
 	t->subtype = obj_type(init);
 	t->v = make_vector();
-	for(int i = 0; i < length->value; ++i){
+	for (int i = 0; i < length->value; ++i) {
 		vector_add(t->v, init);
 	}
 	return t;
