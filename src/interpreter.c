@@ -187,6 +187,7 @@ Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e) {
   // feeny is a statically scoped language
   EnvObj * fnEnv = make_env_obj((Obj*)genv);
   assert(fnEnv != env);
+  assert(e->nargs == f->nargs);
   for (int i = 0; i < e->nargs; ++i) {
     Obj* r = eval_exp(genv, env, e->args[i]);
     add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
