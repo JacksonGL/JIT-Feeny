@@ -1,0 +1,8 @@
+
+; test function call
+defn fun1 (k) :
+    defn fun2(j):
+      k
+    fun1(0)
+
+fun1(0)
