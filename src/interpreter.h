@@ -24,9 +24,10 @@ Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e);
 
 // statement evaluation operations
 Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s);
-
 void exec_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s);
 void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s);
 void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s);
+
+void print_help ();
 
 #endif

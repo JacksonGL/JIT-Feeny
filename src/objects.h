@@ -1,10 +1,12 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <sys/timeb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include "ast.h"
 #include "utils.h"
+
 typedef enum { NULL_OBJ, INT_OBJ, ARRAY_OBJ, ENV_OBJ} ObjTag;
 
 typedef struct {
@@ -90,15 +92,36 @@ VarEntry* make_var_entry(Obj* value);
 ScopeFn* get_scope_fn(CodeEntry* t); // for consistency
 CodeEntry* make_code_entry(ScopeFn* fn);
 
-void print_env(EnvObj* e);
-
 // util functions
 char* intToString(int i);
+void print_env(EnvObj* e);
 char* toString(Obj *obj_ptr);
 char *copy_string (const char *string);
 char *str_replace(char *orig, char *rep, char *with);
 char *str_replace_all(char *orig, char *rep, char *with);
 
 void debugf(const char *fmt, ...);
+
+// statistics data structure
+typedef struct {
+	long total_time;               // total time in ms
+	long total_method_call;        // # of method calls
+	long total_int_method_call;    // # of method calls with integer receiver
+	long total_array_method_call;  // # of method calls with array receiver
+	long total_envobj_method_call; // # of method calls with env obj receiver
+	long total_time_lookup_entry;  // total time in ms spend looking
+	                               // up an entry in env obj
+} Stat;
+
+// collect statistics operations
+void init_stat ();
+int is_collect_stat ();
+void write_stat (char* filename);
+void set_collect_stat (int flag);
+void inc_total_time (long total_time);
+void inc_entry_lookup_time (long time);
+void inc_method_call (Obj* receiver_ptr);
+void start_time_counter (struct timeb *t);
+long end_time_counter (struct timeb *start, struct timeb *end);
 
 #endif

@@ -108,15 +108,28 @@ void add_entry(EnvObj* env, char* name, Entry* entry) {
 }
 
 Entry* get_entry(EnvObj* env, char* name) {
+	struct timeb start, end;
+	Entry* result = NULL;
+	// start collecting time
+	if (is_collect_stat())
+		start_time_counter(&start);
+
 	for (int i = 0; i < env->names->size; ++i) {
 		if (!strcmp(name, vector_get(env->names, i))) {
-			return vector_get(env->entries, i);
+			result = vector_get(env->entries, i);
+			break;
 		}
 	}
-	if (obj_type(env->parent) != NULL_OBJ) {
-		return get_entry((EnvObj*) env->parent, name);
+	if (result == NULL && obj_type(env->parent) != NULL_OBJ) {
+		result = get_entry((EnvObj*) env->parent, name);
 	}
-	return NULL;
+
+	// end collecting time
+	if (is_collect_stat()) {
+		long time = end_time_counter(&start, &end);
+		inc_entry_lookup_time(time);
+	}
+	return result;
 }
 
 int entry_type(Entry* e) {
@@ -156,35 +169,35 @@ EnvObj* get_global_env_obj () {
 	return global_env;
 }
 
-void print_tabs(int t){
-	for(int i = 0; i < t; ++i){
+void print_tabs(int t) {
+	for (int i = 0; i < t; ++i) {
 		debugf("\t");
 	}
 }
 
-void _print_env(EnvObj* e, int tabs){
+void _print_env(EnvObj* e, int tabs) {
 	print_tabs(tabs);
-	if( e != get_global_env_obj()){
+	if ( e != get_global_env_obj()) {
 		debugf("Env %p\n", e);
 	} else {
 		debugf("GlobalEnv %p\n", e);
 	}
-	for(int i = 0; i < e->names->size; ++i){
+	for (int i = 0; i < e->names->size; ++i) {
 		print_tabs(tabs);
 		debugf("%s : %s\n",
-				vector_get(e->names, i),
-				entry_type((Entry*)vector_get(e->entries, i)) == VAR_ENTRY ? "var" : "code");
+		       vector_get(e->names, i),
+		       entry_type((Entry*)vector_get(e->entries, i)) == VAR_ENTRY ? "var" : "code");
 	}
 
-	if(obj_type(e->parent) == NULL_OBJ){
-		print_tabs(tabs+1);
+	if (obj_type(e->parent) == NULL_OBJ) {
+		print_tabs(tabs + 1);
 		debugf("Null parent\n");
 	} else {
-		_print_env((EnvObj*)e->parent, tabs+1);
+		_print_env((EnvObj*)e->parent, tabs + 1);
 	}
 }
 
-void print_env(EnvObj* e){
+void print_env(EnvObj* e) {
 	_print_env(e, 0);
 }
 
@@ -193,6 +206,97 @@ void debugf(const char *fmt, ...) {
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
 	va_end(args);
+}
+
+//---------------------------------------
+// functions that collect statistics
+//---------------------------------------
+
+static int collectStat = 0;
+static Stat* stat = NULL;
+
+void set_collect_stat (int flag) {
+	collectStat = flag;
+	if (flag) {
+		init_stat();
+	}
+}
+
+int is_collect_stat () {
+	return collectStat != 0;
+}
+
+void init_stat () {
+	stat = malloc(sizeof(Stat));
+	stat->total_time = 0;
+	stat->total_method_call = 0;
+	stat->total_int_method_call = 0;
+	stat->total_array_method_call = 0;
+	stat->total_envobj_method_call = 0;
+	stat->total_time_lookup_entry = 0;
+}
+
+void start_time_counter (struct timeb *t) {
+	ftime(t);
+}
+
+long end_time_counter (struct timeb *start, struct timeb *end) {
+	ftime(end);
+	long diff = (long) (1000.0 * (end->time - start->time)
+	                    + (end->millitm - start->millitm));
+	return diff;
+}
+
+void inc_total_time (long total_time) {
+	if (collectStat == 0 || stat == NULL)
+		return;
+	stat->total_time += total_time;
+}
+
+void inc_entry_lookup_time (long time) {
+	if (collectStat == 0 || stat == NULL)
+		return;
+	stat->total_time_lookup_entry += time;
+}
+
+void inc_method_call (Obj* receiver_ptr) {
+	if (receiver_ptr == NULL
+	        || collectStat == 0
+	        || stat == NULL)
+		return;
+
+	stat->total_method_call++;
+	switch (receiver_ptr->type) {
+	case INT_OBJ:
+		stat->total_int_method_call++;
+		break;
+	case ARRAY_OBJ:
+		stat->total_array_method_call++;
+		break;
+	case ENV_OBJ:
+		stat->total_envobj_method_call++;
+		break;
+	default:
+		break;
+	}
+}
+
+void write_stat (char* filename) {
+	if (!is_collect_stat() || stat == NULL) return;
+	FILE *f = fopen(filename, "w");
+	if (f == NULL) {
+		printf("Error opening file!\n");
+		exit(1);
+	}
+
+	fprintf(f, "Total Time: %ld ms\n", stat->total_time);
+	fprintf(f, "Total Time Lookup Entry: %ld ms\n", stat->total_time_lookup_entry);
+	fprintf(f, "Total Method Call: %ld\n", stat->total_method_call);
+	fprintf(f, "Total Integer Method Call: %ld\n", stat->total_int_method_call);
+	fprintf(f, "Total Array Method Call: %ld\n", stat->total_array_method_call);
+	fprintf(f, "Total EnvObj Method Call: %ld\n", stat->total_envobj_method_call);
+
+	fclose(f);
 }
 
 //---------------------------------------
@@ -326,10 +430,10 @@ char* intToString(int i) {
 char* arrayToString(ArrayObj *obj_ptr) {
 	char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
 	int size_of_str = 1; //opening brace
-	for(int i = 0; i< obj_ptr->v->size; ++i){
+	for (int i = 0; i < obj_ptr->v->size; ++i) {
 		strs[i] = toString(vector_get(obj_ptr->v, i));
 		size_of_str += strlen(strs[i]);
-		if(i){
+		if (i) {
 			size_of_str += 1; //space
 		}
 	}
@@ -341,7 +445,7 @@ char* arrayToString(ArrayObj *obj_ptr) {
 
 	char* t = result;
 	t = strcat(t, "[");
-	for(int i = 0; i < obj_ptr->v->size; ++i){
+	for (int i = 0; i < obj_ptr->v->size; ++i) {
 		t = strcat(t, strs[i]);
 	}
 	t = strcat(t, "]");

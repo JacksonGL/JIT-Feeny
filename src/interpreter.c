@@ -206,6 +206,7 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   Obj *receiver_ptr = eval_exp(genv, env, e2->exp);
   char *method_name_ptr = e2->name;
   assert(obj_type(receiver_ptr) != NULL_OBJ);
+  inc_method_call(receiver_ptr);
 
   // TODO: make the error message more informative
   switch (obj_type(receiver_ptr)) {
@@ -379,4 +380,8 @@ Obj* eval_ref_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     printf("cannot refer to code entry");
     exit(-1);
   }
+}
+
+void print_help () {
+  printf("Command line:\n\tcfeeny filename [-s path]\n\n\t-s print statistics to the specified file\n");
 }
