@@ -92,7 +92,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   return NULL;
 }
 
-Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e) {
+Obj* eval_set_slot_exp (EnvObj* genv, EnvObj* env, SetSlotExp* e) {
   Obj* obj_ptr = eval_exp(genv, env, e->exp);
   if (obj_type(obj_ptr) != ENV_OBJ) {
     printf("Cannot get slot %s from non-env object.", e->name);
@@ -108,7 +108,7 @@ Obj* eval_set_slot_exp(EnvObj* genv, EnvObj* env, SetSlotExp* e) {
   return val;
 }
 
-Obj* eval_slot_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+Obj* eval_slot_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   SlotExp* e2 = (SlotExp*)e;
   Obj* obj_ptr = eval_exp(genv, env, e2->exp);
   if (obj_type(obj_ptr) != ENV_OBJ) {
@@ -180,7 +180,7 @@ Obj* eval_if_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   return result;
 }
 
-Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e) {
+Obj* eval_call_exp (EnvObj* genv, EnvObj* env, CallExp*e) {
   Entry* t = get_entry(genv, e->name);
   assert(entry_type(t) == CODE_ENTRY);
   ScopeFn* f = get_scope_fn((CodeEntry*)t);
@@ -197,7 +197,7 @@ Obj* eval_call_exp(EnvObj* genv, EnvObj* env, CallExp*e) {
   return result;
 }
 
-Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
+Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   Obj* first_arg_obj_ptr = NULL;
   Obj* second_arg_obj_ptr = NULL;
 
@@ -287,16 +287,16 @@ Obj* eval_call_slot_exp(EnvObj* genv, EnvObj* env, Exp *e) {
   }
 }
 
-Obj* eval_null_exp(EnvObj* genv, EnvObj* env, Exp *e) {
+Obj* eval_null_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   return (Obj*)make_null_obj();
 }
 
-Obj* eval_int_exp(EnvObj* genv, EnvObj* env, Exp *e) {
+Obj* eval_int_exp (EnvObj* genv, EnvObj* env, Exp *e) {
   IntExp* e2 = (IntExp*)e;
   return (Obj*)make_int_obj(e2->value);
 }
 
-Obj* eval_array_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+Obj* eval_array_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   ArrayExp* e2 = (ArrayExp*)e;
   Obj* array_length_ptr = eval_exp(genv, env, e2->length);
   if (obj_type(array_length_ptr) != INT_OBJ) {
@@ -307,7 +307,7 @@ Obj* eval_array_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   return (Obj*) make_array_obj((IntObj*)array_length_ptr, init_ptr);
 }
 
-Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
+Obj* eval_printf (EnvObj* genv, EnvObj* env, Exp* e) {
   char replace_char[] = "~";
   PrintfExp* e2 = (PrintfExp*)e;
   // replace all ~ in format string into the corresponding arguments
@@ -328,11 +328,11 @@ Obj* eval_printf(EnvObj* genv, EnvObj* env, Exp* e) {
   return (Obj*)make_null_obj();
 }
 
-void exec_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+void exec_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   printf("Why us be called?\n");
 }
 
-void exec_fn_stmt(EnvObj* genv, EnvObj* env, ScopeStmt* s) {
+void exec_fn_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   ScopeFn* s2 = (ScopeFn*)s;
   CodeEntry* code_entry = make_code_entry(s2);
   add_entry(env, s2->name, (Entry*)code_entry);
@@ -345,7 +345,7 @@ void exec_var_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
   add_entry(env, s2->name, (Entry*)var_entry);
 }
 
-Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+Obj* eval_obj_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   ObjectExp* e2 = (ObjectExp*)e;
   EnvObj* nenv = make_env_obj(eval_exp(genv, env, e2->parent));
   for (int i = 0; i < e2->nslots; i++) {
@@ -360,7 +360,7 @@ Obj* eval_obj_exp(EnvObj* genv, EnvObj* env, Exp* e) {
   return (Obj*)nenv;
 }
 
-Obj* eval_ref_exp(EnvObj* genv, EnvObj* env, Exp* e) {
+Obj* eval_ref_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   RefExp* e2 = (RefExp*)e;
   // try to locate the entry in the local scope
   Entry* entry_ptr = get_entry(env, e2->name);
