@@ -1,0 +1,9 @@
+
+defn foo (i):
+  object :
+    var b = i
+    method bob ( j ) :
+      i + this.b
+
+var bob = foo(0)
+bob.bob(1)

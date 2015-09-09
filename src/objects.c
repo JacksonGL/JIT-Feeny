@@ -337,6 +337,7 @@ char* arrayToString(ArrayObj *obj_ptr) {
 	size_of_str += 1; // null at end of string
 
 	char *result = malloc(size_of_str * sizeof(char));
+	*result = '\0';
 
 	char* t = result;
 	t = strcat(t, "[");
