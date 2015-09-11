@@ -8,6 +8,10 @@
 #include "utils.h"
 #include "interpreter.h"
 
+
+#ifndef PRE_SUBMIT
+// the following content only appear in submitted version
+
 typedef enum { NULL_OBJ, INT_OBJ, ARRAY_OBJ, ENV_OBJ} ObjTag;
 
 typedef struct {
@@ -129,6 +133,7 @@ char *str_replace_all(char *orig, char *rep, char *with);
 
 void debugf(const char *fmt, ...);
 
+
 // statistics data structure
 typedef struct {
   long total_time;               // total time in ms
@@ -150,6 +155,7 @@ void inc_entry_lookup_time (long time);
 void inc_method_call (Obj* receiver_ptr);
 void start_time_counter (struct timeb *t);
 long end_time_counter (struct timeb *start, struct timeb *end);
+#endif
 
 
 //----------------------------------------
@@ -200,7 +206,7 @@ void exp_assert(int i, Exp* s, const char * fmt, ...){
 
 void interpret (ScopeStmt* s) {
   EnvObj* genv = get_global_env_obj();
-  eval_stmt(genv, genv, s);
+  eval_stmt(genv, genv, s);  
 }
 
 Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {

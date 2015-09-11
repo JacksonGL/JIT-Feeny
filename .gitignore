@@ -30,6 +30,11 @@
 # output files
 output/*
 tests/*.oracle
+*.aux
+*.bbl
+*.blg
+*.log
+*.pdf
 
 # the compiled binary
 cfeeny
