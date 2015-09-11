@@ -3,6 +3,7 @@
 \usepackage{amssymb}
 \usepackage[margin=1in]{geometry}
 \usepackage{enumerate}
+\usepackage{booktabs}
 
 \title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 2 Answers}
 \date{\vspace{-0.5in}September 11, 2015}
@@ -11,10 +12,34 @@
 \begin{document}
 \maketitle
 
+
+\begin{table}[]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+\begin{tabular}{lllllll}
+\toprule
+total time    & entry lookup (ms) & \# calls & \# int calls & \# array calls & \# env calls &          \\
+\midrule
+bsearch       & 1                     & 0            & 190              & 145                & 45               & 0        \\
+inheritance   & 1                     & 0            & 6                & 2                  & 0                & 4        \\
+cplx          & 1                     & 2            & 43               & 33                 & 0                & 10       \\
+lists         & 0                     & 0            & 135              & 40                 & 0                & 95       \\
+vector        & 1                     & 0            & 130              & 72                 & 42               & 16       \\
+fibonacci     & 2                     & 0            & 611              & 611                & 0                & 0        \\
+sodoku        & 1141                  & 572          & 1586161          & 1046536            & 450449           & 89176    \\
+sodoku2       & 218450                & 116343       & 316868201        & 209055201          & 90034000         & 17779000 \\
+hanoi\_BM     & 2                     & 0            & 463              & 463                & 0                & 0        \\
+stacks\_BM    & 0                     & 0            & 132              & 72                 & 30               & 30       \\
+morehanoi\_BM & 2                     & 0            & 1681             & 852                & 251              & 578      \\
+\bottomrule 
+\end{tabular}
+\end{table}
+
 \begin{enumerate}
 	\item
 		\begin{enumerate}[(a)]
-			\item \dots %TODO
+			\item See Table~\ref{statistics}.
 		\end{enumerate}
 	\item
 		\begin{enumerate}[(a)]
