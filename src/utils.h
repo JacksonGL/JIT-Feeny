@@ -9,10 +9,10 @@ void print_string (char* str);
 //===================== VECTORS ==============================
 //============================================================
 
-typedef struct {
-	int size;
-	int capacity;
-	void** array;
+typedef struct {  
+  int size;
+  int capacity;
+  void** array;
 } Vector;
 
 Vector* make_vector ();
@@ -24,7 +24,5 @@ void vector_free (Vector* v);
 void* vector_get (Vector* v, int i);
 void vector_set (Vector* v, int i, void* x);
 void vector_set_length (Vector* v, int len, void* x);
-
-void error(char *err_msg);
 
 #endif
