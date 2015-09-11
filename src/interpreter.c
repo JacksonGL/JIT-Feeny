@@ -62,10 +62,7 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
     return eval_slot_exp(genv, env, e);
   }
   case SET_SLOT_EXP: {
-    // TBD
-    SetSlotExp* e2 = (SetSlotExp*)e;
-    eval_set_slot_exp(genv, env, e2);
-    break;
+    return eval_set_slot_exp(genv, env, e);
   }
   case CALL_SLOT_EXP: {
     return eval_call_slot_exp(genv, env, e);
@@ -92,19 +89,20 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
   return NULL;
 }
 
-Obj* eval_set_slot_exp (EnvObj* genv, EnvObj* env, SetSlotExp* e) {
-  Obj* obj_ptr = eval_exp(genv, env, e->exp);
+Obj* eval_set_slot_exp (EnvObj* genv, EnvObj* env, Exp* e) {
+  SetSlotExp* e2 = (SetSlotExp*)e;
+  Obj* obj_ptr = eval_exp(genv, env, e2->exp);
   if (obj_type(obj_ptr) != ENV_OBJ) {
-    printf("Cannot get slot %s from non-env object.", e->name);
+    printf("Cannot get slot %s from non-env object.", e2->name);
     exit(-1);
   }
-  Entry* entry = get_entry((EnvObj*)obj_ptr, e->name);
+  Entry* entry = get_entry((EnvObj*)obj_ptr, e2->name);
   if (entry == NULL || entry_type(entry) != VAR_ENTRY) {
-    printf("Var slot %s does not exist in object.", e->name);
+    printf("Var slot %s does not exist in object.", e2->name);
     exit(-1);
   }
-  Obj* val = eval_exp(genv, env, e->value);
-  set_value((VarEntry*)entry, val );
+  Obj* val = eval_exp(genv, env, e2->value);
+  set_value((VarEntry*)entry, val);
   return val;
 }
 
