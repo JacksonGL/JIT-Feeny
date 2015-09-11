@@ -11,45 +11,45 @@
 //----------------------------------------
 
 void slot_assert(int i, SlotStmt* s, const char * fmt, ...){
-	va_list args;
-	va_start(args, fmt);
-	if(!i){
-		printf("Encountered error: ");
-		vprintf(fmt, args);
-		printf(" in slot statement ");
-		print_slotstmt(s);
-		printf("\n");
-		exit(-1);
-	}
-	va_end(args);
+  va_list args;
+  va_start(args, fmt);
+  if(!i){
+    printf("Encountered error: ");
+    vprintf(fmt, args);
+    printf(" in slot statement ");
+    print_slotstmt(s);
+    printf("\n");
+    exit(-1);
+  }
+  va_end(args);
 }
 
 void scope_assert(int i, ScopeStmt* s, const char * fmt, ...){
-	va_list args;
-	va_start(args, fmt);
-	if(!i){
-		printf("Encountered error: ");
-		vprintf(fmt, args);
-		printf(" in scope statement ");
-		print_scopestmt(s);
-		printf("\n");
-		exit(-1);
-	}
-	va_end(args);
+  va_list args;
+  va_start(args, fmt);
+  if(!i){
+    printf("Encountered error: ");
+    vprintf(fmt, args);
+    printf(" in scope statement ");
+    print_scopestmt(s);
+    printf("\n");
+    exit(-1);
+  }
+  va_end(args);
 }
 
 void exp_assert(int i, Exp* s, const char * fmt, ...){
-	va_list args;
-	va_start(args, fmt);
-	if(!i){
-		printf("Encountered error: ");
-		vprintf(fmt, args);
-		printf(" in expression ");
-		print_exp(s);
-		printf("\n");
-		exit(-1);
-	}
-	va_end(args);
+  va_list args;
+  va_start(args, fmt);
+  if(!i){
+    printf("Encountered error: ");
+    vprintf(fmt, args);
+    printf(" in expression ");
+    print_exp(s);
+    printf("\n");
+    exit(-1);
+  }
+  va_end(args);
 }
 
 void interpret (ScopeStmt* s) {
@@ -173,13 +173,13 @@ Obj* eval_while_exp (EnvObj* genv, EnvObj* env, WhileExp *e2) {
   while (1) {
     cond_ptr = eval_exp(genv, env, e2->pred);
 
-	 exp_assert(cond_ptr != NULL, (Exp*) e2, "Invalid conditional value");
+    exp_assert(cond_ptr != NULL, (Exp*) e2, "Invalid conditional value");
 
-	 if (obj_type(cond_ptr) != NULL_OBJ) {
+    if (obj_type(cond_ptr) != NULL_OBJ) {
       // create branch environment/scope
       EnvObj* body_env = make_env_obj((Obj*)env);
       result = eval_stmt(genv, body_env, e2->body);
-		free_env_obj(body_env);
+      free_env_obj(body_env);
     } else {
       break;
     }
@@ -236,10 +236,10 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
   // handle built in functions
   case INT_OBJ: {
     Obj* arg;
-	 exp_assert(e2->nargs == 1 && obj_type(arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
+    exp_assert(e2->nargs == 1 && obj_type(arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
       (Exp*) e2, "native int function error - %s",
-             e2->nargs != 1 ? "not enough arguments!" :
-             "wrong argument type!");
+      e2->nargs != 1 ? "not enough arguments!" :
+        "wrong argument type!");
     if (!strcmp(e2->name, "add")) {
       return (Obj*) int_obj_add((IntObj*) receiver_ptr, (IntObj*)arg);
     } else if (!strcmp(e2->name, "sub")) {
@@ -269,10 +269,10 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
       return (Obj*)array_length((ArrayObj*) receiver_ptr);
     }
     Obj* first_arg;
-	 exp_assert(e2->nargs > 0 && obj_type(first_arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
+    exp_assert(e2->nargs > 0 && obj_type(first_arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
       (Exp*) e2, "native array function error - %s",
-             e2->nargs < 1 ? "not enough arguments!" :
-             "incorrect argument type!");
+      e2->nargs < 1 ? "not enough arguments!" :
+        "incorrect argument type!");
     if (!strcmp(e2->name, "set") && e2->nargs == 2) {
       return (Obj*)array_set((ArrayObj*)receiver_ptr,
                              (IntObj*)first_arg, eval_exp(genv, env, e2->args[1]));
@@ -284,7 +284,7 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
   }
   case ENV_OBJ: {
     Entry* code = get_entry((EnvObj*)receiver_ptr, e2->name);
-	 exp_assert(code && entry_type(code) == CODE_ENTRY, (Exp*)e2,
+    exp_assert(code && entry_type(code) == CODE_ENTRY, (Exp*)e2,
       "Failed to get code for method!");
     ScopeFn* f = get_scope_fn((CodeEntry*)code);
     EnvObj * fnEnv = make_env_obj((Obj*)genv);
@@ -297,7 +297,7 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
     add_entry(fnEnv, "this", (Entry*) make_var_entry(receiver_ptr));
     Obj* result = eval_stmt(genv, fnEnv, f->body);
     //TODO: free fnEnv
-	 free_env_obj(fnEnv);
+    free_env_obj(fnEnv);
     return result;
   }
   default:

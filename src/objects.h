@@ -10,44 +10,44 @@
 typedef enum { NULL_OBJ, INT_OBJ, ARRAY_OBJ, ENV_OBJ} ObjTag;
 
 typedef struct {
-	ObjTag type;
+  ObjTag type;
 } Obj;
 
 typedef struct {
-	ObjTag type;
+  ObjTag type;
 } NullObj;
 
 typedef struct {
-	ObjTag type;
-	int value;
+  ObjTag type;
+  int value;
 } IntObj;
 
 typedef struct {
-	ObjTag type;
-	Vector* v;
+  ObjTag type;
+  Vector* v;
 } ArrayObj;
 
 typedef struct {
-	ObjTag type;
-	Obj* parent;
-	Vector* names;
-	Vector* entries;
+  ObjTag type;
+  Obj* parent;
+  Vector* names;
+  Vector* entries;
 } EnvObj;
 
 typedef enum {VAR_ENTRY, CODE_ENTRY} EntryTag;
 
 typedef struct {
-	EntryTag type;
+  EntryTag type;
 } Entry;
 
 typedef struct {
-	EntryTag type;
-	Obj* value;
+  EntryTag type;
+  Obj* value;
 } VarEntry;
 
 typedef struct {
-	EntryTag type;
-	ScopeFn * fn;
+  EntryTag type;
+  ScopeFn * fn;
 } CodeEntry;
 
 int obj_type(Obj* o);
@@ -105,13 +105,13 @@ void debugf(const char *fmt, ...);
 
 // statistics data structure
 typedef struct {
-	long total_time;               // total time in ms
-	long total_method_call;        // # of method calls
-	long total_int_method_call;    // # of method calls with integer receiver
-	long total_array_method_call;  // # of method calls with array receiver
-	long total_envobj_method_call; // # of method calls with env obj receiver
-	long total_time_lookup_entry;  // total time in ms spend looking
-	                               // up an entry in env obj
+  long total_time;               // total time in ms
+  long total_method_call;        // # of method calls
+  long total_int_method_call;    // # of method calls with integer receiver
+  long total_array_method_call;  // # of method calls with array receiver
+  long total_envobj_method_call; // # of method calls with env obj receiver
+  long total_time_lookup_entry;  // total time in ms spend looking
+                                 // up an entry in env obj
 } Stat;
 
 // collect statistics operations
