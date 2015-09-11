@@ -14,9 +14,18 @@ NullObj* make_null_obj() {
 
 IntObj* make_int_obj(int value) {
 	//cache for memory usage - could make the cache larger
-	static IntObj zero = {INT_OBJ, 0}, one = {INT_OBJ, 1};
-	if (value == 0) { return &zero; }
-	if (value == 1) { return &one; }
+	static int cache_initted = 0;
+	static IntObj cached[101];
+	if(! cache_initted){
+		for(int i = 0; i < sizeof(cached)/sizeof(IntObj); ++i){
+			cached[i].type = INT_OBJ;
+			cached[i].value = i;
+		}
+		cache_initted = 1;
+	}
+	if(value >= 0 && value < sizeof(cached)/sizeof(IntObj)){
+		return &cached[value];
+	}
 
 	IntObj* t = malloc(sizeof(IntObj));
 	t->type = INT_OBJ;
@@ -102,12 +111,26 @@ EnvObj* make_env_obj(Obj* parent) {
 	return t;
 }
 
+void free_env_obj(EnvObj* e){
+	for(int i = 0; i < e->entries->size; ++i){
+		Entry* ent = (Entry*) vector_get(e->entries, i);
+		if(entry_type(ent) == VAR_ENTRY){
+			free((VarEntry*) ent);
+		} else {
+			free((CodeEntry*) ent);
+		}
+	}
+	vector_free(e->entries);
+	vector_free(e->names);
+	free(e);
+}
+
 void add_entry(EnvObj* env, char* name, Entry* entry) {
 	vector_add(env->names, name);
 	vector_add(env->entries, entry);
 }
 
-Entry* get_entry(EnvObj* env, char* name) {
+Entry* get_entry(EnvObj* env, const char* name) {
 	struct timeb start, end;
 	Entry* result = NULL;
 	// start collecting time

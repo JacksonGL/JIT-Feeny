@@ -77,10 +77,11 @@ ArrayObj* make_array_obj(IntObj* length, Obj* init);
 // environment object operations
 EnvObj* get_global_env_obj ();
 EnvObj* make_env_obj(Obj* parent);
+void free_env_obj(EnvObj* e); // Does not free parents
 
 // entry operations
 int entry_type(Entry*);
-Entry* get_entry(EnvObj* env, char* name);
+Entry* get_entry(EnvObj* env, const char* name);
 void add_entry(EnvObj* env, char* name, Entry* entry);
 
 // variable entry operations
