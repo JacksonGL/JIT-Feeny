@@ -1,4 +1,5 @@
 #include <sys/timeb.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -7,6 +8,19 @@
 #include "ast.h"
 #include "utils.h"
 #include "interpreter.h"
+
+// Copied from sys/time.h
+// to not pollute our #define space
+// WAS NOT WRITTEN BY LG OR BM - rights belong to original author
+#define timersub(a, b, result)                  \
+  do {                        \
+    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;            \
+    (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;            \
+    if ((result)->tv_usec < 0) {                \
+      --(result)->tv_sec;                  \
+      (result)->tv_usec += 1000000;                \
+    }                        \
+  } while (0)
 
 
 #ifndef PRE_SUBMIT
@@ -136,12 +150,12 @@ void debugf(const char *fmt, ...);
 
 // statistics data structure
 typedef struct {
-  long total_time;               // total time in ms
+  struct timeval total_time;               // total time in ms
   long total_method_call;        // # of method calls
   long total_int_method_call;    // # of method calls with integer receiver
   long total_array_method_call;  // # of method calls with array receiver
   long total_envobj_method_call; // # of method calls with env obj receiver
-  long total_time_lookup_entry;  // total time in ms spend looking
+  struct timeval total_time_lookup_entry;  // total time in ms spend looking
                                  // up an entry in env obj
 } Stat;
 
@@ -150,11 +164,11 @@ void init_stat ();
 int is_collect_stat ();
 void write_stat (char* filename);
 void set_collect_stat (int flag);
-void inc_total_time (long total_time);
-void inc_entry_lookup_time (long time);
+void inc_total_time (const struct timeval *total_time);
+void inc_entry_lookup_time (const struct timeval* time);
 void inc_method_call (Obj* receiver_ptr);
-void start_time_counter (struct timeb *t);
-long end_time_counter (struct timeb *start, struct timeb *end);
+void start_time_counter (struct timeval *t);
+void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* diff);
 #endif
 
 
@@ -206,7 +220,7 @@ void exp_assert(int i, Exp* s, const char * fmt, ...){
 
 void interpret (ScopeStmt* s) {
   EnvObj* genv = get_global_env_obj();
-  eval_stmt(genv, genv, s);  
+  eval_stmt(genv, genv, s);
 }
 
 Obj* eval_stmt (EnvObj* genv, EnvObj* env, ScopeStmt* s) {
@@ -669,7 +683,7 @@ void add_entry(EnvObj* env, char* name, Entry* entry) {
 }
 
 Entry* get_entry(EnvObj* env, const char* name) {
-  struct timeb start, end;
+  struct timeval start, end;
   Entry* result = NULL;
   // start collecting time
   if (is_collect_stat())
@@ -687,8 +701,9 @@ Entry* get_entry(EnvObj* env, const char* name) {
 
   // end collecting time
   if (is_collect_stat()) {
-    long time = end_time_counter(&start, &end);
-    inc_entry_lookup_time(time);
+    struct timeval time;
+    end_time_counter(&start, &end, &time);
+    inc_entry_lookup_time(&time);
   }
   return result;
 }
@@ -789,35 +804,37 @@ int is_collect_stat () {
 
 void init_stat () {
   stat = malloc(sizeof(Stat));
-  stat->total_time = 0;
+  stat->total_time.tv_usec = 0;
+  stat->total_time.tv_sec = 0;
   stat->total_method_call = 0;
   stat->total_int_method_call = 0;
   stat->total_array_method_call = 0;
   stat->total_envobj_method_call = 0;
-  stat->total_time_lookup_entry = 0;
+  stat->total_time_lookup_entry.tv_sec = 0;
+  stat->total_time_lookup_entry.tv_usec = 0;
 }
 
-void start_time_counter (struct timeb *t) {
-  ftime(t);
+void start_time_counter (struct timeval *t) {
+  gettimeofday(t, NULL);
 }
 
-long end_time_counter (struct timeb *start, struct timeb *end) {
-  ftime(end);
-  long diff = (long) (1000.0 * (end->time - start->time)
-                      + (end->millitm - start->millitm));
-  return diff;
+void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* result) {
+  gettimeofday(end, NULL);
+  timersub(end, start, result);
 }
 
-void inc_total_time (long total_time) {
+void inc_total_time (const struct timeval *total_time) {
   if (collectStat == 0 || stat == NULL)
     return;
-  stat->total_time += total_time;
+  stat->total_time.tv_sec += total_time->tv_sec;
+  stat->total_time.tv_usec += total_time->tv_usec;
 }
 
-void inc_entry_lookup_time (long time) {
+void inc_entry_lookup_time (const struct timeval* time) {
   if (collectStat == 0 || stat == NULL)
     return;
-  stat->total_time_lookup_entry += time;
+  stat->total_time_lookup_entry.tv_sec += time->tv_sec;
+  stat->total_time_lookup_entry.tv_usec += time->tv_usec;
 }
 
 void inc_method_call (Obj* receiver_ptr) {
@@ -850,8 +867,8 @@ void write_stat (char* filename) {
     exit(1);
   }
 
-  fprintf(f, "Total Time: %ld ms\n", stat->total_time);
-  fprintf(f, "Total Time Lookup Entry: %ld ms\n", stat->total_time_lookup_entry);
+  fprintf(f, "Total Time: %f ms\n", 0.0+stat->total_time.tv_sec*1000.0+stat->total_time.tv_usec/1000.0);
+  fprintf(f, "Total Time Lookup Entry: %f ms\n", 0.0+stat->total_time_lookup_entry.tv_sec*1000.0+stat->total_time_lookup_entry.tv_usec/1000.0);
   fprintf(f, "Total Method Call: %ld\n", stat->total_method_call);
   fprintf(f, "Total Integer Method Call: %ld\n", stat->total_int_method_call);
   fprintf(f, "Total Array Method Call: %ld\n", stat->total_array_method_call);

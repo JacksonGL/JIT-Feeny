@@ -1,3 +1,5 @@
+#include <sys/time.h>
+#include <time.h>
 #include <sys/timeb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +14,7 @@
 #include "interpreter.h"
 
 int main (int argc, char** argvs) {
-  struct timeb start, end;
+  struct timeval start, end;
   // Check number of arguments
   if (argc < 2) {
     printf("Expected at least 1 argument to commandline.\n");
@@ -46,8 +48,9 @@ int main (int argc, char** argvs) {
 
   #ifdef PRE_SUBMIT
   if (is_collect_stat()) {
-    long time = end_time_counter(&start, &end);
-    inc_total_time(time);
+    struct timeval time;
+    end_time_counter(&start, &end, &time);
+    inc_total_time(&time);
     write_stat(argvs[3]);
   }
   #endif

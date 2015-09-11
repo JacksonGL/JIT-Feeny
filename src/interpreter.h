@@ -4,6 +4,7 @@
 void interpret (ScopeStmt* stmt);
 
 #ifdef PRE_SUBMIT
+#include <sys/time.h>
 // the following content will not be compiled into the submitted version
 
 typedef enum { NULL_OBJ, INT_OBJ, ARRAY_OBJ, ENV_OBJ} ObjTag;
@@ -144,11 +145,11 @@ void init_stat ();
 int is_collect_stat ();
 void write_stat (char* filename);
 void set_collect_stat (int flag);
-void inc_total_time (long total_time);
-void inc_entry_lookup_time (long time);
+void inc_total_time (const struct timeval* total_time);
+void inc_entry_lookup_time (const struct timeval* time);
 void inc_method_call (Obj* receiver_ptr);
-void start_time_counter (struct timeb *t);
-long end_time_counter (struct timeb *start, struct timeb *end);
+void start_time_counter (struct timeval *t);
+void end_time_counter (struct timeval *start, struct timeval *end, struct timeval *result);
 #endif
 
 #endif
