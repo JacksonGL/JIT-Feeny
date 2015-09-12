@@ -12,11 +12,11 @@
 \begin{document}
 \maketitle
 
-
-\begin{table}[]
+\begin{table}[!htp]
 \centering
 \caption{Runtime Statistics}
 \label{statistics}
+{\footnotesize
 \begin{tabular}{lllllll}
 \toprule
 test case & total time (ms)    & entry lookup (ms) & \# calls & \# int calls & \# array calls & \# env calls \\
@@ -34,6 +34,7 @@ stacks\_BM    & 0.060                 & 0.024        & 132              & 72    
 morehanoi\_BM & 0.886                 & 0.308        & 1681             & 852                & 251              & 578      \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \begin{enumerate}
@@ -50,8 +51,7 @@ morehanoi\_BM & 0.886                 & 0.308        & 1681             & 852   
 			\item Clone would need to take one object (the inputted object) and return a second object.  The second object would need to have the same parent class, methods, and variable slots.  Each variable slot would need to have the same value (reference the same object necessarily - this is a shallow copy).  The parent object would also need to be cloned for the second object.
 			\item Because feeny has no mechanism for enumerating the slots (method or variable) in an object, the clone function would need to be supported by the interpreter.
 			\item To extend the interpreter to support clone, a clone expression would need to be defined in the language.  The evaluation of the clone expression would require duplicating the environment object for the object and its parent object (not including the global environment).  The variable ``this'' in the second object's environment would need to be mapped to an environment object with duplicate entries (both in name and in value). To programmatically support implementing the clone function in Feeny, one way is that the underlying runtime supports enumerating all slots inside an object and first order functions.
-			\item Adding support to clone would\dots
-				%TODO: finish
+			\item Adding support to clone would probably encourage copying values rather than references, which is going to have a negative consequence on memory. Also programmatically supporting clone would allow developers to peek into the inner structure of an object even if some properties are not supposed to be visible from outside, this may lead to losing abstraction, encapsulation and security.
 		\end{enumerate}
 \end{enumerate}
 
