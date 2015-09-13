@@ -1,0 +1,58 @@
+
+\documentclass[notitlepage]{report}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{booktabs}
+
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 2 Answers}
+\date{\vspace{-0.5in}September 11, 2015}
+\author{\vspace{-0.5in}Liang Gong and Ben Mehne\vspace{-0.5in}}
+
+\begin{document}
+\maketitle
+
+\begin{table}[!htp]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+{\footnotesize
+\begin{tabular}{lllllll}
+\toprule
+test case & total time (ms)    & entry lookup (ms) & \# calls & \# int calls & \# array calls & \# env calls \\
+\midrule
+bsearch       & 0.094                 & 0.058        & 190              & 145                & 45               & 0        \\
+inheritance   & 0.019                 & 0.001        & 6                & 2                  & 0                & 4        \\
+cplx          & 0.041                 & 0.015        & 43               & 33                 & 0                & 10       \\
+lists         & 0.140                 & 0.049        & 135              & 40                 & 0                & 95       \\
+vector        & 0.073                 & 0.024        & 130              & 72                 & 42               & 16       \\
+fibonacci     & 0.290                 & 0.259        & 611              & 611                & 0                & 0        \\
+sudoku        & 466.885               & 291.476      & 1586161          & 1046536            & 450449           & 89176    \\
+sudoku2       & 93540.957             & 58605.331    & 316868201        & 209055201          & 90034000         & 17779000 \\
+hanoi\_BM     & 0.365                 & 0.136        & 463              & 463                & 0                & 0        \\
+stacks\_BM    & 0.060                 & 0.024        & 132              & 72                 & 30               & 30       \\
+morehanoi\_BM & 0.886                 & 0.308        & 1681             & 852                & 251              & 578      \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{enumerate}
+	\item
+			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the submitted and tested version.
+	\item
+		\begin{enumerate}[(a)]
+			\item A return statement causes control to immediately return from the function.  To implement this, from an arbitrarily nested expression, I would use longjmp and setjmp.  Whenever starting evaluating a function call, I would call setjmp and place the jump buffer on a jump buffer stack.  When encountering a return statement, I would store the return value in a particular static variable and call longjmp on the top of this jump buffer stack. After longjmp'ing back, I would return the object from the static variable and pop the jump buffer from the stack.
+			\item longjmp and setjmp are only available in C-like languages.  In other languages, I could use exception handling systems to implement the jump back (the function-return stack being simulated via the call-stack).
+			\item In Java (or C++ if I wanted to avoid set/longjmp), I would define an exception class for returns.  In the function that evaluates function calls, I would have a try-catch block that catches this kind of exception.  When encountering a return statement, I would throw an exception of this type.  I would have this exception type carry the value that the return statement is attempting to return.  After catching the return-exception-type, the interpreter returns the value the exception carries. In a functional programming language (e.g., Scheme), call/cc could be used for implementing the return mechanism.
+		\end{enumerate}
+	\item
+		\begin{enumerate}[(a)]
+			\item Clone would need to take one object (the inputted object) and return a second object.  The second object would need to have the same parent class, methods, and variable slots.  Each variable slot would need to have the same value (reference the same object necessarily - this is a shallow copy).  The parent object would also need to be cloned for the second object.
+			\item Because feeny has no mechanism for enumerating the slots (method or variable) in an object, the clone function would need to be supported by the interpreter.
+			\item To extend the interpreter to support clone, a clone expression would need to be defined in the language.  The evaluation of the clone expression would require duplicating the environment object for the object and its parent object (not including the global environment).  The variable ``this'' in the second object's environment would need to be mapped to an environment object with duplicate entries (both in name and in value). To programmatically support implementing the clone function in Feeny, one way is that the underlying runtime supports enumerating all slots inside an object and first order functions.
+			\item Adding support to clone would probably encourage copying values rather than references, which is going to have a negative consequence on memory. Also programmatically supporting clone would allow developers to peek into the inner structure of an object even if some properties are not supposed to be visible from outside, this may lead to losing abstraction, encapsulation and security.
+		\end{enumerate}
+\end{enumerate}
+
+\end{document}
