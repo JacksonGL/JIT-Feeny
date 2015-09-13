@@ -28,8 +28,9 @@
 *.app
 
 # output files
-output/*
-tests/*.oracle
+ASTEx/output/*
+ASTEx/tests/*.oracle
+ByteCodeEx/output/*
 *.aux
 *.bbl
 *.blg
@@ -37,5 +38,5 @@ tests/*.oracle
 *.pdf
 
 # the compiled binary
-cfeeny
-cfeeny.dSYM*
+ASTEx/cfeeny
+ASTEx/cfeeny.dSYM*
