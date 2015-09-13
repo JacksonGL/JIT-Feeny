@@ -1,9 +1,0 @@
-; test function call
-defn fun1 (k) :
-    k
-
-var i = 0
-while i < 10 :
-    fun1(i)
-    i = i + 1
-    printf("~\n", k)

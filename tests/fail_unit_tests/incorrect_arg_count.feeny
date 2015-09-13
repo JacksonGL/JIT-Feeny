@@ -1,6 +1,0 @@
-; testin function call arg count
-
-defn foo (i) :
-  i
-
-foo(0, 1)
