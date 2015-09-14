@@ -4,8 +4,8 @@
 #include<sys/mman.h>
 #include "utils.h"
 #include "bytecode.h"
-#include "vm.h"
 #include "uthash.h"
+#include "vm.h"
 
 //============================================================
 //=============== BASIC DATA STRUCTURE =======================
@@ -102,9 +102,15 @@ ValIndex find_item (Hashable* table, char* key);
 void add_item (Hashable* table, char* key, ValIndex value);
 
 // global data structure operations
+
+Value* stack_pop ();
+void stack_push (Value* val);
+Vector* get_operand_stack ();
+
 int get_entry_function ();
 Vector* get_global_slots ();
 Vector* get_constant_pool ();
+Value* get_val_constant(int idx);
 void set_global_slots (Vector* slots);
 void set_entry_function (int entry_index);
 void addto_constant_pool (Vector* values, Value* v);
@@ -113,6 +119,21 @@ IndexedClassValue* create_class_value(Vector* values, ClassValue* v2);
 // byte code interpreter operations
 void exec_prog (Program* p);
 void exec_ins (ByteIns* ins);
+
+void exec_array_op ();
+void exec_return_op ();
+void exec_lit_op (LitIns* i);
+void exec_slot_op (SlotIns* i);
+void exec_goto_op (GotoIns* i);
+void exec_label_op (LabelIns* i);
+void exec_branch_op (BranchIns* i);
+void exec_object_op (ObjectIns* i);
+void exec_printf_op (PrintfIns* i);
+void exec_set_slot_op (SetSlotIns* i);
+void exec_set_local_op (SetLocalIns* i);
+void exec_call_slot_op (CallSlotIns* i);
+void exec_get_local_op (GetLocalIns* i);
+void exec_set_global_op (SetGlobalIns* i);
 
 Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_frame_ptr);
 
@@ -159,6 +180,12 @@ Vector* get_constant_pool () {
 	return constant_pool;
 }
 
+// get value from the constant pool
+Value* get_val_constant(int idx) {
+	Vector* constant_pool = get_constant_pool();
+	return vector_get(constant_pool, idx);
+}
+
 static Vector* global_slots = NULL;
 void set_global_slots (Vector* slots) {
 	global_slots = slots;
@@ -192,11 +219,18 @@ Hashable* get_ins_label_table () {
 	return ins_label_table;
 }
 
+static Vector* operand_stack = NULL;
 Vector* get_operand_stack () {
-	static Vector* operand_stack = NULL;
 	if (operand_stack == NULL)
 		operand_stack = make_vector();
 	return operand_stack;
+}
+
+void stack_push (Value* val) {
+	vector_add(operand_stack, val);
+}
+Value* stack_pop () {
+	return vector_pop(operand_stack);
 }
 
 Frame* get_cur_frame () {
@@ -218,88 +252,277 @@ Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_fr
 	return ret;
 }
 
+// Sets the i’th slot in the current
+// local frame to the top value in
+// the operand stack.
+void exec_set_local_op (SetLocalIns* i) {
+	// slot_idx is the index of the slot
+	// in the current local frame
+	int slot_idx = i->idx;
+	// TBD
+}
+
+// Retrieves the i’th slot in the
+// current local frame and pushes
+// it onto the operand stack.
+void exec_get_local_op (GetLocalIns* i) {
+	// slot_idx is the index of the slot
+	// in the current local frame
+	int slot_idx = i->idx;
+	// TBD
+}
+
+// Sets the global variable with name
+// specified by the String object at index
+// i to the top value in the operand stack.
+void exec_set_global_op (SetGlobalIns* i) {
+	int name_idx = i->name;
+	// TBD
+}
+
+// Retrieves the value of the
+// global variable with name specified
+// by the String object at index i, and
+// pushes it onto the operand stack.
+void exec_get_global_op (GetGlobalIns* i) {
+	int name_idx = i->name;
+	// TBD
+}
+
+//  Pops a value from the operand
+// stack. If this value is not Null, 
+// then sets the instruction pointer to
+// the instruction address associated 
+// with the name given by the String
+// object at index i.
+void exec_branch_op (BranchIns* i) {
+	int label_idx = i->name;
+	// TBD
+}
+
+// Sets the instruction pointer to the instruction
+// address associated with the name given by 
+// the String object at index i.
+void exec_goto_op (GotoIns* i) {
+	int label_idx = i->name;
+	// TBD
+}
+
+// Registers the parent frame of the
+// current local frame as the new current 
+// frame. Execution proceeds by
+// setting the instruction pointer to the 
+// return address stored in the current
+// local frame. The local frame is no longer 
+// used after a Return instruction, and any 
+// storage allocated for it may be reclaimed.
+void exec_return_op () {
+	// TBD
+}
+
+// Pops and discards the top value from
+// the operand stack.
+void exec_drop_op () {
+	// TBD
+}
+
+// Retrieves the object at index i in
+// the constant pool, which refers to
+// either an Int object or a Null object,
+// and pushes it onto the operand stack.
+void exec_lit_op (LitIns* i) {
+	int val_idx = i->idx;
+	Value* val = get_val_constant(val_idx);
+	if (val->tag != INT_OBJ && val->tag != NULL_OBJ) {
+		printf("Error in LIT_OP.\n");
+		exit(-1);
+	}
+	stack_push(val);
+}
+
+// First pops the initializing value from
+// the operand stack, and then pops the
+// length of the array from the operand
+// stack. Creates a new array with the
+// given length, with each element initizlied
+// to the given value, and pushes the array
+// onto the operand stack.
+void exec_array_op () {
+	// TBD
+}
+
+// Pops n values from the operand
+// stack, and then prints them out according to the given format string.
+// Arguments are spliced in from the deepest value in the stack (last
+// popped) to the shallowest value in the stack (first popped). Null is
+// then pushed onto the operand stack.
+void exec_printf_op (PrintfIns* i) {
+	int format_idx = i->format;
+	int arity = i->arity;
+	// TBD
+}
+
+// Associates a name with the address of
+// this instruction. The name is given by
+// the String object at index i.
+void exec_label_op (LabelIns* i) {
+	int label_idx = i->name;
+	// TBD
+}
+
+// Retrieves the Class object at index c.
+// Suppose that the class object contains n Slot objects, and m Method
+// objects. This instruction will pop n values from the operand stack for
+// use as the initial values of the variable slots in the object, and then an
+// additional value for use as the parent of the object. The first variable
+// slot is initialized to the deepest value on the stack (last popped) and the
+// last variable slot is initialized to the shallowest value on the stack (first
+// popped). A new object is created with the variable slots indicated by
+// the Class object, initialized to the given values on the stack, with the
+// method slots indicated by the Class object, and with the given parent
+// object, and is pushed onto the operand stack.
+void exec_object_op (ObjectIns* i) {
+	int class_idx = i->class;
+	// TBD
+}
+
+// Pops a value from the operand
+// stack assuming it is an object. Retrieves the value in the object stored
+// at the variable slot with name given by the String object at index i,
+// and pushes it onto the operand stack.
+void exec_slot_op (SlotIns* i) {
+	int slot_idx = i->name;
+	// TBD
+}
+
+// Pops the value to store, x, from
+// the operand stack, and then pops the object to store it into. Stores
+// x into the object at the variable slot with name given by the String
+// object at index i. x is then pushed onto the operand stack.
+void exec_set_slot_op (SetSlotIns* i) {
+	int slot_idx = i->name;
+	// TBD
+}
+
+// Pops n values from the
+// operand stack for the arguments to the call. Then pops the receiver
+// object from the operand stack. The name of the method to call is given
+// by the String object at index i. If the receiver is an integer or array,
+// then the result of the method call (as specified by the semantics of
+// Feeny) is pushed onto the operand stack. If the receiver is an object,
+// then a new local frame is created for the context of the call. Slot 0
+// in the new local frame holds the receiver object, and the following n
+// slots holds the argument values starting with the deepest value on the
+// stack (last popped) and ending with the shallowest value on the stack
+// (first popped). The new local frame has the current frame as its parent,
+// and the current instruction pointer as the return address. Execution
+// proceeds by registering the newly created frame as the current frame,
+// and setting the instruction pointer to the address of the body of the
+// method.
+void exec_call_slot_op (CallSlotIns* i) {
+	int method_name_idx = i->name;
+	int arity = i->arity;
+	// TBD
+}
+
+// Pops n values from the operand stack
+// for the arguments to the call. The name of the function to call is given
+// by the String object at index i. A new local frame is created for the context
+// of the call. The first n slots in the frame holds the argument values
+// starting with the deepest value on the stack (last popped) and ending
+// with the shallowest value on the stack (first popped). The new local
+// frame has the current frame as its parent, and the current instruction
+// pointer as the return address. Execution proceeds by registering the
+// newly created frame as the current frame, and setting the instruction
+// pointer to the address of the body of the function.
+void exec_call_op (CallIns* i) {
+	int function_name_idx = i->name;
+	int arity = i->arity;
+	// TBD
+}
+
 void exec_ins (ByteIns* ins) {
 	switch (ins->tag) {
 	case LABEL_OP: {
 		LabelIns* i = (LabelIns*)ins;
-		printf("label #%d", i->name);
+		exec_label_op(i);
 		break;
 	}
 	case LIT_OP: {
 		LitIns* i = (LitIns*)ins;
-		printf("   lit #%d", i->idx);
+		exec_lit_op(i);
 		break;
 	}
 	case PRINTF_OP: {
 		PrintfIns* i = (PrintfIns*)ins;
-		printf("   printf #%d %d", i->format, i->arity);
+		exec_printf_op(i);
 		break;
 	}
 	case ARRAY_OP: {
-		printf("   array");
+		exec_array_op();
 		break;
 	}
 	case OBJECT_OP: {
 		ObjectIns* i = (ObjectIns*)ins;
-		printf("   object #%d", i->class);
+		exec_object_op(i);
 		break;
 	}
 	case SLOT_OP: {
 		SlotIns* i = (SlotIns*)ins;
-		printf("   slot #%d", i->name);
+		exec_slot_op(i);
 		break;
 	}
 	case SET_SLOT_OP: {
 		SetSlotIns* i = (SetSlotIns*)ins;
-		printf("   set-slot #%d", i->name);
+		exec_set_slot_op(i);
 		break;
 	}
 	case CALL_SLOT_OP: {
 		CallSlotIns* i = (CallSlotIns*)ins;
-		printf("   call-slot #%d %d", i->name, i->arity);
+		exec_call_slot_op(i);
 		break;
 	}
 	case CALL_OP: {
 		CallIns* i = (CallIns*)ins;
-		printf("   call #%d %d", i->name, i->arity);
+		exec_call_op(i);
 		break;
 	}
 	case SET_LOCAL_OP: {
 		SetLocalIns* i = (SetLocalIns*)ins;
-		printf("   set local %d", i->idx);
+		exec_set_local_op(i);
 		break;
 	}
 	case GET_LOCAL_OP: {
 		GetLocalIns* i = (GetLocalIns*)ins;
-		printf("   get local %d", i->idx);
+		exec_get_local_op(i);
 		break;
 	}
 	case SET_GLOBAL_OP: {
 		SetGlobalIns* i = (SetGlobalIns*)ins;
-		printf("   set global #%d", i->name);
+		exec_set_global_op(i);
 		break;
 	}
 	case GET_GLOBAL_OP: {
 		GetGlobalIns* i = (GetGlobalIns*)ins;
-		printf("   get global #%d", i->name);
+		exec_get_global_op(i);
 		break;
 	}
 	case BRANCH_OP: {
 		BranchIns* i = (BranchIns*)ins;
-		printf("   branch #%d", i->name);
+		exec_branch_op(i);
 		break;
 	}
 	case GOTO_OP: {
 		GotoIns* i = (GotoIns*)ins;
-		printf("   goto #%d", i->name);
+		exec_goto_op(i);
 		break;
 	}
 	case RETURN_OP: {
-		printf("   return");
+		exec_return_op();
 		break;
 	}
 	case DROP_OP: {
-		printf("   drop");
+		exec_drop_op();
 		break;
 	}
 	default: {
@@ -320,7 +543,7 @@ IndexedClassValue* create_class_value(Vector* values, ClassValue* v2) {
 		// get the slot value
 		int slot_index = (int)vector_get(v2->slots, i);
 		Value* value = vector_get(values, slot_index);
-		if (value->tag != SLOT_OBJ && value->tag != SLOT_OBJ) {
+		if (value->tag != SLOT_OBJ && value->tag != METHOD_OBJ) {
 			printf("non-slot or method value in class\n");
 			exit(-1);
 		}
@@ -338,6 +561,8 @@ IndexedClassValue* create_class_value(Vector* values, ClassValue* v2) {
 	return new_v;
 }
 
+// add values in the byte code syntax tree into
+// the runtime constatnt pool
 void addto_constant_pool (Vector* values, Value* v) {
 	Vector* constant_pool = get_constant_pool();
 	switch (v->tag) {
@@ -376,9 +601,9 @@ void exec_prog (Program* p) {
 }
 
 void interpret_bc (Program* p) {
-	// printf("Interpreting Bytecode Program:\n");
-	// print_prog(p);
-	// printf("\n");
+	/*printf("Interpreting Bytecode Program:\n");
+	print_prog(p);
+	printf("\n");*/
 	exec_prog(p);
 }
 
