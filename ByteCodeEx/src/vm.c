@@ -11,6 +11,15 @@
 //=============== BASIC DATA STRUCTURE =======================
 //============================================================
 
+
+typedef int ValIndex;
+
+typedef struct {
+	const char *key;	// hashtable item key
+	int value;		    // hashtable item value
+	UT_hash_handle hh;	// used for internal book keeping, ignore it
+} Hashable;
+
 typedef enum {
 	INT_OBJ,
 	NULL_OBJ,
@@ -20,8 +29,6 @@ typedef enum {
 	CLASS_OBJ,
 	OBJ_OBJ
 } ObjTag;
-
-typedef int ValIndex;
 
 /* reuse the value structure from bytecode.h
 
@@ -59,6 +66,13 @@ typedef struct {
 */
 
 typedef struct {
+	ValTag tag;
+	Vector* slots;
+	// a hash table that maps a name to index;
+	Hashable* name_to_slot_table;
+} IndexedClassValue;
+
+typedef struct {
 	ObjTag tag;
 	Vector* slot_vec_ptr;
 	Value* parent_obj_ptr;
@@ -83,39 +97,37 @@ typedef struct {
 	_Frame* call_frame_ptr;
 } Frame;
 
+// hash table operations
+ValIndex find_item (Hashable* table, char* key);
+void add_item (Hashable* table, char* key, ValIndex value);
 
-typedef struct {
-	const char *key;	// hashtable item key
-	ValIndex value;		// hashtable item value
-	UT_hash_handle hh;	// used for internal book keeping, ignore it
-} Hashable;
+// global data structure operations
+int get_entry_function ();
+Vector* get_global_slots ();
+Vector* get_constant_pool ();
+void set_global_slots (Vector* slots);
+void set_entry_function (int entry_index);
+void addto_constant_pool (Vector* values, Value* v);
+IndexedClassValue* create_class_value(Vector* values, ClassValue* v2);
 
-ValIndex find_item(Hashable* table, char* key);
-void add_item(Hashable* table, char* key, ValIndex value);
-
+// byte code interpreter operations
 void exec_prog (Program* p);
 void exec_ins (ByteIns* ins);
 
 Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_frame_ptr);
 
-int get_entry_function ();
-Vector* get_global_slots ();
-Vector* get_constant_pool ();
-void set_global_slots (Vector* slots);
-void set_constant_pool (Vector* pool);
-void set_entry_function (int entry_index);
-
 
 //============================================================
-// hashtable implementations
+//============== HASHTABLE ENCAPSULATION =====================
+//============================================================
 
 Hashable* init_hashtable () {
 	Hashable* table = NULL;
 	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
 	item_ptr->key = "*&(&^&*";
 	item_ptr->value = -1;
-	HASH_ADD_KEYPTR(hh, table, item_ptr->key, 
-		strlen(item_ptr->key), item_ptr);
+	HASH_ADD_KEYPTR(hh, table, item_ptr->key,
+	                strlen(item_ptr->key), item_ptr);
 	return table;
 }
 
@@ -136,12 +148,14 @@ ValIndex find_item(Hashable* table, char* key) {
 }
 
 //============================================================
+//========== GLOBAL DATA STRUCTURE OPERATIONS ================
+//============================================================
 
-static Vector* constant_pool = NULL;
-void set_constant_pool (Vector* pool) {
-	constant_pool = pool;
-}
 Vector* get_constant_pool () {
+	static Vector* constant_pool = NULL;
+	if (constant_pool == NULL) {
+		constant_pool = make_vector();
+	}
 	return constant_pool;
 }
 
@@ -193,6 +207,8 @@ Frame* get_cur_frame () {
 }
 
 //============================================================
+//=============== BYTE CODE INTERPRETER ======================
+//============================================================
 
 Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_frame_ptr) {
 	Frame* ret = malloc(sizeof(Frame));
@@ -201,10 +217,6 @@ Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_fr
 	ret->call_frame_ptr = (_Frame*)call_frame_ptr;
 	return ret;
 }
-
-//============================================================
-//=============== BYTE CODE INTERPRETER ======================
-//============================================================
 
 void exec_ins (ByteIns* ins) {
 	switch (ins->tag) {
@@ -297,9 +309,64 @@ void exec_ins (ByteIns* ins) {
 	}
 }
 
+IndexedClassValue* create_class_value(Vector* values, ClassValue* v2) {
+	IndexedClassValue* new_v =
+	    (IndexedClassValue*)malloc(sizeof(IndexedClassValue));
+	new_v->tag = v2->tag;
+	new_v->slots = v2->slots;
+	new_v->name_to_slot_table = init_hashtable();
+	// iterate over all slots
+	for (int i = 0; i < v2->slots->size; i++) {
+		// get the slot value
+		int slot_index = (int)vector_get(v2->slots, i);
+		Value* value = vector_get(values, slot_index);
+		if (value->tag != SLOT_OBJ && value->tag != SLOT_OBJ) {
+			printf("non-slot or method value in class\n");
+			exit(-1);
+		}
+		int name_index = ((SlotValue*)value)->name;
+		// get the string value of name
+		value = vector_get(values, name_index);
+		if (value->tag != STR_OBJ) {
+			printf("Slot value name is not a string.\n");
+			exit(-1);
+		}
+		char* name_ptr = ((StringValue*)value)->value;
+		// map the string name to the slot index in new_v->slots
+		add_item(new_v->name_to_slot_table, name_ptr, i);
+	}
+	return new_v;
+}
+
+void addto_constant_pool (Vector* values, Value* v) {
+	Vector* constant_pool = get_constant_pool();
+	switch (v->tag) {
+	case INT_VAL:
+	case NULL_VAL:
+	case STRING_VAL:
+	case METHOD_VAL:
+	case SLOT_VAL: {
+		vector_add(constant_pool, v);
+		break;
+	}
+	case CLASS_VAL: {
+		ClassValue* v2 = (ClassValue*)v;
+		IndexedClassValue* new_v = create_class_value(values, v2);
+		vector_add(constant_pool, new_v);
+		break;
+	}
+	default:
+		printf("Value with unknown tag: %d\n", v->tag);
+		exit(-1);
+	}
+}
+
 void exec_prog (Program* p) {
 	// constant pool
-	set_constant_pool(p->values);
+	Vector* vs = p->values;
+	for (int i = 0; i < vs->size; i++) {
+		addto_constant_pool(vs, vector_get(vs, i));
+	}
 	// global slot
 	set_global_slots(p->slots);
 	// entry function

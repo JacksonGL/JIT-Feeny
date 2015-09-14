@@ -40,3 +40,5 @@ ByteCodeEx/output/*
 # the compiled binary
 ASTEx/cfeeny
 ASTEx/cfeeny.dSYM*
+ByteCodeEx/cfeeny
+ByteCodeEx/cfeeny.dSYM*
