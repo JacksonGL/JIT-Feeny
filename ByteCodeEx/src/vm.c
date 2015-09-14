@@ -12,59 +12,58 @@
 //============================================================
 
 typedef enum {
-	NULL_OBJ,
 	INT_OBJ,
+	NULL_OBJ,
 	STR_OBJ,
-	SLOT_OBJ,
 	METHOD_OBJ,
+	SLOT_OBJ,
 	CLASS_OBJ,
 	OBJ_OBJ
 } ObjTag;
 
 typedef int ValIndex;
 
-typedef struct {
-	ObjTag type;
-} Obj;
+/* reuse the value structure from bytecode.h
 
 typedef struct {
-	ObjTag type;
-} NullObj;
+  ValTag tag;
+} Value;
 
 typedef struct {
-	ObjTag type;
-	int value;
-} IntObj;
+  ValTag tag;
+  int value;
+} IntValue;
 
 typedef struct {
-	ObjTag type;
-	char* value;
-} StrObj;
+  ValTag tag;
+  char* value;
+} StringValue;
 
 typedef struct {
-	ObjTag type;
-	ValIndex name_str_index;
-} SlotObj;
+  ValTag tag;
+  int name;
+  int nargs;
+  int nlocals;
+  Vector* code;
+} MethodValue;
 
 typedef struct {
-	ObjTag type;
-	ValIndex name_str_index;
-	int num_args;
-	int num_local_vars;
-	Vector* ins_vec_ptr; // all instructions
-} MethodObj;
+  ValTag tag;
+  int name;
+} SlotValue;
 
 typedef struct {
-	ObjTag type;
+  ValTag tag;
+  Vector* slots;
+} ClassValue;
+*/
+
+typedef struct {
+	ObjTag tag;
 	Vector* slot_vec_ptr;
-} ClassObj;
-
-typedef struct {
-	ObjTag type;
-	Vector* slot_vec_ptr;
-	Obj* parent_obj_ptr;
-	// ClassObj* class_ptr;
-} ObjObj;
+	Value* parent_obj_ptr;
+	ClassValue* class_ptr;
+} ObjectValue;
 
 typedef struct {
 	Vector* slot_vec_ptr;
@@ -94,14 +93,31 @@ typedef struct {
 ValIndex find_item(Hashable* table, char* key);
 void add_item(Hashable* table, char* key, ValIndex value);
 
-void exec_value (Value* v);
 void exec_prog (Program* p);
 void exec_ins (ByteIns* ins);
 
 Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_frame_ptr);
 
+int get_entry_function ();
+Vector* get_global_slots ();
+Vector* get_constant_pool ();
+void set_global_slots (Vector* slots);
+void set_constant_pool (Vector* pool);
+void set_entry_function (int entry_index);
+
+
 //============================================================
 // hashtable implementations
+
+Hashable* init_hashtable () {
+	Hashable* table = NULL;
+	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
+	item_ptr->key = "*&(&^&*";
+	item_ptr->value = -1;
+	HASH_ADD_KEYPTR(hh, table, item_ptr->key, 
+		strlen(item_ptr->key), item_ptr);
+	return table;
+}
 
 void add_item(Hashable* table, char* key, ValIndex value) {
 	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
@@ -121,21 +137,28 @@ ValIndex find_item(Hashable* table, char* key) {
 
 //============================================================
 
+static Vector* constant_pool = NULL;
+void set_constant_pool (Vector* pool) {
+	constant_pool = pool;
+}
+Vector* get_constant_pool () {
+	return constant_pool;
+}
+
+static Vector* global_slots = NULL;
+void set_global_slots (Vector* slots) {
+	global_slots = slots;
+}
 Vector* get_global_slots () {
-	static Vector* global_slots = NULL;
-	if (global_slots == NULL)
-		global_slots = make_vector();
 	return global_slots;
 }
 
-Hashable* init_hashtable () {
-	Hashable* table = NULL;
-	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
-	item_ptr->key = "*&(&^&*";
-	item_ptr->value = -1;
-	HASH_ADD_KEYPTR(hh, table, item_ptr->key, 
-		strlen(item_ptr->key), item_ptr);
-	return table;
+static int entry_function_index = -1;
+int get_entry_function () {
+	return entry_function_index;
+}
+void set_entry_function (int entry_index) {
+	entry_function_index = entry_index;
 }
 
 Hashable* get_global_var_map () {
@@ -156,7 +179,7 @@ Hashable* get_ins_label_table () {
 }
 
 Vector* get_operand_stack () {
-	static Vector * operand_stack = NULL;
+	static Vector* operand_stack = NULL;
 	if (operand_stack == NULL)
 		operand_stack = make_vector();
 	return operand_stack;
@@ -182,54 +205,6 @@ Frame* create_frame (Vector* slot_vec_ptr, ByteIns* call_ins_ptr, Frame* call_fr
 //============================================================
 //=============== BYTE CODE INTERPRETER ======================
 //============================================================
-
-void exec_value (Value* v) {
-	switch (v->tag) {
-	case INT_VAL: {
-		IntValue* v2 = (IntValue*)v;
-		printf("Int(%d)", v2->value);
-		break;
-	}
-	case NULL_VAL: {
-		printf("Null");
-		break;
-	}
-	case STRING_VAL: {
-		StringValue* v2 = (StringValue*)v;
-		printf("String(");
-		print_string(v2->value);
-		printf(")");
-		break;
-	}
-	case METHOD_VAL: {
-		MethodValue* v2 = (MethodValue*)v;
-		printf("Method(#%d, nargs:%d, nlocals:%d) :", v2->name, v2->nargs, v2->nlocals);
-		for (int i = 0; i < v2->code->size; i++) {
-			printf("\n      ");
-			print_ins(vector_get(v2->code, i));
-		}
-		break;
-	}
-	case SLOT_VAL: {
-		SlotValue* v2 = (SlotValue*)v;
-		printf("Slot(#%d)", v2->name);
-		break;
-	}
-	case CLASS_VAL: {
-		ClassValue* v2 = (ClassValue*)v;
-		printf("Class(");
-		for (int i = 0; i < v2->slots->size; i++) {
-			if (i > 0) printf(", ");
-			printf("#%d", (int)vector_get(v2->slots, i));
-		}
-		printf(")");
-		break;
-	}
-	default:
-		printf("Value with unknown tag: %d\n", v->tag);
-		exit(-1);
-	}
-}
 
 void exec_ins (ByteIns* ins) {
 	switch (ins->tag) {
@@ -323,22 +298,20 @@ void exec_ins (ByteIns* ins) {
 }
 
 void exec_prog (Program* p) {
-	printf("Constants :");
-	Vector* vs = p->values;
-	for (int i = 0; i < vs->size; i++) {
-		printf("\n   #%d: ", i);
-		exec_value(vector_get(vs, i));
-	}
-	printf("\nGlobals :");
-	for (int i = 0; i < p->slots->size; i++)
-		printf("\n   #%d", (int)vector_get(p->slots, i));
-	printf("\nEntry : #%d", p->entry);
-}
+	// constant pool
+	set_constant_pool(p->values);
+	// global slot
+	set_global_slots(p->slots);
+	// entry function
+	set_entry_function(p->entry);
 
+	// TODO: call the entry function
+}
 
 void interpret_bc (Program* p) {
 	// printf("Interpreting Bytecode Program:\n");
 	// print_prog(p);
 	// printf("\n");
+	exec_prog(p);
 }
 
