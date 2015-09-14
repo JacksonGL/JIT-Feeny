@@ -4,7 +4,7 @@ Test Harness
 
 The provided bash script ```run_tests``` will compile the test programs in the ```test``` directory into bytecodes and run your bytecode interpreter on the result. To run it, type:
 ```
-./ run_tests vm.c
+./run_tests vm.c
 ```
 
 Compiling and Running Manually
