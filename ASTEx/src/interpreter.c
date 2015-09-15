@@ -883,7 +883,7 @@ void write_stat (char* filename) {
 
 // You must free the result if result is non-NULL.
 // only replace the first occurrance of *rep
-char *str_replace (char *orig, char *rep, char *with) {
+char* str_replace (char *orig, char *rep, char *with) {
   char *result; // the return string
   char *ins;    // the next insert point
   char *tmp;    // varies
