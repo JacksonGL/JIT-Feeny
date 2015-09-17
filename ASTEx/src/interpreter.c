@@ -69,8 +69,6 @@ typedef struct {
   ScopeFn * fn;
 } CodeEntry;
 
-
-
 // expression evaluation operations
 Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* exp);
 Obj* eval_printf (EnvObj* genv, EnvObj* env, PrintfExp* e);
