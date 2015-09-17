@@ -139,6 +139,7 @@ int get_entry_function ();
 Vector* get_global_slots ();
 Vector* get_constant_pool ();
 Value* get_val_constant(int idx);
+void associate_labels(Value *val);
 void set_global_slots (Vector* slots);
 void set_entry_function (int entry_index);
 void addto_constant_pool (Vector* values, Value* v);
@@ -169,6 +170,7 @@ void exec_set_local_op (SetLocalIns* i);
 void exec_call_slot_op (CallSlotIns* i);
 void exec_get_local_op (GetLocalIns* i);
 void exec_set_global_op (SetGlobalIns* i);
+void process_label_op (LabelIns * i, int i_ptr);
 
 RSlotValue* copy_var_slot (SlotValue* slot);
 int get_num_var_slots (IdxClassValue* class_val);
@@ -601,11 +603,14 @@ void exec_lit_op (LitIns * i) {
 // Associates a name with the address of
 // this instruction. The name is given by
 // the String object at index i.
-void exec_label_op (LabelIns * i) {
+void process_label_op (LabelIns * i, int i_ptr) {
 	int label_idx = i->name;
 	char* label_str = get_str_constant(label_idx);
-	set_label_addr(label_str, inst_ptr);
-	// inst_ptr is updated in set_label_addr
+	set_label_addr(label_str, i_ptr);
+}
+
+void exec_label_op (LabelIns * i) {
+	inst_ptr++;
 }
 
 // First pops the initializing value from
@@ -733,7 +738,7 @@ void exec_slot_op (SlotIns* i) {
 	inst_ptr++;
 }
 
-// Pops the value to store, x, from 
+// Pops the value to store, x, from
 // the operand stack, and then pops the object to store it into. Stores
 // x into the object at the variable slot with name given by the String
 // object at index i. x is then pushed onto the operand stack.
@@ -1045,6 +1050,16 @@ IdxClassValue* create_class(Vector * values, ClassValue * v2) {
 	return new_v;
 }
 
+void associate_labels(Value *val) {
+	MethodValue* method = to_function_val(val);
+	for (int i = 0; i < method->code->size; i++) {
+		ByteIns* ins = (ByteIns*)vector_get(method->code, i);
+		if (ins->tag == LABEL_OP) {
+			process_label_op((LabelIns*)ins, i);
+		}
+	}
+}
+
 // add values in the byte code syntax tree into
 // the runtime constatnt pool
 void addto_constant_pool (Vector * values, Value * v) {
@@ -1055,6 +1070,9 @@ void addto_constant_pool (Vector * values, Value * v) {
 	case STRING_VAL:
 	case METHOD_VAL: {
 		vector_add(constant_pool, v);
+		// preprocess to construct label table
+		if (v->tag == METHOD_VAL)
+			associate_labels(v);
 		break;
 	}
 	case SLOT_VAL: {
@@ -1102,11 +1120,11 @@ void start_exec() {
 			printf("Error: wrong inst_ptr: %d.\n", inst_ptr);
 			exit(-1);
 		}
-		printf("%d, %d\n", code->size, inst_ptr);
-		printf("stack size: %d\n", operand_stack->size);
+		// printf("%d, %d\n", code->size, inst_ptr);
+		// printf("stack size: %d\n", operand_stack->size);
 		ByteIns* ins = vector_get(code, inst_ptr);
-		print_ins(ins);
-		printf("\n");
+		// print_ins(ins);
+		// printf("\n");
 		exec_ins(ins);
 	}
 }
