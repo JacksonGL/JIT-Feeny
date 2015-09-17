@@ -178,7 +178,9 @@ void exec_call_slot_op (CallSlotIns* i);
 void exec_get_local_op (GetLocalIns* i);
 void exec_set_global_op (SetGlobalIns* i);
 void process_label_op (LabelIns * i, int i_ptr);
+void call_func (MethodValue * function_slot, int arity);
 
+// slot related operations
 RSlotValue* copy_var_slot (SlotValue* slot);
 int get_num_var_slots (IdxClassValue* class_val);
 Value* find_slot_by_name(ObjectValue* receiver, char* function_name);
@@ -796,10 +798,10 @@ void call_func (MethodValue * function_slot, int arity) {
 	while (n-- > 0) {
 		vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_vec));
 	}
+	vector_free(tmp_vec);
 	set_cur_frame(local_frame);
 	// set the instructor pointer to the first
 	// instruction in the function body
-	vector_free(tmp_vec);
 	inst_ptr = 0;
 }
 
