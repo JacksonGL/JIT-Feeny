@@ -220,6 +220,9 @@ RSlotValue* to_slot_val (Value* val);
 MethodValue* to_function_val (Value* val);
 void exp_assert(int i, const char * fmt, ...);
 
+// free functions
+void free_frame(Frame* frame);
+
 //============================================================
 //============== HASHTABLE ENCAPSULATION =====================
 //============================================================
@@ -680,6 +683,7 @@ void exec_printf_op (PrintfIns * i) {
 		printf("%s", new_str);
 		free(new_str);
 	}
+	vector_free(args);
 	inst_ptr++;
 }
 
@@ -780,7 +784,6 @@ void exec_set_slot_op (SetSlotIns * i) {
 void call_func (MethodValue * function_slot, int arity) {
 	// pops arguments from the stack
 	Vector* tmp_vec = make_vector();
-	Vector* args_vec = make_vector();
 	// create a new local frame
 	Frame* local_frame = create_frame(inst_ptr,
 	                                  function_slot, get_cur_frame());
@@ -796,6 +799,7 @@ void call_func (MethodValue * function_slot, int arity) {
 	set_cur_frame(local_frame);
 	// set the instructor pointer to the first
 	// instruction in the function body
+	vector_free(tmp_vec);
 	inst_ptr = 0;
 }
 
@@ -836,7 +840,7 @@ void exec_return_op () {
 	inst_ptr = frame->call_ins_idx + 1;
 	Frame* call_frame = (Frame*)frame->call_frame_ptr;
 	set_cur_frame(call_frame);
-	// TODO: free the current frame
+	free_frame(frame);
 }
 
 // Pops n values from the
@@ -905,7 +909,7 @@ void exec_call_slot_op (CallSlotIns * i) {
 		}
 		stack_push(retVal);
 		inst_ptr++;
-		return;
+		break;
 	}
 	case ARRAY_OBJ: {
 		Value* result = NULL;
@@ -930,16 +934,17 @@ void exec_call_slot_op (CallSlotIns * i) {
 			} else {
 				exp_assert(0, "unknown native array function");
 			}
+			vector_free(args);
 		}
 		stack_push(result);
 		inst_ptr++;
-		return;
+		break;
 	}
 	case OBJ_OBJ: {
 		Value* slot = find_slot_by_name((ObjectValue*)receiver_ptr, method_name);
 		assert_not_null(slot);
 		MethodValue* method_slot = to_function_val(slot);
-		Vector* args_vec = make_vector();
+		Vector* args = make_vector();
 		// create a new local frame
 		Frame* local_frame = create_frame(inst_ptr,
 		                                  method_slot, get_cur_frame());
@@ -951,13 +956,15 @@ void exec_call_slot_op (CallSlotIns * i) {
 		}
 		set_cur_frame(local_frame);
 		inst_ptr = 0;
-		return;
+		vector_free(args);
+		break;
 	}
 	default:
 		printf("receiver_ptr->tag: %d\n", receiver_ptr->tag);
 		exp_assert(0, "Cannot call method on null object!");
 		exit(-1);
 	}
+	vector_free(tmp_arg_vec);
 }
 
 void exec_ins (ByteIns * ins) {
@@ -1187,6 +1194,11 @@ void interpret_bc (Program * p) {
 //============================================================
 //================== UTIL FUNCITONS ==========================
 //============================================================
+
+void free_frame(Frame* frame) {
+	vector_free(frame->slot_vec_ptr);
+	free(frame);
+}
 
 MethodValue* to_function_val (Value* val) {
 	if (val == NULL || val->tag != METHOD_VAL) {

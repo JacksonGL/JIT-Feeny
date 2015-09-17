@@ -15,7 +15,7 @@ mkdir -p output/reference
 mkdir fail
 rm output/*.out
 rm output/reference/*.out
-rm output/*.ast
+rm output/*.bc
 rm output/stat/*.stat
 
 # Run output
