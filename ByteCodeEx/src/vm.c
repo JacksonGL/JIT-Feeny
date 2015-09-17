@@ -9,6 +9,8 @@
 #include "uthash.h"
 #include "vm.h"
 
+// #define DEBUG 1
+
 //============================================================
 //=============== BASIC DATA STRUCTURE =======================
 //============================================================
@@ -75,6 +77,11 @@ typedef struct {
   Vector* slots;
 } ClassValue;
 */
+
+typedef struct {
+	ObjTag tag;
+	Vector* v;
+} ArrayValue;
 
 typedef struct {
 	ValTag tag;
@@ -180,14 +187,20 @@ Frame* create_frame (int call_ins_idx,
                      MethodValue* func_ptr, Frame* call_frame);
 
 // util operations
-char* intToString(int i);
-char* toString(Value *val_ptr);
+char* intToString (int i);
+char* toString (Value *val_ptr);
 char* copy_string (const char *string);
+char* arrayToString (ArrayValue *obj_ptr);
 char* str_replace (char *orig, char *rep, char *with);
 
-int obj_type(Value* o);
-NullValue* make_null_obj();
-IntValue* make_int_obj(int value);
+int obj_type (Value* o);
+NullValue* make_null_obj ();
+IntValue* make_int_obj (int value);
+IntValue* array_length (ArrayValue* array);
+Value* array_get (ArrayValue* a, IntValue* i);
+ArrayValue* make_array_obj (int length, Value* init);
+NullValue* array_set (ArrayValue* a, IntValue* i, Value* v);
+
 Value* eq(IntValue* x, IntValue* y);
 Value* lt(IntValue* x, IntValue* y);
 Value* le(IntValue* x, IntValue* y);
@@ -202,6 +215,7 @@ IntValue* int_obj_mod (IntValue* x, IntValue* y);
 // assert functions
 void assert_obj_obj (Value* ptr);
 void assert_not_null (void* ptr);
+IntValue* to_int_val (Value* val);
 RSlotValue* to_slot_val (Value* val);
 MethodValue* to_function_val (Value* val);
 void exp_assert(int i, const char * fmt, ...);
@@ -437,7 +451,7 @@ void set_cur_frame (Frame * new_frame) {
 void set_frame_slot (Frame * frame, int idx, Value * val) {
 	if (idx == frame->slot_vec_ptr->size) {
 		vector_add(frame->slot_vec_ptr, val);
-	} else if (0 < idx && idx < frame->slot_vec_ptr->size) {
+	} else if (0 <= idx && idx < frame->slot_vec_ptr->size) {
 		vector_set(frame->slot_vec_ptr, idx, val);
 	} else {
 		printf("Error: set frame value.\n");
@@ -621,9 +635,12 @@ void exec_label_op (LabelIns * i) {
 // to the given value, and pushes the array
 // onto the operand stack.
 void exec_array_op () {
-	printf("exec_array_op is not implemented.\n");
-	exit(-1);
-	// TBD
+	Value* init_value = stack_pop();
+	assert_not_null(init_value);
+	Value* length = stack_pop();
+	IntValue* len = to_int_val(length);
+	Value* array = (Value*)make_array_obj(len->value, init_value);
+	stack_push(array);
 	inst_ptr++;
 }
 
@@ -728,11 +745,12 @@ void exec_object_op (ObjectIns * i) {
 // and pushes it onto the operand stack.
 void exec_slot_op (SlotIns* i) {
 	int name_idx = i->name;
-	Value* val = stack_pop();
-	assert_obj_obj(val);
 	char* slot_name = get_str_constant(name_idx);
 	assert_not_null(slot_name);
-	Value* slot = find_slot_by_name((ObjectValue*)val, slot_name);
+	// pop the object to get from
+	Value* obj = stack_pop();
+	assert_obj_obj(obj);
+	Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
 	RSlotValue* slotVal = to_slot_val(slot);
 	stack_push(slotVal->value);
 	inst_ptr++;
@@ -743,10 +761,19 @@ void exec_slot_op (SlotIns* i) {
 // x into the object at the variable slot with name given by the String
 // object at index i. x is then pushed onto the operand stack.
 void exec_set_slot_op (SetSlotIns * i) {
-	int slot_idx = i->name;
-	printf("exec_set_slot_op is not implemented.\n");
-	exit(-1);
-	// TBD
+	int name_idx = i->name;
+	char* slot_name = get_str_constant(name_idx);
+	assert_not_null(slot_name);
+	// pop the value to be stored
+	Value* val = stack_pop();
+	assert_not_null(val);
+	// pop the object to store into
+	Value* obj = stack_pop();
+	assert_obj_obj(obj);
+	Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
+	RSlotValue* slotVal = to_slot_val(slot);
+	slotVal->value = val;
+	stack_push(val);
 	inst_ptr++;
 }
 
@@ -830,7 +857,7 @@ void exec_return_op () {
 void exec_call_slot_op (CallSlotIns * i) {
 	int method_name_idx = i->name;
 	char* method_name = get_str_constant(method_name_idx);
-	int arity = i->arity - 1;
+	int arity = i->arity > 0 ? i->arity - 1 : 0;
 	// pops arguments from the stack
 	Vector* tmp_arg_vec = make_vector();
 	// the first arity slots are the arguments
@@ -844,7 +871,7 @@ void exec_call_slot_op (CallSlotIns * i) {
 	exp_assert(obj_type(receiver_ptr) != NULL_OBJ,
 	           "Null object does not have methods!");
 	Value* retVal = NULL;
-	// TODO: make the error message more informative
+
 	switch ((ObjTag)obj_type(receiver_ptr)) {
 	// handle built in functions
 	case INT_OBJ: {
@@ -881,28 +908,32 @@ void exec_call_slot_op (CallSlotIns * i) {
 		return;
 	}
 	case ARRAY_OBJ: {
-		printf("Error: array method call is not implemented.\n");
-		exit(-1);
-		/*
-		if (!strcmp(e2->name, "length") && e2->nargs == 0) {
-			return (Obj*)array_length((ArrayObj*) receiver_ptr);
-		}
-		Obj* first_arg;
-		exp_assert(e2->nargs > 0 && obj_type(first_arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
-		           (Exp*) e2, "native array function error - %s",
-		           e2->nargs < 1 ? "not enough arguments!" :
-		           "incorrect argument type!");
-		if (!strcmp(e2->name, "set") && e2->nargs == 2) {
-			return (Obj*)array_set((ArrayObj*)receiver_ptr,
-			                       (IntValue*)first_arg, eval_exp(genv, env, e2->args[1]));
-		} else if (!strcmp(e2->name, "get") && e2->nargs == 1) {
-			return (Obj*)array_get((ArrayObj*)receiver_ptr, (IntValue*)first_arg);
+		Value* result = NULL;
+		if (!strcmp(method_name, "length") && arity == 0) {
+			result = (Value*)array_length((ArrayValue*) receiver_ptr);
 		} else {
-			exp_assert(0, (Exp*) e2, "unknown native array function");
+			Vector* args = make_vector();
+			n = arity;
+			while (n-- > 0) {
+				vector_add(args, vector_pop(tmp_arg_vec));
+			}
+			Value* first_arg;
+			exp_assert(arity > 0 && obj_type(first_arg = vector_get(args, 0)) == INT_OBJ,
+			           "native array function error - %s",
+			           arity < 1 ? "not enough arguments!" :
+			           "incorrect argument type!");
+			if (!strcmp(method_name, "set") && arity == 2) {
+				result = (Value*)array_set((ArrayValue*)receiver_ptr,
+				                           (IntValue*)first_arg, vector_get(args, 1));
+			} else if (!strcmp(method_name, "get") && arity == 1) {
+				result = (Value*)array_get((ArrayValue*)receiver_ptr, (IntValue*)first_arg);
+			} else {
+				exp_assert(0, "unknown native array function");
+			}
 		}
-		*/
-		//TODO: push result onto the stack
-		//TODO: update instruction pointer
+		stack_push(result);
+		inst_ptr++;
+		return;
 	}
 	case OBJ_OBJ: {
 		Value* slot = find_slot_by_name((ObjectValue*)receiver_ptr, method_name);
@@ -923,7 +954,6 @@ void exec_call_slot_op (CallSlotIns * i) {
 		return;
 	}
 	default:
-		// TODO: complain about null obj
 		printf("receiver_ptr->tag: %d\n", receiver_ptr->tag);
 		exp_assert(0, "Cannot call method on null object!");
 		exit(-1);
@@ -1120,11 +1150,15 @@ void start_exec() {
 			printf("Error: wrong inst_ptr: %d.\n", inst_ptr);
 			exit(-1);
 		}
-		// printf("%d, %d\n", code->size, inst_ptr);
-		// printf("stack size: %d\n", operand_stack->size);
+#ifdef DEBUG
+		printf("%d, %d\n", code->size, inst_ptr);
+		printf("stack size: %d\n", operand_stack->size);
+#endif
 		ByteIns* ins = vector_get(code, inst_ptr);
-		// print_ins(ins);
-		// printf("\n");
+#ifdef DEBUG
+		print_ins(ins);
+		printf("\n");
+#endif
 		exec_ins(ins);
 	}
 }
@@ -1170,6 +1204,14 @@ RSlotValue* to_slot_val (Value* val) {
 	return (RSlotValue*) val;
 }
 
+IntValue* to_int_val (Value* val) {
+	if (val == NULL || val->tag != INT_VAL) {
+		printf("Error: to_int_val.\n");
+		exit(-1);
+	}
+	return (IntValue*)val;
+}
+
 void assert_not_null (void* ptr) {
 	if (ptr == NULL) {
 		printf("Error: assert_not_null.\n");
@@ -1178,8 +1220,7 @@ void assert_not_null (void* ptr) {
 }
 
 void assert_obj_obj (Value* ptr) {
-	assert_not_null(ptr);
-	if (ptr->tag != OBJ_OBJ) {
+	if (ptr == NULL || ptr->tag != OBJ_OBJ) {
 		printf("Error: assert_obj_obj.\n");
 		exit(-1);
 	}
@@ -1206,7 +1247,7 @@ NullValue* make_null_obj () {
 	return &n;
 }
 
-IntValue* make_int_obj(int value) {
+IntValue* make_int_obj (int value) {
 	//cache for memory usage - could make the cache larger
 	static int cache_initted = 0;
 	static IntValue cached[101];
@@ -1224,6 +1265,38 @@ IntValue* make_int_obj(int value) {
 	IntValue* t = malloc(sizeof(IntValue));
 	t->tag = INT_VAL;
 	t->value = value;
+	return t;
+}
+
+IntValue* array_length (ArrayValue* array) {
+	return make_int_obj(array->v->size);
+}
+
+NullValue* array_set (ArrayValue* a, IntValue* i, Value* v) {
+	if (i->value >= a->v->size || i->value < 0) {
+		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+		exit(-1);
+	}
+
+	vector_set(a->v, i->value, v);
+	return make_null_obj();
+}
+
+Value* array_get (ArrayValue* a, IntValue* i) {
+	if (i->value >= a->v->size || i->value < 0) {
+		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+		exit(-1);
+	}
+	return vector_get(a->v, i->value);
+}
+
+ArrayValue* make_array_obj(int length, Value* init) {
+	ArrayValue* t = malloc(sizeof(ArrayValue));
+	t->tag = ARRAY_OBJ;
+	t->v = make_vector();
+	for (int i = 0; i < length; ++i) {
+		vector_add(t->v, init);
+	}
 	return t;
 }
 
@@ -1265,7 +1338,7 @@ Value* ge(IntValue * x, IntValue * y) {
 }
 
 // convert an interpreter object into a string
-char* toString(Value * val_ptr) {
+char* toString (Value * val_ptr) {
 	switch (((RValue*)val_ptr)->tag) {
 	case INT_OBJ: {
 		return intToString(((IntValue*)val_ptr)->value);
@@ -1280,16 +1353,39 @@ char* toString(Value * val_ptr) {
 		strcpy(result, "Null");
 		return result;
 	}
-	/*
 	case ARRAY_OBJ: {
-	  return arrayToString((ArrayObj*)obj_ptr);
+		return arrayToString((ArrayValue*)val_ptr);
 	}
-	*/
 	default:
 		printf("Error: toString.\n");
 		exit(-1);
 	}
 	return NULL;
+}
+
+char* arrayToString (ArrayValue *obj_ptr) {
+	char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
+	int size_of_str = 1; //opening brace
+	for (int i = 0; i < obj_ptr->v->size; ++i) {
+		strs[i] = toString(vector_get(obj_ptr->v, i));
+		size_of_str += strlen(strs[i]);
+		if (i) {
+			size_of_str += 1; //space
+		}
+	}
+	size_of_str += 1; // closing brace
+	size_of_str += 1; // null at end of string
+
+	char *result = malloc(size_of_str * sizeof(char));
+	*result = '\0';
+
+	char* t = result;
+	t = strcat(t, "[");
+	for (int i = 0; i < obj_ptr->v->size; ++i) {
+		t = strcat(t, strs[i]);
+	}
+	t = strcat(t, "]");
+	return result;
 }
 
 char* intToString(int i) {
@@ -1370,5 +1466,3 @@ char* str_replace (char *orig, char *rep, char *with) {
 	strcpy(tmp, orig);
 	return result;
 }
-
-// TODO: update instruction pointer

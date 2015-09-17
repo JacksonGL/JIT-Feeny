@@ -29,8 +29,10 @@
 
 # output files
 ASTEx/output/*
+ASTEx/fail/*
 ASTEx/tests/*.oracle
 ByteCodeEx/output/*
+ByteCodeEx/fail/*
 *.aux
 *.bbl
 *.blg

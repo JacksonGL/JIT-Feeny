@@ -13,7 +13,7 @@ Compiling and Running Manually
 To compile and run your implementation of the bytecode interpreter manually, you may also follow these steps. Compile your interpreter by typing:
 
 ```
-gcc src/cfeeny.c src/utils.c src/bytecode.c src/vm.c -o cfeeny -Wno-int-to-void-pointer-cast
+gcc -std=c99 -O3 src/cfeeny.c src/utils.c src/bytecode.c src/$1 -o cfeeny -Wno-int-to-void-pointer-cast
 ```
 
 at the terminal. This will create the ```cfeeny``` executable.
@@ -28,6 +28,14 @@ Finally, call the ```cfeeny``` executable with the binary bytecode file as its a
 
 ```
 ./cfeeny output/cplx.bc
+```
+
+Run Tests
+---------
+
+Run the following script to do a comprehensive testing on the byte code interpreter implementation against an Feeny AST interpreter.
+```
+./run_tests.sh
 ```
 
 Example of Byte Code Structure
