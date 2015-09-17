@@ -33,7 +33,7 @@ Finally, call the ```cfeeny``` executable with the binary bytecode file as its a
 Run Tests
 ---------
 
-Run the following script to do a comprehensive testing on the byte code interpreter implementation against an Feeny AST interpreter.
+Run the following script to do a comprehensive testing on the byte code interpreter implementation against a Feeny AST interpreter.
 ```
 ./run_tests.sh
 ```
