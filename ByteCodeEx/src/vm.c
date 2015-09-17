@@ -34,6 +34,10 @@ typedef struct {
 	ObjTag tag;
 } RValue;
 
+typedef struct {
+	ValTag tag;
+} NullValue;
+
 /* reuse the value structure from bytecode.h
 
 typedef struct {
@@ -90,19 +94,27 @@ typedef struct {
 } ObjectValue;
 
 typedef struct {
+	// the values of all local variables
+	// defined in the function
 	Vector* slot_vec_ptr;
 	// address of the call byte
 	// code instruction, this is
 	// also the return address
-	ByteIns* call_ins_ptr;
+	ByteIns* call_ins_idx;
+	// function slot pointer
+	MethodValue* func_ptr;
 } _Frame;
 
 typedef struct {
+	// the values of all local variables
+	// defined in the function
 	Vector* slot_vec_ptr;
 	// address of the call byte
 	// code instruction, this is
 	// also the return address
-	ByteIns* call_ins_ptr;
+	int call_ins_idx;
+	// function slot pointer
+	MethodValue* func_ptr;
 	// caller's frame
 	_Frame* call_frame_ptr;
 } Frame;
@@ -131,6 +143,7 @@ IdxClassValue* create_class (Vector* values, ClassValue* v2);
 // frame operations
 Frame* get_cur_frame ();
 Frame* get_root_frame ();
+void set_cur_frame (Frame* new_frame);
 Value* get_frame_slot (Frame* frame, int idx);
 void set_frame_slot (Frame* frame, int idx, Value* val);
 
@@ -156,7 +169,8 @@ void exec_set_global_op (SetGlobalIns* i);
 RSlotValue* copy_var_slot (SlotValue* slot);
 int get_num_var_slots (ClassValue* class_val);
 
-Frame* create_frame (Vector* slots, ByteIns* call_ins, Frame* call_frame);
+Frame* create_frame (int call_ins_idx,
+                     MethodValue* func_ptr, Frame* call_frame);
 
 // util operations
 char* intToString(int i);
@@ -164,6 +178,22 @@ char* toString(Value *val_ptr);
 char* copy_string (const char *string);
 char* str_replace (char *orig, char *rep, char *with);
 
+void assert_not_null(void* ptr);
+MethodValue* to_function_slot(Value* slot);
+
+int obj_type(Value* o);
+NullValue* make_null_obj();
+IntValue* make_int_obj(int value);
+Value* eq(IntValue* x, IntValue* y);
+Value* lt(IntValue* x, IntValue* y);
+Value* le(IntValue* x, IntValue* y);
+Value* gt(IntValue* x, IntValue* y);
+Value* ge(IntValue* x, IntValue* y);
+IntValue* int_obj_add (IntValue* x, IntValue* y);
+IntValue* int_obj_sub (IntValue* x, IntValue* y);
+IntValue* int_obj_mul (IntValue* x, IntValue* y);
+IntValue* int_obj_div (IntValue* x, IntValue* y);
+IntValue* int_obj_mod (IntValue* x, IntValue* y);
 
 //============================================================
 //============== HASHTABLE ENCAPSULATION =====================
@@ -204,7 +234,9 @@ ValIndex find_item(Hashable* table, char* key) {
 int get_num_var_slots (ClassValue* class_val) {
 	int var_slot_count = 0;
 	for (int i = 0; i < class_val->slots->size; i++) {
-		Value* slot = vector_get(class_val->slots, i);
+		int slot_idx = (int)vector_get(class_val->slots, i);
+		Value* slot = get_val_constant(slot_idx);
+		assert_not_null(slot);
 		if (slot->tag == SLOT_VAL) {
 			var_slot_count++;
 		}
@@ -344,21 +376,30 @@ Value* stack_peek () {
 	return vector_peek(operand_stack);
 }
 
+static Frame* current_frame_ptr = NULL;
 Frame* get_root_frame () {
 	static Frame* root_frame_ptr = NULL;
-	if (root_frame_ptr == NULL)
-		root_frame_ptr = create_frame(NULL, NULL, NULL);
+	if (root_frame_ptr == NULL) {
+		root_frame_ptr = create_frame(-1, NULL, NULL);
+		current_frame_ptr = root_frame_ptr;
+	}
 	return root_frame_ptr;
 }
-
 Frame* get_cur_frame () {
-	static Frame* current_frame_ptr = NULL;
 	return current_frame_ptr;
+}
+
+void set_cur_frame (Frame* new_frame) {
+	if (current_frame_ptr != (Frame*)(new_frame->call_frame_ptr)) {
+		printf("Error: set_cur_frame.\n");
+		exit(-1);
+	}
+	current_frame_ptr = new_frame;
 }
 
 void set_frame_slot (Frame* frame, int idx, Value* val) {
 	if (idx >= frame->slot_vec_ptr->size) {
-		printf("Error set frame value.\n");
+		printf("Error: set frame value.\n");
 		exit(-1);
 	}
 	vector_set(frame->slot_vec_ptr, idx, val);
@@ -366,17 +407,18 @@ void set_frame_slot (Frame* frame, int idx, Value* val) {
 
 Value* get_frame_slot (Frame* frame, int idx) {
 	if (idx >= frame->slot_vec_ptr->size) {
-		printf("Error get frame value.\n");
+		printf("Error: get frame value.\n");
 		exit(-1);
 	}
 	return vector_get(frame->slot_vec_ptr, idx);
 }
 
-Frame* create_frame (Vector* slot_vec,
-                     ByteIns* call_ins, Frame* call_frame) {
+Frame* create_frame (int call_ins_idx,
+                     MethodValue* func_ptr, Frame* call_frame) {
 	Frame* ret = malloc(sizeof(Frame));
-	ret->slot_vec_ptr = slot_vec;
-	ret->call_ins_ptr = call_ins;
+	ret->slot_vec_ptr = make_vector();
+	ret->call_ins_idx = call_ins_idx;
+	ret->func_ptr = func_ptr;
 	ret->call_frame_ptr = (_Frame*)call_frame;
 	return ret;
 }
@@ -400,6 +442,7 @@ void exec_set_local_op (SetLocalIns* i) {
 	Frame* frame = get_cur_frame();
 	set_frame_slot(frame, slot_idx, val);
 	// NOTE: do not pop from the stack
+	inst_ptr++;
 }
 
 // Retrieves the i’th slot in the
@@ -416,6 +459,7 @@ void exec_get_local_op (GetLocalIns* i) {
 	}
 	Value* val = get_frame_slot(frame, slot_idx);
 	stack_push(val);
+	inst_ptr++;
 }
 
 // Sets the global variable with name
@@ -437,6 +481,7 @@ void exec_set_global_op (SetGlobalIns* i) {
 	RSlotValue* rSlot = (RSlotValue*)slot;
 	rSlot->value = val;
 	// NOTE: do not pop from the stack
+	inst_ptr++;
 }
 
 // Retrieves the value of the
@@ -458,6 +503,7 @@ void exec_get_global_op (GetGlobalIns* i) {
 		exit(-1);
 	}
 	stack_push(val);
+	inst_ptr++;
 }
 
 // Pops a value from the operand
@@ -477,6 +523,8 @@ void exec_branch_op (BranchIns* i) {
 		char* label_str = get_str_constant(label_idx);
 		int addr = get_label_addr(label_str);
 		inst_ptr = addr;
+	} else {
+		inst_ptr++;
 	}
 }
 
@@ -494,6 +542,7 @@ void exec_goto_op (GotoIns* i) {
 // the operand stack.
 void exec_drop_op () {
 	stack_pop();
+	inst_ptr++;
 }
 
 // Retrieves the object at index i in
@@ -503,11 +552,12 @@ void exec_drop_op () {
 void exec_lit_op (LitIns* i) {
 	int val_idx = i->idx;
 	Value* val = get_val_constant(val_idx);
-	if (val->tag != INT_OBJ && val->tag != NULL_OBJ) {
+	if (val == NULL || (val->tag != INT_OBJ && val->tag != NULL_OBJ)) {
 		printf("Error in LIT_OP.\n");
 		exit(-1);
 	}
 	stack_push(val);
+	inst_ptr++;
 }
 
 // Associates a name with the address of
@@ -517,6 +567,7 @@ void exec_label_op (LabelIns* i) {
 	int label_idx = i->name;
 	char* label_str = get_str_constant(label_idx);
 	set_label_addr(label_str, inst_ptr);
+	// inst_ptr is updated in set_label_addr
 }
 
 // First pops the initializing value from
@@ -527,7 +578,10 @@ void exec_label_op (LabelIns* i) {
 // to the given value, and pushes the array
 // onto the operand stack.
 void exec_array_op () {
+	printf("exec_array_op is not implemented.\n");
+	exit(-1);
 	// TBD
+	inst_ptr++;
 }
 
 // Pops n values from the operand
@@ -566,6 +620,7 @@ void exec_printf_op (PrintfIns* i) {
 		printf("%s", new_str);
 		free(new_str);
 	}
+	inst_ptr++;
 }
 
 // Retrieves the Class object at index c.
@@ -582,7 +637,7 @@ void exec_printf_op (PrintfIns* i) {
 void exec_object_op (ObjectIns* i) {
 	int class_idx = i->class;
 	Value* class = get_val_constant(class_idx);
-	if (class->tag != CLASS_VAL) {
+	if (class == NULL || class->tag != CLASS_VAL) {
 		printf("Error: exec_object_op.\n");
 		exit(-1);
 	}
@@ -595,7 +650,9 @@ void exec_object_op (ObjectIns* i) {
 	vector_set_length(obj->slot_vec_ptr, class_val->slots->size, NULL);
 	// iterate from last slot to the first slot
 	for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
-		Value* slot_in_class = vector_get(class_val->slots, i);
+		int slot_idx = (int)vector_get(class_val->slots, i);
+		Value* slot_in_class = get_val_constant(slot_idx);
+		assert_not_null(slot_in_class);
 		if (slot_in_class->tag == METHOD_VAL) {
 			// copy method slot
 			vector_set(obj->slot_vec_ptr, i, slot_in_class);
@@ -615,9 +672,11 @@ void exec_object_op (ObjectIns* i) {
 			exit(-1);
 		}
 	}
+	printf("here\n");
 	obj->parent_obj_ptr = stack_pop();
 	obj->class_ptr = class_val;
 	stack_push((Value*)obj);
+	inst_ptr++;
 }
 
 // Pops a value from the operand
@@ -629,6 +688,7 @@ void exec_slot_op (SlotIns* i) {
 	printf("exec_slot_op is not implemented.\n");
 	exit(-1);
 	// TBD
+	inst_ptr++;
 }
 
 // Pops the value to store, x, from
@@ -640,6 +700,29 @@ void exec_set_slot_op (SetSlotIns* i) {
 	printf("exec_set_slot_op is not implemented.\n");
 	exit(-1);
 	// TBD
+	inst_ptr++;
+}
+
+void call_func (MethodValue* function_slot, int arity) {
+	// pops arguments from the stack
+	Vector* tmp_vec = make_vector();
+	Vector* args_vec = make_vector();
+	// create a new local frame
+	Frame* local_frame = create_frame(inst_ptr,
+	                                  function_slot, get_cur_frame());
+	// the first arity slots are the arguments
+	int n = arity;
+	while (n-- > 0) {
+		vector_add(tmp_vec, stack_pop());
+	}
+	n = arity;
+	while (n-- > 0) {
+		vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_vec));
+	}
+	set_cur_frame(local_frame);
+	// set the instructor pointer to the first
+	// instruction in the function body
+	inst_ptr = 0;
 }
 
 // Pops n values from the operand stack
@@ -655,9 +738,15 @@ void exec_set_slot_op (SetSlotIns* i) {
 void exec_call_op (CallIns* i) {
 	int function_name_idx = i->name;
 	int arity = i->arity;
-	printf("exec_call_op is not implemented.\n");
-	exit(-1);
-	// TBD
+
+	char* function_name = get_str_constant(function_name_idx);
+	Value* function_slot = get_global_slot_by_name(function_name);
+	if (function_slot == NULL || function_slot->tag != METHOD_VAL) {
+		printf("Error: exec_call_op.\n");
+		exit(-1);
+	}
+	call_func((MethodValue*)function_slot, arity);
+	// instruction pointer is updated in call_func
 }
 
 // Registers the parent frame of the
@@ -672,6 +761,8 @@ void exec_return_op () {
 	printf("exec_return_op is not implemented.\n");
 	exit(-1);
 	// TBD
+
+	// TODO: update instruction ptr
 }
 
 // Pops n values from the
@@ -696,6 +787,8 @@ void exec_call_slot_op (CallSlotIns* i) {
 	printf("exec_call_slot_op is not implemented.\n");
 	exit(-1);
 	// TBD
+
+	// TODO: update instruction ptr
 }
 
 void exec_ins (ByteIns* ins) {
@@ -851,6 +944,38 @@ void addto_constant_pool (Vector* values, Value* v) {
 	}
 }
 
+void start_exec() {
+	// init the root frame
+	get_root_frame();
+	// init the global var table
+	get_global_var_map ();
+	// init the instruction label table
+	get_ins_label_table ();
+	// init the operand stack
+	get_operand_stack ();
+	// call the entry function
+	Value* slot = get_val_constant(get_entry_function());
+	call_func(to_function_slot(slot), 0);
+	// start executing the program
+	while (1) {
+		// get the current instruction
+		Frame* cur_frame = get_cur_frame();
+		if (cur_frame == get_root_frame()) {
+			break; // execution stops
+		}
+		Vector* code = cur_frame->func_ptr->code;
+		if (inst_ptr < 0 || inst_ptr >= code->size) {
+			printf("Error: start_exec.\n");
+			exit(-1);
+		}
+		printf("%d, %d\n", code->size, inst_ptr);
+		ByteIns* ins = vector_get(code, inst_ptr);
+		print_ins(ins);
+		printf("\n");
+		exec_ins(ins);
+	}
+}
+
 void exec_prog (Program* p) {
 	// constant pool
 	Vector* vs = p->values;
@@ -861,8 +986,8 @@ void exec_prog (Program* p) {
 	set_global_slots(p->slots);
 	// entry function
 	set_entry_function(p->entry);
-
-	// TODO: call the entry function
+	// start exec the program
+	start_exec();
 }
 
 void interpret_bc (Program* p) {
@@ -875,6 +1000,88 @@ void interpret_bc (Program* p) {
 //============================================================
 //================== UTIL FUNCITONS ==========================
 //============================================================
+
+MethodValue* to_function_slot(Value* slot) {
+	if (slot == NULL || slot->tag != METHOD_VAL) {
+		printf("Error: not a function slot.\n");
+		exit(-1);
+	}
+	return (MethodValue*) slot;
+}
+
+void assert_not_null(void* ptr) {
+	if (ptr == NULL) {
+		printf("Error: assert_not_null.\n");
+		exit(-1);
+	}
+}
+
+int obj_type(Value* o) {
+	return o->tag;
+}
+
+NullValue* make_null_obj() {
+	static NullValue n = {NULL_VAL};
+	return &n;
+}
+
+IntValue* make_int_obj(int value) {
+	//cache for memory usage - could make the cache larger
+	static int cache_initted = 0;
+	static IntValue cached[101];
+	if (! cache_initted) {
+		for (int i = 0; i < sizeof(cached) / sizeof(IntValue); ++i) {
+			cached[i].tag = INT_VAL;
+			cached[i].value = i;
+		}
+		cache_initted = 1;
+	}
+	if (value >= 0 && value < sizeof(cached) / sizeof(IntValue)) {
+		return &cached[value];
+	}
+
+	IntValue* t = malloc(sizeof(IntValue));
+	t->tag = INT_VAL;
+	t->value = value;
+	return t;
+}
+
+IntValue* int_obj_add (IntValue* x, IntValue* y) {
+	return make_int_obj(x->value + y->value);
+}
+IntValue* int_obj_sub (IntValue* x, IntValue* y) {
+	return make_int_obj(x->value - y->value);
+}
+IntValue* int_obj_mul (IntValue* x, IntValue* y) {
+	return make_int_obj(x->value * y->value);
+}
+IntValue* int_obj_div (IntValue* x, IntValue* y) {
+	return make_int_obj(x->value / y->value);
+}
+IntValue* int_obj_mod (IntValue* x, IntValue* y) {
+	return make_int_obj(x->value % y->value);
+}
+
+Value* eq(IntValue* x, IntValue* y) {
+	return x->value == y->value ?
+	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+}
+Value* lt(IntValue* x, IntValue* y) {
+	return x->value < y->value ?
+	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+}
+Value* le(IntValue* x, IntValue* y) {
+	return x->value <= y->value ?
+	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+}
+Value* gt(IntValue* x, IntValue* y) {
+	return x->value > y->value ?
+	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+}
+Value* ge(IntValue* x, IntValue* y) {
+	return x->value >= y->value ?
+	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+}
 
 // convert an interpreter object into a string
 char* toString(Value *val_ptr) {
