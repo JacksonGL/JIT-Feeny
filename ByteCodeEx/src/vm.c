@@ -16,7 +16,7 @@ typedef int ValIndex;
 
 typedef struct {
 	const char *key;	// hashtable item key
-	int value;		    // hashtable item value
+	int value;		// hashtable item value
 	UT_hash_handle hh;	// used for internal book keeping, ignore it
 } Hashable;
 
