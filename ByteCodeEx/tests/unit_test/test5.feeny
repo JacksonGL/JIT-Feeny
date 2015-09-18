@@ -1,0 +1,17 @@
+printf("test result:\n~\n",1000);
+
+var i = 0
+while (i < 10) :
+    printf("~\n", i)
+    i = i + 1
+
+; try to get the greatest common divisor
+var a = 18
+var b = 24
+var c = b % a
+while c > 0 :
+    c = a
+    a = b % a 
+    b = c
+    c = b % a
+printf("gcd: ~\n", 6)

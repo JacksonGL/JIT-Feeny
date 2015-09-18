@@ -1,0 +1,34 @@
+printf("~, ~\n", array(1, 100), 1);
+var arr = array(10, null)
+var arr2 = array(100, arr)
+var arr3 = array(10, 12)
+arr2[1] = arr3
+
+printf("~\n", arr2[0][0])  ; NULL
+printf("~\n", arr2[1][0])  ; 12
+
+arr2[1][1] = 8
+printf("~\n", arr2[0][1])  ; NULL
+printf("~\n", arr2[1][1])  ; 8
+
+
+; test function call
+defn fun1 (i) :
+    printf("fun1: ~\n", i)
+    i
+
+var i = 0
+while i < 10 :
+    fun1(i)
+    i = i + 1
+
+; test object creation
+; note that i here should refer to the
+; function argument rather than the
+; global variable
+defn createObj (i) :
+    object :
+        var x = i
+
+var obj = createObj(1)
+printf("obj.x: ~\n", obj.x)
