@@ -154,7 +154,7 @@ typedef struct {
   long total_array_method_call;  // # of method calls with array receiver
   long total_envobj_method_call; // # of method calls with env obj receiver
   struct timeval total_time_lookup_entry;  // total time in ms spend looking
-                                 // up an entry in env obj
+  // up an entry in env obj
 } Stat;
 
 // collect statistics operations
@@ -174,10 +174,10 @@ void end_time_counter (struct timeval *start, struct timeval *end, struct timeva
 // implementation of interpreter functions
 //----------------------------------------
 
-void slot_assert(int i, SlotStmt* s, const char * fmt, ...){
+void slot_assert(int i, SlotStmt* s, const char * fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  if(!i){
+  if (!i) {
     printf("Encountered error: ");
     vprintf(fmt, args);
     printf(" in slot statement ");
@@ -188,10 +188,10 @@ void slot_assert(int i, SlotStmt* s, const char * fmt, ...){
   va_end(args);
 }
 
-void scope_assert(int i, ScopeStmt* s, const char * fmt, ...){
+void scope_assert(int i, ScopeStmt* s, const char * fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  if(!i){
+  if (!i) {
     printf("Encountered error: ");
     vprintf(fmt, args);
     printf(" in scope statement ");
@@ -202,10 +202,10 @@ void scope_assert(int i, ScopeStmt* s, const char * fmt, ...){
   va_end(args);
 }
 
-void exp_assert(int i, Exp* s, const char * fmt, ...){
+void exp_assert(int i, Exp* s, const char * fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  if(!i){
+  if (!i) {
     printf("Encountered error: ");
     vprintf(fmt, args);
     printf(" in expression ");
@@ -295,13 +295,13 @@ Obj* eval_exp (EnvObj* genv, EnvObj* env, Exp* e) {
 
 Obj* eval_set_slot_exp (EnvObj* genv, EnvObj* env, SetSlotExp* e2) {
   Obj* obj_ptr = eval_exp(genv, env, e2->exp);
-  exp_assert(obj_type(obj_ptr)==ENV_OBJ, (Exp*)e2,
-    "Cannot get slot %s from non-env object", e2->name);
+  exp_assert(obj_type(obj_ptr) == ENV_OBJ, (Exp*)e2,
+             "Cannot get slot %s from non-env object", e2->name);
 
   Entry* entry = get_entry((EnvObj*)obj_ptr, e2->name);
 
-  exp_assert(entry!=NULL && entry_type(entry) == VAR_ENTRY, (Exp*) e2,
-    "Var slot %s does not exist in object", e2->name);
+  exp_assert(entry != NULL && entry_type(entry) == VAR_ENTRY, (Exp*) e2,
+             "Var slot %s does not exist in object", e2->name);
 
   Obj* val = eval_exp(genv, env, e2->value);
   set_value((VarEntry*)entry, val);
@@ -314,8 +314,8 @@ Obj* eval_slot_exp (EnvObj* genv, EnvObj* env, SlotExp* e2) {
   exp_assert(obj_type(obj_ptr) == ENV_OBJ, (Exp*) e2, "Cannot get slot %s from non-env object", e2->name);
 
   Entry* entry = get_entry((EnvObj*)obj_ptr, e2->name);
-  exp_assert(entry!= NULL && entry_type(entry)==VAR_ENTRY,
-    (Exp*) e2, "Var slot %s does not exist in object", e2->name);
+  exp_assert(entry != NULL && entry_type(entry) == VAR_ENTRY,
+             (Exp*) e2, "Var slot %s does not exist in object", e2->name);
   return get_value((VarEntry*)entry);
 }
 
@@ -323,7 +323,7 @@ Obj* eval_set_exp (EnvObj* genv, EnvObj* env, SetExp *e2) {
   VarEntry* var_entry = (VarEntry*)get_entry(env, e2->name);
   if (var_entry == NULL) {
     var_entry = (VarEntry*)get_entry(genv, e2->name);
-    exp_assert(var_entry!= NULL, (Exp*) e2, "Entry %s is not defined", e2->name);
+    exp_assert(var_entry != NULL, (Exp*) e2, "Entry %s is not defined", e2->name);
   }
 
   Obj* new_val_ptr = eval_exp(genv, env, e2->exp);
@@ -376,12 +376,12 @@ Obj* eval_call_exp (EnvObj* genv, EnvObj* env, CallExp*e) {
   // feeny is a statically scoped language
   EnvObj * fnEnv = make_env_obj((Obj*)genv);
   exp_assert(e->nargs == f->nargs, (Exp*) e,
-    "Wrong number of arguments!");
+             "Wrong number of arguments!");
   for (int i = 0; i < e->nargs; ++i) {
     Obj* r = eval_exp(genv, env, e->args[i]);
     add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
     exp_assert(get_entry(fnEnv, f->args[i]) != NULL, (Exp*) e,
-      "Failed to evaluated %ith argument!", i);
+               "Failed to evaluated %ith argument!", i);
   }
   Obj* result = eval_stmt(genv, fnEnv, f->body);
   //TODO: free fnEnv
@@ -392,7 +392,7 @@ Obj* eval_call_exp (EnvObj* genv, EnvObj* env, CallExp*e) {
 Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
   Obj *receiver_ptr = eval_exp(genv, env, e2->exp);
   exp_assert(obj_type(receiver_ptr) != NULL_OBJ, (Exp*) e2,
-    "Null object does not have methods!");
+             "Null object does not have methods!");
   inc_method_call(receiver_ptr);
 
   // TODO: make the error message more informative
@@ -401,9 +401,9 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
   case INT_OBJ: {
     Obj* arg;
     exp_assert(e2->nargs == 1 && obj_type(arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
-      (Exp*) e2, "native int function error - %s",
-      e2->nargs != 1 ? "not enough arguments!" :
-        "wrong argument type!");
+               (Exp*) e2, "native int function error - %s",
+               e2->nargs != 1 ? "not enough arguments!" :
+               "wrong argument type!");
     if (!strcmp(e2->name, "add")) {
       return (Obj*) int_obj_add((IntObj*) receiver_ptr, (IntObj*)arg);
     } else if (!strcmp(e2->name, "sub")) {
@@ -434,9 +434,9 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
     }
     Obj* first_arg;
     exp_assert(e2->nargs > 0 && obj_type(first_arg = eval_exp(genv, env, e2->args[0])) == INT_OBJ,
-      (Exp*) e2, "native array function error - %s",
-      e2->nargs < 1 ? "not enough arguments!" :
-        "incorrect argument type!");
+               (Exp*) e2, "native array function error - %s",
+               e2->nargs < 1 ? "not enough arguments!" :
+               "incorrect argument type!");
     if (!strcmp(e2->name, "set") && e2->nargs == 2) {
       return (Obj*)array_set((ArrayObj*)receiver_ptr,
                              (IntObj*)first_arg, eval_exp(genv, env, e2->args[1]));
@@ -449,14 +449,14 @@ Obj* eval_call_slot_exp (EnvObj* genv, EnvObj* env, CallSlotExp *e2) {
   case ENV_OBJ: {
     Entry* code = get_entry((EnvObj*)receiver_ptr, e2->name);
     exp_assert(code && entry_type(code) == CODE_ENTRY, (Exp*)e2,
-      "Failed to get code for method!");
+               "Failed to get code for method!");
     ScopeFn* f = get_scope_fn((CodeEntry*)code);
     EnvObj * fnEnv = make_env_obj((Obj*)genv);
     for (int i = 0; i < e2->nargs; ++i) {
       Obj* r = eval_exp(genv, env, e2->args[i]);
       add_entry(fnEnv, f->args[i], (Entry*)make_var_entry(r));
       exp_assert(get_entry(fnEnv, f->args[i]) != NULL, (Exp*) e2,
-        "Failed to evaluated %ith argument!", i);
+                 "Failed to evaluated %ith argument!", i);
     }
     add_entry(fnEnv, "this", (Entry*) make_var_entry(receiver_ptr));
     Obj* result = eval_stmt(genv, fnEnv, f->body);
@@ -478,7 +478,7 @@ Obj* eval_int_exp (EnvObj* genv, EnvObj* env, IntExp *e2) {
 Obj* eval_array_exp (EnvObj* genv, EnvObj* env, ArrayExp* e2) {
   Obj* array_length_ptr = eval_exp(genv, env, e2->length);
   exp_assert(obj_type(array_length_ptr) == INT_OBJ, (Exp*) e2,
-    "call array() function: array length is not an integer");
+             "call array() function: array length is not an integer");
   Obj* init_ptr = eval_exp(genv, env, e2->init);
   return (Obj*) make_array_obj((IntObj*)array_length_ptr, init_ptr);
 }
@@ -535,7 +535,7 @@ Obj* eval_ref_exp (EnvObj* genv, EnvObj* env, RefExp* e2) {
     // try to locate the entry in the global scope
     entry_ptr = get_entry(genv, e2->name);
     exp_assert(entry_ptr != NULL, (Exp*) e2,
-      "undefined reference: %s", e2->name);
+               "undefined reference: %s", e2->name);
   }
   if (entry_type(entry_ptr) == VAR_ENTRY) {
     return get_value((VarEntry*)entry_ptr);
@@ -566,14 +566,14 @@ IntObj* make_int_obj(int value) {
   //cache for memory usage - could make the cache larger
   static int cache_initted = 0;
   static IntObj cached[101];
-  if(! cache_initted){
-    for(int i = 0; i < sizeof(cached)/sizeof(IntObj); ++i){
+  if (! cache_initted) {
+    for (int i = 0; i < sizeof(cached) / sizeof(IntObj); ++i) {
       cached[i].type = INT_OBJ;
       cached[i].value = i;
     }
     cache_initted = 1;
   }
-  if(value >= 0 && value < sizeof(cached)/sizeof(IntObj)){
+  if (value >= 0 && value < sizeof(cached) / sizeof(IntObj)) {
     return &cached[value];
   }
 
@@ -661,10 +661,10 @@ EnvObj* make_env_obj(Obj* parent) {
   return t;
 }
 
-void free_env_obj(EnvObj* e){
-  for(int i = 0; i < e->entries->size; ++i){
+void free_env_obj(EnvObj* e) {
+  for (int i = 0; i < e->entries->size; ++i) {
     Entry* ent = (Entry*) vector_get(e->entries, i);
-    if(entry_type(ent) == VAR_ENTRY){
+    if (entry_type(ent) == VAR_ENTRY) {
       free((VarEntry*) ent);
     } else {
       free((CodeEntry*) ent);
@@ -837,8 +837,8 @@ void inc_entry_lookup_time (const struct timeval* time) {
 
 void inc_method_call (Obj* receiver_ptr) {
   if (receiver_ptr == NULL
-          || collectStat == 0
-          || stat == NULL)
+      || collectStat == 0
+      || stat == NULL)
     return;
 
   stat->total_method_call++;
@@ -865,8 +865,8 @@ void write_stat (char* filename) {
     exit(1);
   }
 
-  fprintf(f, "Total Time: %f ms\n", 0.0+stat->total_time.tv_sec*1000.0+stat->total_time.tv_usec/1000.0);
-  fprintf(f, "Total Time Lookup Entry: %f ms\n", 0.0+stat->total_time_lookup_entry.tv_sec*1000.0+stat->total_time_lookup_entry.tv_usec/1000.0);
+  fprintf(f, "Total Time: %f ms\n", 0.0 + stat->total_time.tv_sec * 1000.0 + stat->total_time.tv_usec / 1000.0);
+  fprintf(f, "Total Time Lookup Entry: %f ms\n", 0.0 + stat->total_time_lookup_entry.tv_sec * 1000.0 + stat->total_time_lookup_entry.tv_usec / 1000.0);
   fprintf(f, "Total Method Call: %ld\n", stat->total_method_call);
   fprintf(f, "Total Integer Method Call: %ld\n", stat->total_int_method_call);
   fprintf(f, "Total Array Method Call: %ld\n", stat->total_array_method_call);
@@ -1031,22 +1031,22 @@ char* arrayToString(ArrayObj *obj_ptr) {
 // convert an interpreter object into a string
 char* toString(Obj *obj_ptr) {
   switch (obj_ptr->type) {
-    case INT_OBJ: {
-      return intToString(((IntObj*)obj_ptr)->value);
-    }
-    case ENV_OBJ: {
-      char *result = malloc(9 * sizeof(char));
-      strcpy(result, "[OBJECT]");
-      return result;
-    }
-    case NULL_OBJ: {
-      char *result = malloc(5 * sizeof(char));
-      strcpy(result, "Null");
-      return result;
-    }
-    case ARRAY_OBJ: {
-      return arrayToString((ArrayObj*)obj_ptr);
-    }
+  case INT_OBJ: {
+    return intToString(((IntObj*)obj_ptr)->value);
+  }
+  case ENV_OBJ: {
+    char *result = malloc(9 * sizeof(char));
+    strcpy(result, "[OBJECT]");
+    return result;
+  }
+  case NULL_OBJ: {
+    char *result = malloc(5 * sizeof(char));
+    strcpy(result, "Null");
+    return result;
+  }
+  case ARRAY_OBJ: {
+    return arrayToString((ArrayObj*)obj_ptr);
+  }
   }
   return NULL;
 }

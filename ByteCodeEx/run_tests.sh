@@ -13,6 +13,7 @@ fi
 # Clean output folder
 mkdir -p output/reference
 mkdir fail
+mkdir output/stat
 rm output/*.out
 rm output/reference/*.out
 rm output/*.bc
@@ -60,8 +61,8 @@ function test {
 		[ "$RESULT" == "0" ] || [ "$RESULT" == "139" ] # segv = 139
 		US="$?"
 	else
-		# ./cfeeny output/"$OUTPUT".bc -s output/stat/"$OUTPUT".stat > output/"$OUTPUT".out
-		./cfeeny output/"$OUTPUT".bc > output/"$OUTPUT".out
+		./cfeeny output/"$OUTPUT".bc -s output/stat/"$OUTPUT".stat > output/"$OUTPUT".out
+		# ./cfeeny output/"$OUTPUT".bc > output/"$OUTPUT".out
 		[ "$?" == "0" ]
 		US="$?"
 	fi

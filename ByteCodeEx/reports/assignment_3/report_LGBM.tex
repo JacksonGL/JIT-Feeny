@@ -1,0 +1,53 @@
+
+\documentclass[notitlepage]{report}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{booktabs}
+
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 3 Answers}
+\date{\vspace{-0.5in}September 21, 2015}
+\author{\vspace{-0.5in}Authors\vspace{-0.5in}}
+
+\begin{document}
+\maketitle
+
+\begin{table}[!htp]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+{\footnotesize
+\begin{tabular}{lllllll}
+\toprule
+test case & total time (ms)    & entry lookup (ms) & \# calls & \# int calls & \# array calls & \# env calls \\
+\midrule
+bsearch       & 0.702      & 0                     & 190          & 145              & 45                 & 0                \\
+inheritance   & 0.569      & 0.002                 & 6            & 2                & 0                  & 4                \\
+cplx          & 0.633      & 0.009                 & 43           & 33               & 0                  & 10               \\
+lists         & 1.099      & 0.038                 & 135          & 40               & 0                  & 95               \\
+vector        & 7.67       & 0.022                 & 130          & 72               & 42                 & 16               \\
+fibonacci     & 0.95       & 0                     & 611          & 611              & 0                  & 0                \\
+sodoku        & 1494.947   & 34.368                & 1586161      & 1046536          & 450449             & 89176            \\
+sodoku2       & 267136.8   & 5804.465              & 316868201    & 209055201        & 90034000           & 17779000         \\
+hanoi\_BM     & 10.591     & 0                     & 463          & 463              & 0                  & 0                \\
+stacks\_BM    & 0.787      & 0.017                 & 132          & 72               & 30                 & 30               \\
+morehanoi\_BM & 4.14       & 0.601                 & 1681         & 852              & 251                & 578              \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{enumerate}
+	\item
+			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the submitted and tested version.
+	\item
+		\begin{enumerate}[(a)]
+			\item TBD
+		\end{enumerate}
+	\item
+		\begin{enumerate}[(a)]
+			\item TBD
+		\end{enumerate}
+\end{enumerate}
+
+\end{document}

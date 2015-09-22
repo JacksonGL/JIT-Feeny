@@ -7,7 +7,7 @@ rm output/*.bc
 
 # Run output
 function test {
-   ./compiler -i tests/$1.feeny -o output/$1.bc
+   ./compiler_osx -i tests/$1.feeny -o output/$1.bc
    ./cfeeny output/$1.bc > output/$1.out
 }
 test hello

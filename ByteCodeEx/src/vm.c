@@ -1,3 +1,5 @@
+#include <sys/timeb.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -10,6 +12,20 @@
 
 // #define DEBUG 1
 
+// Copied from sys/time.h
+// to not pollute our #define space
+// WAS NOT WRITTEN BY LG OR BM - rights belong to original author
+/*
+#define timersub(a, b, result)                  \
+  do {                        \
+    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;            \
+    (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;            \
+    if ((result)->tv_usec < 0) {                \
+      --(result)->tv_sec;                  \
+      (result)->tv_usec += 1000000;                \
+    }                        \
+  } while (0)
+*/
 
 //============================================================
 //=========== HASH TABLE IMPLEMENTATION ======================
@@ -595,7 +611,6 @@ do {                                                                   \
     _mur_k1 *= _mur_c1;                                                \
     _mur_k1 = MUR_ROTL32(_mur_k1,15);                                  \
     _mur_k1 *= _mur_c2;                                                \
-                                                                       \
     _mur_h1 ^= _mur_k1;                                                \
     _mur_h1 = MUR_ROTL32(_mur_h1,13);                                  \
     _mur_h1 = (_mur_h1*5U) + 0xe6546b64u;                              \
@@ -907,22 +922,22 @@ for(((el)=(head)), ((tmp)=DECLTYPE(el)((head!=NULL)?(head)->hh.next:NULL));     
 #define HASH_CNT(hh,head) ((head != NULL)?((head)->hh.tbl->num_items):0U)
 
 typedef struct UT_hash_bucket {
-   struct UT_hash_handle *hh_head;
-   unsigned count;
+  struct UT_hash_handle *hh_head;
+  unsigned count;
 
-   /* expand_mult is normally set to 0. In this situation, the max chain length
-    * threshold is enforced at its default value, HASH_BKT_CAPACITY_THRESH. (If
-    * the bucket's chain exceeds this length, bucket expansion is triggered).
-    * However, setting expand_mult to a non-zero value delays bucket expansion
-    * (that would be triggered by additions to this particular bucket)
-    * until its chain length reaches a *multiple* of HASH_BKT_CAPACITY_THRESH.
-    * (The multiplier is simply expand_mult+1). The whole idea of this
-    * multiplier is to reduce bucket expansions, since they are expensive, in
-    * situations where we know that a particular bucket tends to be overused.
-    * It is better to let its chain length grow to a longer yet-still-bounded
-    * value, than to do an O(n) bucket expansion too often.
-    */
-   unsigned expand_mult;
+  /* expand_mult is normally set to 0. In this situation, the max chain length
+   * threshold is enforced at its default value, HASH_BKT_CAPACITY_THRESH. (If
+   * the bucket's chain exceeds this length, bucket expansion is triggered).
+   * However, setting expand_mult to a non-zero value delays bucket expansion
+   * (that would be triggered by additions to this particular bucket)
+   * until its chain length reaches a *multiple* of HASH_BKT_CAPACITY_THRESH.
+   * (The multiplier is simply expand_mult+1). The whole idea of this
+   * multiplier is to reduce bucket expansions, since they are expensive, in
+   * situations where we know that a particular bucket tends to be overused.
+   * It is better to let its chain length grow to a longer yet-still-bounded
+   * value, than to do an O(n) bucket expansion too often.
+   */
+  unsigned expand_mult;
 
 } UT_hash_bucket;
 
@@ -931,47 +946,47 @@ typedef struct UT_hash_bucket {
 #define HASH_BLOOM_SIGNATURE 0xb12220f2u
 
 typedef struct UT_hash_table {
-   UT_hash_bucket *buckets;
-   unsigned num_buckets, log2_num_buckets;
-   unsigned num_items;
-   struct UT_hash_handle *tail; /* tail hh in app order, for fast append    */
-   ptrdiff_t hho; /* hash handle offset (byte pos of hash handle in element */
+  UT_hash_bucket *buckets;
+  unsigned num_buckets, log2_num_buckets;
+  unsigned num_items;
+  struct UT_hash_handle *tail; /* tail hh in app order, for fast append    */
+  ptrdiff_t hho; /* hash handle offset (byte pos of hash handle in element */
 
-   /* in an ideal situation (all buckets used equally), no bucket would have
-    * more than ceil(#items/#buckets) items. that's the ideal chain length. */
-   unsigned ideal_chain_maxlen;
+  /* in an ideal situation (all buckets used equally), no bucket would have
+   * more than ceil(#items/#buckets) items. that's the ideal chain length. */
+  unsigned ideal_chain_maxlen;
 
-   /* nonideal_items is the number of items in the hash whose chain position
-    * exceeds the ideal chain maxlen. these items pay the penalty for an uneven
-    * hash distribution; reaching them in a chain traversal takes >ideal steps */
-   unsigned nonideal_items;
+  /* nonideal_items is the number of items in the hash whose chain position
+   * exceeds the ideal chain maxlen. these items pay the penalty for an uneven
+   * hash distribution; reaching them in a chain traversal takes >ideal steps */
+  unsigned nonideal_items;
 
-   /* ineffective expands occur when a bucket doubling was performed, but
-    * afterward, more than half the items in the hash had nonideal chain
-    * positions. If this happens on two consecutive expansions we inhibit any
-    * further expansion, as it's not helping; this happens when the hash
-    * function isn't a good fit for the key domain. When expansion is inhibited
-    * the hash will still work, albeit no longer in constant time. */
-   unsigned ineff_expands, noexpand;
+  /* ineffective expands occur when a bucket doubling was performed, but
+   * afterward, more than half the items in the hash had nonideal chain
+   * positions. If this happens on two consecutive expansions we inhibit any
+   * further expansion, as it's not helping; this happens when the hash
+   * function isn't a good fit for the key domain. When expansion is inhibited
+   * the hash will still work, albeit no longer in constant time. */
+  unsigned ineff_expands, noexpand;
 
-   uint32_t signature; /* used only to find hash tables in external analysis */
+  uint32_t signature; /* used only to find hash tables in external analysis */
 #ifdef HASH_BLOOM
-   uint32_t bloom_sig; /* used only to test bloom exists in external analysis */
-   uint8_t *bloom_bv;
-   uint8_t bloom_nbits;
+  uint32_t bloom_sig; /* used only to test bloom exists in external analysis */
+  uint8_t *bloom_bv;
+  uint8_t bloom_nbits;
 #endif
 
 } UT_hash_table;
 
 typedef struct UT_hash_handle {
-   struct UT_hash_table *tbl;
-   void *prev;                       /* prev element in app order      */
-   void *next;                       /* next element in app order      */
-   struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
-   struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
-   void *key;                        /* ptr to enclosing struct's key  */
-   unsigned keylen;                  /* enclosing struct's key len     */
-   unsigned hashv;                   /* result of hash-fcn(key)        */
+  struct UT_hash_table *tbl;
+  void *prev;                       /* prev element in app order      */
+  void *next;                       /* next element in app order      */
+  struct UT_hash_handle *hh_prev;   /* previous hh in bucket order    */
+  struct UT_hash_handle *hh_next;   /* next hh in bucket order        */
+  void *key;                        /* ptr to enclosing struct's key  */
+  unsigned keylen;                  /* enclosing struct's key len     */
+  unsigned hashv;                   /* result of hash-fcn(key)        */
 } UT_hash_handle;
 
 #endif /* UTHASH_H */
@@ -984,28 +999,28 @@ typedef struct UT_hash_handle {
 typedef int ValIndex;
 
 typedef struct {
-	const char *key;	// hashtable item key
-	int value;		// hashtable item value
-	UT_hash_handle hh;	// used for internal book keeping, ignore it
+  const char *key;  // hashtable item key
+  int value;    // hashtable item value
+  UT_hash_handle hh;  // used for internal book keeping, ignore it
 } Hashable;
 
 typedef enum {
-	INT_OBJ,
-	NULL_OBJ,
-	STR_OBJ,
-	METHOD_OBJ,
-	SLOT_OBJ,
-	CLASS_OBJ,
-	OBJ_OBJ,
-	ARRAY_OBJ
+  INT_OBJ,
+  NULL_OBJ,
+  STR_OBJ,
+  METHOD_OBJ,
+  SLOT_OBJ,
+  CLASS_OBJ,
+  OBJ_OBJ,
+  ARRAY_OBJ
 } ObjTag;
 
 typedef struct {
-	ObjTag tag;
+  ObjTag tag;
 } RValue;
 
 typedef struct {
-	ValTag tag;
+  ValTag tag;
 } NullValue;
 
 /* reuse the value structure from bytecode.h
@@ -1044,55 +1059,55 @@ typedef struct {
 */
 
 typedef struct {
-	ObjTag tag;
-	Vector* v;
+  ObjTag tag;
+  Vector* v;
 } ArrayValue;
 
 typedef struct {
-	ValTag tag;
-	// a vector of slot indices
-	Vector* slots;
-	// a hash table that maps a name to index;
-	Hashable* name_to_slot_table;
+  ValTag tag;
+  // a vector of slot indices
+  Vector* slots;
+  // a hash table that maps a name to index;
+  Hashable* name_to_slot_table;
 } IdxClassValue;
 
 typedef struct {
-	ValTag tag;
-	int name;
-	Value* value;
+  ValTag tag;
+  int name;
+  Value* value;
 } RSlotValue;
 
 typedef struct {
-	ObjTag tag;
-	Vector* slot_vec_ptr;
-	Value* parent_obj_ptr;
-	IdxClassValue* class_ptr;
+  ObjTag tag;
+  Vector* slot_vec_ptr;
+  Value* parent_obj_ptr;
+  IdxClassValue* class_ptr;
 } ObjectValue;
 
 typedef struct {
-	// the values of all local variables
-	// defined in the function
-	Vector* slot_vec_ptr;
-	// address of the call byte
-	// code instruction, this is
-	// also the return address
-	ByteIns* call_ins_idx;
-	// function slot pointer
-	MethodValue* func_ptr;
+  // the values of all local variables
+  // defined in the function
+  Vector* slot_vec_ptr;
+  // address of the call byte
+  // code instruction, this is
+  // also the return address
+  ByteIns* call_ins_idx;
+  // function slot pointer
+  MethodValue* func_ptr;
 } _Frame;
 
 typedef struct {
-	// the values of all local variables
-	// defined in the function
-	Vector* slot_vec_ptr;
-	// address of the call byte
-	// code instruction, this is
-	// also the return address
-	int call_ins_idx;
-	// function slot pointer
-	MethodValue* func_ptr;
-	// caller's frame
-	_Frame* call_frame_ptr;
+  // the values of all local variables
+  // defined in the function
+  Vector* slot_vec_ptr;
+  // address of the call byte
+  // code instruction, this is
+  // also the return address
+  int call_ins_idx;
+  // function slot pointer
+  MethodValue* func_ptr;
+  // caller's frame
+  _Frame* call_frame_ptr;
 } Frame;
 
 // hash table operations
@@ -1190,34 +1205,59 @@ void exp_assert(int i, const char * fmt, ...);
 // free functions
 void free_frame(Frame* frame);
 
+#ifndef PRE_SUBMIT
+// statistics data structure
+typedef struct {
+  struct timeval total_time;               // total time in ms
+  long total_method_call;        // # of method calls
+  long total_int_method_call;    // # of method calls with integer receiver
+  long total_array_method_call;  // # of method calls with array receiver
+  long total_envobj_method_call; // # of method calls with env obj receiver
+  struct timeval total_time_lookup_entry;  // total time in ms spend looking
+  // up an entry in env obj
+} Stat;
+
+// collect statistics operations
+void init_stat ();
+void print_help ();
+int is_collect_stat ();
+void write_stat (char* filename);
+void set_collect_stat (int flag);
+void inc_total_time (const struct timeval *total_time);
+void inc_entry_lookup_time (const struct timeval* time);
+void inc_method_call (Value* receiver_ptr);
+void start_time_counter (struct timeval *t);
+void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* diff);
+#endif // PRE_SUBMIT
+
 //============================================================
 //============== HASHTABLE ENCAPSULATION =====================
 //============================================================
 
 Hashable* init_hashtable () {
-	Hashable* table = NULL;
-	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
-	item_ptr->key = "*&(&^&*";
-	item_ptr->value = -1;
-	HASH_ADD_KEYPTR(hh, table, item_ptr->key,
-	                strlen(item_ptr->key), item_ptr);
-	return table;
+  Hashable* table = NULL;
+  Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
+  item_ptr->key = "*&(&^&*";
+  item_ptr->value = -1;
+  HASH_ADD_KEYPTR(hh, table, item_ptr->key,
+                  strlen(item_ptr->key), item_ptr);
+  return table;
 }
 
 void add_item(Hashable* table, char* key, ValIndex value) {
-	Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
-	item_ptr->key = key;
-	item_ptr->value = value;
-	HASH_ADD_KEYPTR(hh, table, item_ptr->key, strlen(item_ptr->key), item_ptr);
+  Hashable* item_ptr = (Hashable*)malloc(sizeof(Hashable));
+  item_ptr->key = key;
+  item_ptr->value = value;
+  HASH_ADD_KEYPTR(hh, table, item_ptr->key, strlen(item_ptr->key), item_ptr);
 }
 
 ValIndex find_item(Hashable* table, char* key) {
-	Hashable* item;
-	HASH_FIND_STR(table, key, item);
-	if (item == NULL) {
-		return -1;
-	}
-	return item->value;
+  Hashable* item;
+  HASH_FIND_STR(table, key, item);
+  if (item == NULL) {
+    return -1;
+  }
+  return item->value;
 }
 
 //============================================================
@@ -1225,75 +1265,89 @@ ValIndex find_item(Hashable* table, char* key) {
 //============================================================
 
 Value* find_slot_by_name(ObjectValue* obj, char* function_name) {
-	int ret_val_idx = find_item(obj->class_ptr->name_to_slot_table,
-	                            function_name);
-	if (ret_val_idx != -1) {
-		return (Value*)vector_get(obj->slot_vec_ptr, ret_val_idx);
-	} else {
-		// search in the parent object
-		// assumes that in Feeny, object can only inherit from
-		// user defined object or null object
-		Value* parent = obj->parent_obj_ptr;
-		if (parent->tag == OBJ_OBJ) {
-			return find_slot_by_name((ObjectValue*)parent,
-			                         function_name);
-		} else {
-			if (parent->tag != NULL_OBJ) {
-				printf("Error[2]: find_slot_by_name.\n");
-				exit(-1);
-			}
-			return NULL;
-		}
-	}
+  struct timeval start, end;
+  // start collecting time
+  if (is_collect_stat())
+    start_time_counter(&start);
+
+  Value* ret = NULL;
+  int ret_val_idx = find_item(obj->class_ptr->name_to_slot_table,
+                              function_name);
+  if (ret_val_idx != -1) {
+    ret = (Value*)vector_get(obj->slot_vec_ptr, ret_val_idx);
+  } else {
+    // search in the parent object
+    // assumes that in Feeny, object can only inherit from
+    // user defined object or null object
+    Value* parent = obj->parent_obj_ptr;
+    if (parent->tag == OBJ_OBJ) {
+      ret = find_slot_by_name((ObjectValue*)parent,
+                               function_name);
+    } else {
+      if (parent->tag != NULL_OBJ) {
+        printf("Error[2]: find_slot_by_name.\n");
+        exit(-1);
+      }
+      ret = NULL;
+    }
+  }
+  
+  // end collecting time
+  if (is_collect_stat()) {
+    struct timeval time;
+    end_time_counter(&start, &end, &time);
+    inc_entry_lookup_time(&time);
+  }
+  return ret;
 }
 
 // count the number of slots in the class
 // that are variable slots
 int get_num_var_slots (IdxClassValue * class_val) {
-	int var_slot_count = 0;
-	for (int i = 0; i < class_val->slots->size; i++) {
-		int slot_idx = (int)vector_get(class_val->slots, i);
-		Value* slot = get_val_constant(slot_idx);
-		assert_not_null(slot);
-		if (slot->tag == SLOT_VAL) {
-			var_slot_count++;
-		}
-	}
-	return var_slot_count;
+  int var_slot_count = 0;
+  for (int i = 0; i < class_val->slots->size; i++) {
+    int slot_idx = (int)vector_get(class_val->slots, i);
+    Value* slot = get_val_constant(slot_idx);
+    assert_not_null(slot);
+    if (slot->tag == SLOT_VAL) {
+      var_slot_count++;
+    }
+  }
+  return var_slot_count;
 }
 
 RSlotValue* copy_var_slot (SlotValue * slot) {
-	RSlotValue* rSlot =
-	    (RSlotValue*)malloc(sizeof(RSlotValue));
-	rSlot->tag = slot->tag;
-	rSlot->name = slot->name;
-	rSlot->value = NULL;
-	return rSlot;
+  RSlotValue* rSlot =
+    (RSlotValue*)malloc(sizeof(RSlotValue));
+  rSlot->tag = slot->tag;
+  rSlot->name = slot->name;
+  rSlot->value = NULL;
+  return rSlot;
 }
 
 Vector* get_constant_pool () {
-	static Vector* constant_pool = NULL;
-	if (constant_pool == NULL) {
-		constant_pool = make_vector();
-	}
-	return constant_pool;
+  static Vector* constant_pool = NULL;
+  if (constant_pool == NULL) {
+    constant_pool = make_vector();
+  }
+  return constant_pool;
 }
 
 // get value from the constant pool
 Value* get_val_constant(int idx) {
-	Vector* constant_pool = get_constant_pool();
-	return vector_get(constant_pool, idx);
+  Vector* constant_pool = get_constant_pool();
+  return vector_get(constant_pool, idx);
 }
 
 // returns the string content
 // indexed by idx in the constant pool
 char* get_str_constant(int idx) {
-	Value* val = get_val_constant(idx);
-	if (val == NULL || val->tag != STR_OBJ) {
-		printf("Error: get string constant.\n");
-		exit(-1);
-	}
-	return ((StringValue*)val)->value;
+  Value* val = get_val_constant(idx);
+  if (val == NULL || val->tag != STR_OBJ) {
+    printf("Error: get string constant.\n");
+    exit(-1);
+  }
+  return ((StringValue*)val)->value;
 }
 
 // instructor pointer
@@ -1302,15 +1356,15 @@ static int inst_ptr = -1;
 // with an instruction address
 static Hashable* inst_label_table = NULL;
 Hashable* get_inst_label_table () {
-	if (inst_label_table == NULL)
-		inst_label_table = init_hashtable();
-	return inst_label_table;
+  if (inst_label_table == NULL)
+    inst_label_table = init_hashtable();
+  return inst_label_table;
 }
 void set_label_addr (char* label, int addr) {
-	add_item(get_inst_label_table(), label, addr);
+  add_item(get_inst_label_table(), label, addr);
 }
 int get_label_addr (char* label) {
-	return find_item(get_inst_label_table(), label);
+  return find_item(get_inst_label_table(), label);
 }
 
 // hashtable that maps string names to global
@@ -1320,131 +1374,131 @@ int get_label_addr (char* label) {
 static Hashable* global_slot_table = NULL;
 static Vector* global_slots = NULL;
 void set_global_slots (Vector * slots) {
-	int val_idx, name_idx;
-	Value* value = NULL;
-	char* name_str = NULL;
-	global_slots = slots;
-	// establish string name to
-	// slot index hashtable
-	global_slot_table = init_hashtable();
-	for (int i = 0; i < slots->size; i++) {
-		val_idx = (int)vector_get(slots, i);
-		value = get_val_constant(val_idx);
-		name_idx = ((SlotValue*)value)->name;
-		name_str = get_str_constant(name_idx);
-		add_item(global_slot_table, name_str, val_idx);
-	}
+  int val_idx, name_idx;
+  Value* value = NULL;
+  char* name_str = NULL;
+  global_slots = slots;
+  // establish string name to
+  // slot index hashtable
+  global_slot_table = init_hashtable();
+  for (int i = 0; i < slots->size; i++) {
+    val_idx = (int)vector_get(slots, i);
+    value = get_val_constant(val_idx);
+    name_idx = ((SlotValue*)value)->name;
+    name_str = get_str_constant(name_idx);
+    add_item(global_slot_table, name_str, val_idx);
+  }
 }
 Vector* get_global_slots () {
-	return global_slots;
+  return global_slots;
 }
 Value* get_global_slot_by_name (char* name) {
-	int slot_idx = find_item(global_slot_table, name);
-	if (slot_idx < 0) {
-		printf("Error: get global slot by name.\n");
-		exit(-1);
-	}
-	Value* val = get_val_constant(slot_idx);
-	if (val == NULL) {
-		printf("Error[2]: get global slot by name.\n");
-		exit(-1);
-	}
-	return val;
+  int slot_idx = find_item(global_slot_table, name);
+  if (slot_idx < 0) {
+    printf("Error: get global slot by name.\n");
+    exit(-1);
+  }
+  Value* val = get_val_constant(slot_idx);
+  if (val == NULL) {
+    printf("Error[2]: get global slot by name.\n");
+    exit(-1);
+  }
+  return val;
 }
 
 static int entry_function_index = -1;
 int get_entry_function () {
-	return entry_function_index;
+  return entry_function_index;
 }
 void set_entry_function (int entry_index) {
-	entry_function_index = entry_index;
+  entry_function_index = entry_index;
 }
 
 Hashable* get_global_var_map () {
-	static Hashable* global_var_map = NULL;
-	if (global_var_map == NULL) {
-		global_var_map = init_hashtable();
-	}
-	return global_var_map;
+  static Hashable* global_var_map = NULL;
+  if (global_var_map == NULL) {
+    global_var_map = init_hashtable();
+  }
+  return global_var_map;
 }
 
 // get instruction label table
 Hashable* get_ins_label_table () {
-	static Hashable* ins_label_table = NULL;
-	if (ins_label_table == NULL) {
-		ins_label_table = init_hashtable();
-	}
-	return ins_label_table;
+  static Hashable* ins_label_table = NULL;
+  if (ins_label_table == NULL) {
+    ins_label_table = init_hashtable();
+  }
+  return ins_label_table;
 }
 
 static Vector* operand_stack = NULL;
 Vector* get_operand_stack () {
-	if (operand_stack == NULL)
-		operand_stack = make_vector();
-	return operand_stack;
+  if (operand_stack == NULL)
+    operand_stack = make_vector();
+  return operand_stack;
 }
 
 void stack_push (Value * val) {
-	vector_add(operand_stack, val);
+  vector_add(operand_stack, val);
 }
 Value* stack_pop () {
-	if (operand_stack->size == 0) {
-		return NULL;
-	}
-	return vector_pop(operand_stack);
+  if (operand_stack->size == 0) {
+    return NULL;
+  }
+  return vector_pop(operand_stack);
 }
 Value* stack_peek () {
-	return vector_peek(operand_stack);
+  return vector_peek(operand_stack);
 }
 
 static Frame* current_frame_ptr = NULL;
 Frame* get_root_frame () {
-	static Frame* root_frame_ptr = NULL;
-	if (root_frame_ptr == NULL) {
-		root_frame_ptr = create_frame(-1, NULL, NULL);
-		current_frame_ptr = root_frame_ptr;
-	}
-	return root_frame_ptr;
+  static Frame* root_frame_ptr = NULL;
+  if (root_frame_ptr == NULL) {
+    root_frame_ptr = create_frame(-1, NULL, NULL);
+    current_frame_ptr = root_frame_ptr;
+  }
+  return root_frame_ptr;
 }
 Frame* get_cur_frame () {
-	return current_frame_ptr;
+  return current_frame_ptr;
 }
 
 void set_cur_frame (Frame * new_frame) {
-	/*if (current_frame_ptr != (Frame*)(new_frame->call_frame_ptr)) {
-		printf("Error: set_cur_frame.\n");
-		exit(-1);
-	}*/
-	current_frame_ptr = new_frame;
+  /*if (current_frame_ptr != (Frame*)(new_frame->call_frame_ptr)) {
+    printf("Error: set_cur_frame.\n");
+    exit(-1);
+  }*/
+  current_frame_ptr = new_frame;
 }
 
 void set_frame_slot (Frame * frame, int idx, Value * val) {
-	if (idx == frame->slot_vec_ptr->size) {
-		vector_add(frame->slot_vec_ptr, val);
-	} else if (0 <= idx && idx < frame->slot_vec_ptr->size) {
-		vector_set(frame->slot_vec_ptr, idx, val);
-	} else {
-		printf("Error: set frame value.\n");
-		exit(-1);
-	}
+  if (idx == frame->slot_vec_ptr->size) {
+    vector_add(frame->slot_vec_ptr, val);
+  } else if (0 <= idx && idx < frame->slot_vec_ptr->size) {
+    vector_set(frame->slot_vec_ptr, idx, val);
+  } else {
+    printf("Error: set frame value.\n");
+    exit(-1);
+  }
 }
 
 Value* get_frame_slot (Frame * frame, int idx) {
-	if (idx >= frame->slot_vec_ptr->size) {
-		printf("Error: get frame value.\n");
-		exit(-1);
-	}
-	return vector_get(frame->slot_vec_ptr, idx);
+  if (idx >= frame->slot_vec_ptr->size) {
+    printf("Error: get frame value.\n");
+    exit(-1);
+  }
+  return vector_get(frame->slot_vec_ptr, idx);
 }
 
 Frame* create_frame (int call_ins_idx,
                      MethodValue * func_ptr, Frame * call_frame) {
-	Frame* ret = malloc(sizeof(Frame));
-	ret->slot_vec_ptr = make_vector();
-	ret->call_ins_idx = call_ins_idx;
-	ret->func_ptr = func_ptr;
-	ret->call_frame_ptr = (_Frame*)call_frame;
-	return ret;
+  Frame* ret = malloc(sizeof(Frame));
+  ret->slot_vec_ptr = make_vector();
+  ret->call_ins_idx = call_ins_idx;
+  ret->func_ptr = func_ptr;
+  ret->call_frame_ptr = (_Frame*)call_frame;
+  return ret;
 }
 
 //============================================================
@@ -1455,57 +1509,57 @@ Frame* create_frame (int call_ins_idx,
 // local frame to the top value in
 // the operand stack.
 void exec_set_local_op (SetLocalIns * i) {
-	// slot_idx is the index of the slot
-	// in the current local frame
-	int slot_idx = i->idx;
-	Value* val = stack_peek();
-	if (val == NULL) {
-		printf("Error: set local op.\n");
-		exit(-1);
-	}
-	Frame* frame = get_cur_frame();
-	set_frame_slot(frame, slot_idx, val);
-	// NOTE: do not pop from the stack
-	inst_ptr++;
+  // slot_idx is the index of the slot
+  // in the current local frame
+  int slot_idx = i->idx;
+  Value* val = stack_peek();
+  if (val == NULL) {
+    printf("Error: set local op.\n");
+    exit(-1);
+  }
+  Frame* frame = get_cur_frame();
+  set_frame_slot(frame, slot_idx, val);
+  // NOTE: do not pop from the stack
+  inst_ptr++;
 }
 
 // Retrieves the i’th slot in the
 // current local frame and pushes
 // it onto the operand stack.
 void exec_get_local_op (GetLocalIns * i) {
-	// slot_idx is the index of the slot
-	// in the current local frame
-	int slot_idx = i->idx;
-	Frame* frame = get_cur_frame();
-	if (frame == NULL) {
-		printf("Error: get local op.\n");
-		exit(-1);
-	}
-	Value* val = get_frame_slot(frame, slot_idx);
-	stack_push(val);
-	inst_ptr++;
+  // slot_idx is the index of the slot
+  // in the current local frame
+  int slot_idx = i->idx;
+  Frame* frame = get_cur_frame();
+  if (frame == NULL) {
+    printf("Error: get local op.\n");
+    exit(-1);
+  }
+  Value* val = get_frame_slot(frame, slot_idx);
+  stack_push(val);
+  inst_ptr++;
 }
 
 // Sets the global variable with name
 // specified by the String object at index
 // i to the top value in the operand stack.
 void exec_set_global_op (SetGlobalIns * i) {
-	int name_idx = i->name;
-	char* name_str = get_str_constant(name_idx);
-	Value* val = stack_peek();
-	if (val == NULL) {
-		printf("Error: set global op.\n");
-		exit(-1);
-	}
-	Value* slot = get_global_slot_by_name(name_str);
-	if (slot == NULL || slot->tag != SLOT_OBJ) {
-		printf("Error[2]: set global op.\n");
-		exit(-1);
-	}
-	RSlotValue* rSlot = (RSlotValue*)slot;
-	rSlot->value = val;
-	// NOTE: do not pop from the stack
-	inst_ptr++;
+  int name_idx = i->name;
+  char* name_str = get_str_constant(name_idx);
+  Value* val = stack_peek();
+  if (val == NULL) {
+    printf("Error: set global op.\n");
+    exit(-1);
+  }
+  Value* slot = get_global_slot_by_name(name_str);
+  if (slot == NULL || slot->tag != SLOT_OBJ) {
+    printf("Error[2]: set global op.\n");
+    exit(-1);
+  }
+  RSlotValue* rSlot = (RSlotValue*)slot;
+  rSlot->value = val;
+  // NOTE: do not pop from the stack
+  inst_ptr++;
 }
 
 // Retrieves the value of the
@@ -1513,21 +1567,21 @@ void exec_set_global_op (SetGlobalIns * i) {
 // by the String object at index i, and
 // pushes it onto the operand stack.
 void exec_get_global_op (GetGlobalIns * i) {
-	int name_idx = i->name;
-	char* name_str = get_str_constant(name_idx);
-	Value* slot = get_global_slot_by_name(name_str);
-	if (slot == NULL || slot->tag != SLOT_OBJ) {
-		printf("Error: get global op.\n");
-		exit(-1);
-	}
-	RSlotValue* rSlot = (RSlotValue*)slot;
-	Value* val = rSlot->value;
-	if (val == NULL) {
-		printf("Error[2]: get global op.\n");
-		exit(-1);
-	}
-	stack_push(val);
-	inst_ptr++;
+  int name_idx = i->name;
+  char* name_str = get_str_constant(name_idx);
+  Value* slot = get_global_slot_by_name(name_str);
+  if (slot == NULL || slot->tag != SLOT_OBJ) {
+    printf("Error: get global op.\n");
+    exit(-1);
+  }
+  RSlotValue* rSlot = (RSlotValue*)slot;
+  Value* val = rSlot->value;
+  if (val == NULL) {
+    printf("Error[2]: get global op.\n");
+    exit(-1);
+  }
+  stack_push(val);
+  inst_ptr++;
 }
 
 // Pops a value from the operand
@@ -1537,36 +1591,36 @@ void exec_get_global_op (GetGlobalIns * i) {
 // with the name given by the String
 // object at index i.
 void exec_branch_op (BranchIns * i) {
-	Value* val = stack_pop();
-	if (val == NULL) {
-		printf("Error: branch op.\n");
-		exit(-1);
-	}
-	if (val->tag != NULL_OBJ) {
-		int label_idx = i->name;
-		char* label_str = get_str_constant(label_idx);
-		int addr = get_label_addr(label_str);
-		inst_ptr = addr;
-	} else {
-		inst_ptr++;
-	}
+  Value* val = stack_pop();
+  if (val == NULL) {
+    printf("Error: branch op.\n");
+    exit(-1);
+  }
+  if (val->tag != NULL_OBJ) {
+    int label_idx = i->name;
+    char* label_str = get_str_constant(label_idx);
+    int addr = get_label_addr(label_str);
+    inst_ptr = addr;
+  } else {
+    inst_ptr++;
+  }
 }
 
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
 // the String object at index i.
 void exec_goto_op (GotoIns * i) {
-	int label_idx = i->name;
-	char* label_str = get_str_constant(label_idx);
-	int addr = get_label_addr(label_str);
-	inst_ptr = addr;
+  int label_idx = i->name;
+  char* label_str = get_str_constant(label_idx);
+  int addr = get_label_addr(label_str);
+  inst_ptr = addr;
 }
 
 // Pops and discards the top value from
 // the operand stack.
 void exec_drop_op () {
-	stack_pop();
-	inst_ptr++;
+  stack_pop();
+  inst_ptr++;
 }
 
 // Retrieves the object at index i in
@@ -1574,27 +1628,27 @@ void exec_drop_op () {
 // either an Int object or a Null object,
 // and pushes it onto the operand stack.
 void exec_lit_op (LitIns * i) {
-	int val_idx = i->idx;
-	Value* val = get_val_constant(val_idx);
-	if (val == NULL || (val->tag != INT_OBJ && val->tag != NULL_OBJ)) {
-		printf("Error in LIT_OP.\n");
-		exit(-1);
-	}
-	stack_push(val);
-	inst_ptr++;
+  int val_idx = i->idx;
+  Value* val = get_val_constant(val_idx);
+  if (val == NULL || (val->tag != INT_OBJ && val->tag != NULL_OBJ)) {
+    printf("Error in LIT_OP.\n");
+    exit(-1);
+  }
+  stack_push(val);
+  inst_ptr++;
 }
 
 // Associates a name with the address of
 // this instruction. The name is given by
 // the String object at index i.
 void process_label_op (LabelIns * i, int i_ptr) {
-	int label_idx = i->name;
-	char* label_str = get_str_constant(label_idx);
-	set_label_addr(label_str, i_ptr);
+  int label_idx = i->name;
+  char* label_str = get_str_constant(label_idx);
+  set_label_addr(label_str, i_ptr);
 }
 
 void exec_label_op (LabelIns * i) {
-	inst_ptr++;
+  inst_ptr++;
 }
 
 // First pops the initializing value from
@@ -1605,13 +1659,13 @@ void exec_label_op (LabelIns * i) {
 // to the given value, and pushes the array
 // onto the operand stack.
 void exec_array_op () {
-	Value* init_value = stack_pop();
-	assert_not_null(init_value);
-	Value* length = stack_pop();
-	IntValue* len = to_int_val(length);
-	Value* array = (Value*)make_array_obj(len->value, init_value);
-	stack_push(array);
-	inst_ptr++;
+  Value* init_value = stack_pop();
+  assert_not_null(init_value);
+  Value* length = stack_pop();
+  IntValue* len = to_int_val(length);
+  Value* array = (Value*)make_array_obj(len->value, init_value);
+  stack_push(array);
+  inst_ptr++;
 }
 
 // Pops n values from the operand
@@ -1620,38 +1674,38 @@ void exec_array_op () {
 // popped) to the shallowest value in the stack (first popped). Null is
 // then pushed onto the operand stack.
 void exec_printf_op (PrintfIns * i) {
-	int format_idx = i->format;
-	int arity = i->arity;
-	char* format_str = get_str_constant(format_idx);
-	char replace_char[] = "~";
-	// replace all ~ in format string into the corresponding arguments
-	char *new_str = copy_string(format_str);
+  int format_idx = i->format;
+  int arity = i->arity;
+  char* format_str = get_str_constant(format_idx);
+  char replace_char[] = "~";
+  // replace all ~ in format string into the corresponding arguments
+  char *new_str = copy_string(format_str);
 
-	Vector* args = make_vector();
-	int n = arity;
-	while (n-- > 0) {
-		vector_add(args, stack_pop());
-	}
-	if (args->size != arity) {
-		printf("Error: exec_printf_op.\n");
-		exit(-1);
-	}
-	n = arity;
-	while (n-- > 0) {
-		char *old_str = new_str;
-		// pop one elemet from the stack
-		Value* val = vector_pop(args);
-		char *arg_str = toString(val);
-		new_str = str_replace(old_str, replace_char, arg_str);
-		if (arg_str != NULL) free(arg_str);
-		if (old_str != NULL) free(old_str);
-	}
-	if (new_str != NULL) {
-		printf("%s", new_str);
-		free(new_str);
-	}
-	vector_free(args);
-	inst_ptr++;
+  Vector* args = make_vector();
+  int n = arity;
+  while (n-- > 0) {
+    vector_add(args, stack_pop());
+  }
+  if (args->size != arity) {
+    printf("Error: exec_printf_op.\n");
+    exit(-1);
+  }
+  n = arity;
+  while (n-- > 0) {
+    char *old_str = new_str;
+    // pop one elemet from the stack
+    Value* val = vector_pop(args);
+    char *arg_str = toString(val);
+    new_str = str_replace(old_str, replace_char, arg_str);
+    if (arg_str != NULL) free(arg_str);
+    if (old_str != NULL) free(old_str);
+  }
+  if (new_str != NULL) {
+    printf("%s", new_str);
+    free(new_str);
+  }
+  vector_free(args);
+  inst_ptr++;
 }
 
 // Retrieves the Class object at index c.
@@ -1666,48 +1720,48 @@ void exec_printf_op (PrintfIns * i) {
 // method slots indicated by the Class object, and with the given parent
 // object, and is pushed onto the operand stack.
 void exec_object_op (ObjectIns * i) {
-	int class_idx = i->class;
-	Value* class = get_val_constant(class_idx);
-	if (class == NULL || class->tag != CLASS_VAL) {
-		printf("Error: exec_object_op.\n");
-		exit(-1);
-	}
-	IdxClassValue* class_val = (IdxClassValue*)class;
-	int num_slots = get_num_var_slots(class_val);
-	// init new object value
-	ObjectValue* obj = (ObjectValue*)malloc(sizeof(ObjectValue));
-	obj->tag = OBJ_OBJ;
-	obj->slot_vec_ptr = make_vector();
-	vector_set_length(obj->slot_vec_ptr, class_val->slots->size, NULL);
-	// iterate from last slot to the first slot
-	for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
-		int slot_idx = (int)vector_get(class_val->slots, i);
-		Value* slot_in_class = get_val_constant(slot_idx);
-		assert_not_null(slot_in_class);
-		if (slot_in_class->tag == METHOD_VAL) {
-			// copy method slot
-			vector_set(obj->slot_vec_ptr, i, slot_in_class);
-		} else if (slot_in_class->tag == SLOT_VAL) {
-			// copy var slot
-			RSlotValue* new_slot =
-			    copy_var_slot((SlotValue*)slot_in_class);
-			// first var slot will be initialized
-			// to the deepest value on the stack
-			new_slot->value = stack_pop();
-			if (new_slot->value == NULL) {
-				printf("Error[2]: exec_object_op.\n");
-				exit(-1);
-			}
-			vector_set(obj->slot_vec_ptr, i, new_slot);
-		} else {
-			printf("Error[3]: exec_object_op.\n");
-			exit(-1);
-		}
-	}
-	obj->parent_obj_ptr = stack_pop();
-	obj->class_ptr = class_val;
-	stack_push((Value*)obj);
-	inst_ptr++;
+  int class_idx = i->class;
+  Value* class = get_val_constant(class_idx);
+  if (class == NULL || class->tag != CLASS_VAL) {
+    printf("Error: exec_object_op.\n");
+    exit(-1);
+  }
+  IdxClassValue* class_val = (IdxClassValue*)class;
+  int num_slots = get_num_var_slots(class_val);
+  // init new object value
+  ObjectValue* obj = (ObjectValue*)malloc(sizeof(ObjectValue));
+  obj->tag = OBJ_OBJ;
+  obj->slot_vec_ptr = make_vector();
+  vector_set_length(obj->slot_vec_ptr, class_val->slots->size, NULL);
+  // iterate from last slot to the first slot
+  for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
+    int slot_idx = (int)vector_get(class_val->slots, i);
+    Value* slot_in_class = get_val_constant(slot_idx);
+    assert_not_null(slot_in_class);
+    if (slot_in_class->tag == METHOD_VAL) {
+      // copy method slot
+      vector_set(obj->slot_vec_ptr, i, slot_in_class);
+    } else if (slot_in_class->tag == SLOT_VAL) {
+      // copy var slot
+      RSlotValue* new_slot =
+        copy_var_slot((SlotValue*)slot_in_class);
+      // first var slot will be initialized
+      // to the deepest value on the stack
+      new_slot->value = stack_pop();
+      if (new_slot->value == NULL) {
+        printf("Error[2]: exec_object_op.\n");
+        exit(-1);
+      }
+      vector_set(obj->slot_vec_ptr, i, new_slot);
+    } else {
+      printf("Error[3]: exec_object_op.\n");
+      exit(-1);
+    }
+  }
+  obj->parent_obj_ptr = stack_pop();
+  obj->class_ptr = class_val;
+  stack_push((Value*)obj);
+  inst_ptr++;
 }
 
 // Pops a value from the operand
@@ -1715,16 +1769,16 @@ void exec_object_op (ObjectIns * i) {
 // at the variable slot with name given by the String object at index i,
 // and pushes it onto the operand stack.
 void exec_slot_op (SlotIns* i) {
-	int name_idx = i->name;
-	char* slot_name = get_str_constant(name_idx);
-	assert_not_null(slot_name);
-	// pop the object to get from
-	Value* obj = stack_pop();
-	assert_obj_obj(obj);
-	Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
-	RSlotValue* slotVal = to_slot_val(slot);
-	stack_push(slotVal->value);
-	inst_ptr++;
+  int name_idx = i->name;
+  char* slot_name = get_str_constant(name_idx);
+  assert_not_null(slot_name);
+  // pop the object to get from
+  Value* obj = stack_pop();
+  assert_obj_obj(obj);
+  Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
+  RSlotValue* slotVal = to_slot_val(slot);
+  stack_push(slotVal->value);
+  inst_ptr++;
 }
 
 // Pops the value to store, x, from
@@ -1732,42 +1786,42 @@ void exec_slot_op (SlotIns* i) {
 // x into the object at the variable slot with name given by the String
 // object at index i. x is then pushed onto the operand stack.
 void exec_set_slot_op (SetSlotIns * i) {
-	int name_idx = i->name;
-	char* slot_name = get_str_constant(name_idx);
-	assert_not_null(slot_name);
-	// pop the value to be stored
-	Value* val = stack_pop();
-	assert_not_null(val);
-	// pop the object to store into
-	Value* obj = stack_pop();
-	assert_obj_obj(obj);
-	Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
-	RSlotValue* slotVal = to_slot_val(slot);
-	slotVal->value = val;
-	stack_push(val);
-	inst_ptr++;
+  int name_idx = i->name;
+  char* slot_name = get_str_constant(name_idx);
+  assert_not_null(slot_name);
+  // pop the value to be stored
+  Value* val = stack_pop();
+  assert_not_null(val);
+  // pop the object to store into
+  Value* obj = stack_pop();
+  assert_obj_obj(obj);
+  Value* slot = find_slot_by_name((ObjectValue*)obj, slot_name);
+  RSlotValue* slotVal = to_slot_val(slot);
+  slotVal->value = val;
+  stack_push(val);
+  inst_ptr++;
 }
 
 void call_func (MethodValue * function_slot, int arity) {
-	// pops arguments from the stack
-	Vector* tmp_vec = make_vector();
-	// create a new local frame
-	Frame* local_frame = create_frame(inst_ptr,
-	                                  function_slot, get_cur_frame());
-	// the first arity slots are the arguments
-	int n = arity;
-	while (n-- > 0) {
-		vector_add(tmp_vec, stack_pop());
-	}
-	n = arity;
-	while (n-- > 0) {
-		vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_vec));
-	}
-	vector_free(tmp_vec);
-	set_cur_frame(local_frame);
-	// set the instructor pointer to the first
-	// instruction in the function body
-	inst_ptr = 0;
+  // pops arguments from the stack
+  Vector* tmp_vec = make_vector();
+  // create a new local frame
+  Frame* local_frame = create_frame(inst_ptr,
+                                    function_slot, get_cur_frame());
+  // the first arity slots are the arguments
+  int n = arity;
+  while (n-- > 0) {
+    vector_add(tmp_vec, stack_pop());
+  }
+  n = arity;
+  while (n-- > 0) {
+    vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_vec));
+  }
+  vector_free(tmp_vec);
+  set_cur_frame(local_frame);
+  // set the instructor pointer to the first
+  // instruction in the function body
+  inst_ptr = 0;
 }
 
 // Pops n values from the operand stack
@@ -1781,17 +1835,17 @@ void call_func (MethodValue * function_slot, int arity) {
 // newly created frame as the current frame, and setting the instruction
 // pointer to the address of the body of the function.
 void exec_call_op (CallIns * i) {
-	int function_name_idx = i->name;
-	int arity = i->arity;
+  int function_name_idx = i->name;
+  int arity = i->arity;
 
-	char* function_name = get_str_constant(function_name_idx);
-	Value* function_slot = get_global_slot_by_name(function_name);
-	if (function_slot == NULL || function_slot->tag != METHOD_VAL) {
-		printf("Error: exec_call_op.\n");
-		exit(-1);
-	}
-	call_func((MethodValue*)function_slot, arity);
-	// instruction pointer is updated in call_func
+  char* function_name = get_str_constant(function_name_idx);
+  Value* function_slot = get_global_slot_by_name(function_name);
+  if (function_slot == NULL || function_slot->tag != METHOD_VAL) {
+    printf("Error: exec_call_op.\n");
+    exit(-1);
+  }
+  call_func((MethodValue*)function_slot, arity);
+  // instruction pointer is updated in call_func
 }
 
 // Registers the parent frame of the
@@ -1803,11 +1857,11 @@ void exec_call_op (CallIns * i) {
 // used after a Return instruction, and any
 // storage allocated for it may be reclaimed.
 void exec_return_op () {
-	Frame* frame = get_cur_frame();
-	inst_ptr = frame->call_ins_idx + 1;
-	Frame* call_frame = (Frame*)frame->call_frame_ptr;
-	set_cur_frame(call_frame);
-	free_frame(frame);
+  Frame* frame = get_cur_frame();
+  inst_ptr = frame->call_ins_idx + 1;
+  Frame* call_frame = (Frame*)frame->call_frame_ptr;
+  set_cur_frame(call_frame);
+  free_frame(frame);
 }
 
 // Pops n values from the
@@ -1826,336 +1880,436 @@ void exec_return_op () {
 // and setting the instruction pointer to the address of the body of the
 // method.
 void exec_call_slot_op (CallSlotIns * i) {
-	int method_name_idx = i->name;
-	char* method_name = get_str_constant(method_name_idx);
-	int arity = i->arity > 0 ? i->arity - 1 : 0;
-	// pops arguments from the stack
-	Vector* tmp_arg_vec = make_vector();
-	// the first arity slots are the arguments
-	int n = arity;
-	while (n-- > 0) {
-		vector_add(tmp_arg_vec, stack_pop());
-	}
-	// pop the receiver object
-	Value* receiver_ptr = stack_pop();
-	assert_not_null(receiver_ptr);
-	exp_assert(obj_type(receiver_ptr) != NULL_OBJ,
-	           "Null object does not have methods!");
-	Value* retVal = NULL;
+  int method_name_idx = i->name;
+  char* method_name = get_str_constant(method_name_idx);
+  int arity = i->arity > 0 ? i->arity - 1 : 0;
+  // pops arguments from the stack
+  Vector* tmp_arg_vec = make_vector();
+  // the first arity slots are the arguments
+  int n = arity;
+  while (n-- > 0) {
+    vector_add(tmp_arg_vec, stack_pop());
+  }
+  // pop the receiver object
+  Value* receiver_ptr = stack_pop();
+  assert_not_null(receiver_ptr);
+  exp_assert(obj_type(receiver_ptr) != NULL_OBJ,
+             "Null object does not have methods!");
+  Value* retVal = NULL;
+  inc_method_call(receiver_ptr);
 
-	switch ((ObjTag)obj_type(receiver_ptr)) {
-	// handle built in functions
-	case INT_OBJ: {
-		Value* arg;
-		exp_assert(arity == 1 && obj_type(arg = vector_get(tmp_arg_vec, 0)) == INT_VAL,
-		           "native int function error - %s",
-		           arity != 1 ? "not enough arguments!" :
-		           "wrong argument type!");
-		if (!strcmp(method_name, "add")) {
-			retVal = (Value*) int_obj_add((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "sub")) {
-			retVal = (Value*) int_obj_sub((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "mul")) {
-			retVal = (Value*) int_obj_mul((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "div")) {
-			retVal = (Value*) int_obj_div((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "mod")) {
-			retVal = (Value*) int_obj_mod((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "gt")) {
-			retVal = (Value*) gt((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "ge")) {
-			retVal = (Value*) ge((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "lt")) {
-			retVal = (Value*) lt((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "le")) {
-			retVal = (Value*) le((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else if (!strcmp(method_name, "eq")) {
-			retVal = (Value*) eq((IntValue*) receiver_ptr, (IntValue*)arg);
-		} else {
-			exp_assert(0, "unknown native int function");
-		}
-		stack_push(retVal);
-		inst_ptr++;
-		break;
-	}
-	case ARRAY_OBJ: {
-		Value* result = NULL;
-		if (!strcmp(method_name, "length") && arity == 0) {
-			result = (Value*)array_length((ArrayValue*) receiver_ptr);
-		} else {
-			Vector* args = make_vector();
-			n = arity;
-			while (n-- > 0) {
-				vector_add(args, vector_pop(tmp_arg_vec));
-			}
-			Value* first_arg;
-			exp_assert(arity > 0 && obj_type(first_arg = vector_get(args, 0)) == INT_OBJ,
-			           "native array function error - %s",
-			           arity < 1 ? "not enough arguments!" :
-			           "incorrect argument type!");
-			if (!strcmp(method_name, "set") && arity == 2) {
-				result = (Value*)array_set((ArrayValue*)receiver_ptr,
-				                           (IntValue*)first_arg, vector_get(args, 1));
-			} else if (!strcmp(method_name, "get") && arity == 1) {
-				result = (Value*)array_get((ArrayValue*)receiver_ptr, (IntValue*)first_arg);
-			} else {
-				exp_assert(0, "unknown native array function");
-			}
-			vector_free(args);
-		}
-		stack_push(result);
-		inst_ptr++;
-		break;
-	}
-	case OBJ_OBJ: {
-		Value* slot = find_slot_by_name((ObjectValue*)receiver_ptr, method_name);
-		assert_not_null(slot);
-		MethodValue* method_slot = to_function_val(slot);
-		Vector* args = make_vector();
-		// create a new local frame
-		Frame* local_frame = create_frame(inst_ptr,
-		                                  method_slot, get_cur_frame());
-		// the slot 0 is the receiver object
-		vector_add(local_frame->slot_vec_ptr, receiver_ptr);
-		n = arity;
-		while (n-- > 0) {
-			vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_arg_vec));
-		}
-		set_cur_frame(local_frame);
-		inst_ptr = 0;
-		vector_free(args);
-		break;
-	}
-	default:
-		printf("receiver_ptr->tag: %d\n", receiver_ptr->tag);
-		exp_assert(0, "Cannot call method on null object!");
-		exit(-1);
-	}
-	vector_free(tmp_arg_vec);
+  switch ((ObjTag)obj_type(receiver_ptr)) {
+  // handle built in functions
+  case INT_OBJ: {
+    Value* arg;
+    exp_assert(arity == 1 && obj_type(arg = vector_get(tmp_arg_vec, 0)) == INT_VAL,
+               "native int function error - %s",
+               arity != 1 ? "not enough arguments!" :
+               "wrong argument type!");
+    if (!strcmp(method_name, "add")) {
+      retVal = (Value*) int_obj_add((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "sub")) {
+      retVal = (Value*) int_obj_sub((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "mul")) {
+      retVal = (Value*) int_obj_mul((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "div")) {
+      retVal = (Value*) int_obj_div((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "mod")) {
+      retVal = (Value*) int_obj_mod((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "gt")) {
+      retVal = (Value*) gt((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "ge")) {
+      retVal = (Value*) ge((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "lt")) {
+      retVal = (Value*) lt((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "le")) {
+      retVal = (Value*) le((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else if (!strcmp(method_name, "eq")) {
+      retVal = (Value*) eq((IntValue*) receiver_ptr, (IntValue*)arg);
+    } else {
+      exp_assert(0, "unknown native int function");
+    }
+    stack_push(retVal);
+    inst_ptr++;
+    break;
+  }
+  case ARRAY_OBJ: {
+    Value* result = NULL;
+    if (!strcmp(method_name, "length") && arity == 0) {
+      result = (Value*)array_length((ArrayValue*) receiver_ptr);
+    } else {
+      Vector* args = make_vector();
+      n = arity;
+      while (n-- > 0) {
+        vector_add(args, vector_pop(tmp_arg_vec));
+      }
+      Value* first_arg;
+      exp_assert(arity > 0 && obj_type(first_arg = vector_get(args, 0)) == INT_OBJ,
+                 "native array function error - %s",
+                 arity < 1 ? "not enough arguments!" :
+                 "incorrect argument type!");
+      if (!strcmp(method_name, "set") && arity == 2) {
+        result = (Value*)array_set((ArrayValue*)receiver_ptr,
+                                   (IntValue*)first_arg, vector_get(args, 1));
+      } else if (!strcmp(method_name, "get") && arity == 1) {
+        result = (Value*)array_get((ArrayValue*)receiver_ptr, (IntValue*)first_arg);
+      } else {
+        exp_assert(0, "unknown native array function");
+      }
+      vector_free(args);
+    }
+    stack_push(result);
+    inst_ptr++;
+    break;
+  }
+  case OBJ_OBJ: {
+    Value* slot = find_slot_by_name((ObjectValue*)receiver_ptr, method_name);
+    assert_not_null(slot);
+    MethodValue* method_slot = to_function_val(slot);
+    Vector* args = make_vector();
+    // create a new local frame
+    Frame* local_frame = create_frame(inst_ptr,
+                                      method_slot, get_cur_frame());
+    // the slot 0 is the receiver object
+    vector_add(local_frame->slot_vec_ptr, receiver_ptr);
+    n = arity;
+    while (n-- > 0) {
+      vector_add(local_frame->slot_vec_ptr, vector_pop(tmp_arg_vec));
+    }
+    set_cur_frame(local_frame);
+    inst_ptr = 0;
+    vector_free(args);
+    break;
+  }
+  default:
+    printf("receiver_ptr->tag: %d\n", receiver_ptr->tag);
+    exp_assert(0, "Cannot call method on null object!");
+    exit(-1);
+  }
+  vector_free(tmp_arg_vec);
 }
 
 void exec_ins (ByteIns * ins) {
-	switch (ins->tag) {
-	case LABEL_OP: {
-		LabelIns* i = (LabelIns*)ins;
-		exec_label_op(i);
-		break;
-	}
-	case LIT_OP: {
-		LitIns* i = (LitIns*)ins;
-		exec_lit_op(i);
-		break;
-	}
-	case PRINTF_OP: {
-		PrintfIns* i = (PrintfIns*)ins;
-		exec_printf_op(i);
-		break;
-	}
-	case ARRAY_OP: {
-		exec_array_op();
-		break;
-	}
-	case OBJECT_OP: {
-		ObjectIns* i = (ObjectIns*)ins;
-		exec_object_op(i);
-		break;
-	}
-	case SLOT_OP: {
-		SlotIns* i = (SlotIns*)ins;
-		exec_slot_op(i);
-		break;
-	}
-	case SET_SLOT_OP: {
-		SetSlotIns* i = (SetSlotIns*)ins;
-		exec_set_slot_op(i);
-		break;
-	}
-	case CALL_SLOT_OP: {
-		CallSlotIns* i = (CallSlotIns*)ins;
-		exec_call_slot_op(i);
-		break;
-	}
-	case CALL_OP: {
-		CallIns* i = (CallIns*)ins;
-		exec_call_op(i);
-		break;
-	}
-	case SET_LOCAL_OP: {
-		SetLocalIns* i = (SetLocalIns*)ins;
-		exec_set_local_op(i);
-		break;
-	}
-	case GET_LOCAL_OP: {
-		GetLocalIns* i = (GetLocalIns*)ins;
-		exec_get_local_op(i);
-		break;
-	}
-	case SET_GLOBAL_OP: {
-		SetGlobalIns* i = (SetGlobalIns*)ins;
-		exec_set_global_op(i);
-		break;
-	}
-	case GET_GLOBAL_OP: {
-		GetGlobalIns* i = (GetGlobalIns*)ins;
-		exec_get_global_op(i);
-		break;
-	}
-	case BRANCH_OP: {
-		BranchIns* i = (BranchIns*)ins;
-		exec_branch_op(i);
-		break;
-	}
-	case GOTO_OP: {
-		GotoIns* i = (GotoIns*)ins;
-		exec_goto_op(i);
-		break;
-	}
-	case RETURN_OP: {
-		exec_return_op();
-		break;
-	}
-	case DROP_OP: {
-		exec_drop_op();
-		break;
-	}
-	default: {
-		printf("Unknown instruction with tag: %u\n", ins->tag);
-		exit(-1);
-	}
-	}
+  switch (ins->tag) {
+  case LABEL_OP: {
+    LabelIns* i = (LabelIns*)ins;
+    exec_label_op(i);
+    break;
+  }
+  case LIT_OP: {
+    LitIns* i = (LitIns*)ins;
+    exec_lit_op(i);
+    break;
+  }
+  case PRINTF_OP: {
+    PrintfIns* i = (PrintfIns*)ins;
+    exec_printf_op(i);
+    break;
+  }
+  case ARRAY_OP: {
+    exec_array_op();
+    break;
+  }
+  case OBJECT_OP: {
+    ObjectIns* i = (ObjectIns*)ins;
+    exec_object_op(i);
+    break;
+  }
+  case SLOT_OP: {
+    SlotIns* i = (SlotIns*)ins;
+    exec_slot_op(i);
+    break;
+  }
+  case SET_SLOT_OP: {
+    SetSlotIns* i = (SetSlotIns*)ins;
+    exec_set_slot_op(i);
+    break;
+  }
+  case CALL_SLOT_OP: {
+    CallSlotIns* i = (CallSlotIns*)ins;
+    exec_call_slot_op(i);
+    break;
+  }
+  case CALL_OP: {
+    CallIns* i = (CallIns*)ins;
+    exec_call_op(i);
+    break;
+  }
+  case SET_LOCAL_OP: {
+    SetLocalIns* i = (SetLocalIns*)ins;
+    exec_set_local_op(i);
+    break;
+  }
+  case GET_LOCAL_OP: {
+    GetLocalIns* i = (GetLocalIns*)ins;
+    exec_get_local_op(i);
+    break;
+  }
+  case SET_GLOBAL_OP: {
+    SetGlobalIns* i = (SetGlobalIns*)ins;
+    exec_set_global_op(i);
+    break;
+  }
+  case GET_GLOBAL_OP: {
+    GetGlobalIns* i = (GetGlobalIns*)ins;
+    exec_get_global_op(i);
+    break;
+  }
+  case BRANCH_OP: {
+    BranchIns* i = (BranchIns*)ins;
+    exec_branch_op(i);
+    break;
+  }
+  case GOTO_OP: {
+    GotoIns* i = (GotoIns*)ins;
+    exec_goto_op(i);
+    break;
+  }
+  case RETURN_OP: {
+    exec_return_op();
+    break;
+  }
+  case DROP_OP: {
+    exec_drop_op();
+    break;
+  }
+  default: {
+    printf("Unknown instruction with tag: %u\n", ins->tag);
+    exit(-1);
+  }
+  }
 }
 
 IdxClassValue* create_class(Vector * values, ClassValue * v2) {
-	IdxClassValue* new_v =
-	    (IdxClassValue*)malloc(sizeof(IdxClassValue));
-	new_v->tag = v2->tag;
-	new_v->slots = v2->slots;
-	new_v->name_to_slot_table = init_hashtable();
-	// iterate over all slots
-	for (int i = 0; i < v2->slots->size; i++) {
-		// get the slot value
-		int slot_index = (int)vector_get(v2->slots, i);
-		Value* value = vector_get(values, slot_index);
-		if (value->tag != SLOT_OBJ && value->tag != METHOD_OBJ) {
-			printf("non-slot or method value in class\n");
-			exit(-1);
-		}
-		int name_index = ((SlotValue*)value)->name;
-		// get the string value of name
-		value = vector_get(values, name_index);
-		if (value->tag != STR_OBJ) {
-			printf("Slot value name is not a string.\n");
-			exit(-1);
-		}
-		char* name_ptr = ((StringValue*)value)->value;
-		// map the string name to the slot index in new_v->slots
-		add_item(new_v->name_to_slot_table, name_ptr, i);
-	}
-	return new_v;
+  IdxClassValue* new_v =
+    (IdxClassValue*)malloc(sizeof(IdxClassValue));
+  new_v->tag = v2->tag;
+  new_v->slots = v2->slots;
+  new_v->name_to_slot_table = init_hashtable();
+  // iterate over all slots
+  for (int i = 0; i < v2->slots->size; i++) {
+    // get the slot value
+    int slot_index = (int)vector_get(v2->slots, i);
+    Value* value = vector_get(values, slot_index);
+    if (value->tag != SLOT_OBJ && value->tag != METHOD_OBJ) {
+      printf("non-slot or method value in class\n");
+      exit(-1);
+    }
+    int name_index = ((SlotValue*)value)->name;
+    // get the string value of name
+    value = vector_get(values, name_index);
+    if (value->tag != STR_OBJ) {
+      printf("Slot value name is not a string.\n");
+      exit(-1);
+    }
+    char* name_ptr = ((StringValue*)value)->value;
+    // map the string name to the slot index in new_v->slots
+    add_item(new_v->name_to_slot_table, name_ptr, i);
+  }
+  return new_v;
 }
 
 void associate_labels(Value *val) {
-	MethodValue* method = to_function_val(val);
-	for (int i = 0; i < method->code->size; i++) {
-		ByteIns* ins = (ByteIns*)vector_get(method->code, i);
-		if (ins->tag == LABEL_OP) {
-			process_label_op((LabelIns*)ins, i);
-		}
-	}
+  MethodValue* method = to_function_val(val);
+  for (int i = 0; i < method->code->size; i++) {
+    ByteIns* ins = (ByteIns*)vector_get(method->code, i);
+    if (ins->tag == LABEL_OP) {
+      process_label_op((LabelIns*)ins, i);
+    }
+  }
 }
 
 // add values in the byte code syntax tree into
 // the runtime constatnt pool
 void addto_constant_pool (Vector * values, Value * v) {
-	Vector* constant_pool = get_constant_pool();
-	switch (v->tag) {
-	case INT_VAL:
-	case NULL_VAL:
-	case STRING_VAL:
-	case METHOD_VAL: {
-		vector_add(constant_pool, v);
-		// preprocess to construct label table
-		if (v->tag == METHOD_VAL)
-			associate_labels(v);
-		break;
-	}
-	case SLOT_VAL: {
-		SlotValue* v2 = (SlotValue*)v;
-		RSlotValue* new_v = (RSlotValue*)malloc(sizeof(RSlotValue));
-		new_v->tag = v2->tag;
-		new_v->name = v2->name;
-		new_v->value = NULL;
-		vector_add(constant_pool, new_v);
-		break;
-	}
-	case CLASS_VAL: {
-		ClassValue* v2 = (ClassValue*)v;
-		IdxClassValue* new_v = create_class(values, v2);
-		vector_add(constant_pool, new_v);
-		break;
-	}
-	default:
-		printf("Value with unknown tag: %d\n", v->tag);
-		exit(-1);
-	}
+  Vector* constant_pool = get_constant_pool();
+  switch (v->tag) {
+  case INT_VAL:
+  case NULL_VAL:
+  case STRING_VAL:
+  case METHOD_VAL: {
+    vector_add(constant_pool, v);
+    // preprocess to construct label table
+    if (v->tag == METHOD_VAL)
+      associate_labels(v);
+    break;
+  }
+  case SLOT_VAL: {
+    SlotValue* v2 = (SlotValue*)v;
+    RSlotValue* new_v = (RSlotValue*)malloc(sizeof(RSlotValue));
+    new_v->tag = v2->tag;
+    new_v->name = v2->name;
+    new_v->value = NULL;
+    vector_add(constant_pool, new_v);
+    break;
+  }
+  case CLASS_VAL: {
+    ClassValue* v2 = (ClassValue*)v;
+    IdxClassValue* new_v = create_class(values, v2);
+    vector_add(constant_pool, new_v);
+    break;
+  }
+  default:
+    printf("Value with unknown tag: %d\n", v->tag);
+    exit(-1);
+  }
 }
 
 void start_exec() {
-	// init the root frame
-	get_root_frame();
-	// init the global var table
-	get_global_var_map ();
-	// init the instruction label table
-	get_ins_label_table ();
-	// init the operand stack
-	get_operand_stack ();
-	// call the entry function
-	Value* slot = get_val_constant(get_entry_function());
-	call_func(to_function_val(slot), 0);
-	// start executing the program
-	while (1) {
-		// get the current instruction
-		Frame* cur_frame = get_cur_frame();
-		if (cur_frame == get_root_frame()) {
-			break; // execution stops
-		}
-		Vector* code = cur_frame->func_ptr->code;
-		if (inst_ptr < 0 || inst_ptr >= code->size) {
-			printf("Error: wrong inst_ptr: %d.\n", inst_ptr);
-			exit(-1);
-		}
+  // init the root frame
+  get_root_frame();
+  // init the global var table
+  get_global_var_map ();
+  // init the instruction label table
+  get_ins_label_table ();
+  // init the operand stack
+  get_operand_stack ();
+  // call the entry function
+  Value* slot = get_val_constant(get_entry_function());
+  call_func(to_function_val(slot), 0);
+  // start executing the program
+  while (1) {
+    // get the current instruction
+    Frame* cur_frame = get_cur_frame();
+    if (cur_frame == get_root_frame()) {
+      break; // execution stops
+    }
+    Vector* code = cur_frame->func_ptr->code;
+    if (inst_ptr < 0 || inst_ptr >= code->size) {
+      printf("Error: wrong inst_ptr: %d.\n", inst_ptr);
+      exit(-1);
+    }
 #ifdef DEBUG
-		printf("%d, %d\n", code->size, inst_ptr);
-		printf("stack size: %d\n", operand_stack->size);
+    printf("%d, %d\n", code->size, inst_ptr);
+    printf("stack size: %d\n", operand_stack->size);
 #endif
-		ByteIns* ins = vector_get(code, inst_ptr);
+    ByteIns* ins = vector_get(code, inst_ptr);
 #ifdef DEBUG
-		print_ins(ins);
-		printf("\n");
+    print_ins(ins);
+    printf("\n");
 #endif
-		exec_ins(ins);
-	}
+    exec_ins(ins);
+  }
 }
 
 void exec_prog (Program * p) {
-	// constant pool
-	Vector* vs = p->values;
-	for (int i = 0; i < vs->size; i++) {
-		addto_constant_pool(vs, vector_get(vs, i));
-	}
-	// global slot
-	set_global_slots(p->slots);
-	// entry function
-	set_entry_function(p->entry);
-	// start exec the program
-	start_exec();
+  // constant pool
+  Vector* vs = p->values;
+  for (int i = 0; i < vs->size; i++) {
+    addto_constant_pool(vs, vector_get(vs, i));
+  }
+  // global slot
+  set_global_slots(p->slots);
+  // entry function
+  set_entry_function(p->entry);
+  // start exec the program
+  start_exec();
 }
 
 void interpret_bc (Program * p) {
-	/*printf("Interpreting Bytecode Program:\n");
-	print_prog(p);
-	printf("\n");*/
-	exec_prog(p);
+  /*printf("Interpreting Bytecode Program:\n");
+  print_prog(p);
+  printf("\n");*/
+  exec_prog(p);
+}
+
+
+//============================================================
+//==================== COLLECT STAT ==========================
+//============================================================
+
+void print_help () {
+  printf("Command line:\n\tcfeeny filename [-s path]\n\n\t-s print statistics to the specified file\n");
+}
+
+
+static int collectStat = 0;
+static Stat* stat = NULL;
+
+void set_collect_stat (int flag) {
+  collectStat = flag;
+  if (flag) {
+    init_stat();
+  }
+}
+
+int is_collect_stat () {
+  return collectStat != 0;
+}
+
+void init_stat () {
+  stat = malloc(sizeof(Stat));
+  stat->total_time.tv_usec = 0;
+  stat->total_time.tv_sec = 0;
+  stat->total_method_call = 0;
+  stat->total_int_method_call = 0;
+  stat->total_array_method_call = 0;
+  stat->total_envobj_method_call = 0;
+  stat->total_time_lookup_entry.tv_sec = 0;
+  stat->total_time_lookup_entry.tv_usec = 0;
+}
+
+void start_time_counter (struct timeval *t) {
+  gettimeofday(t, NULL);
+}
+
+void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* result) {
+  gettimeofday(end, NULL);
+  timersub(end, start, result);
+}
+
+void inc_total_time (const struct timeval *total_time) {
+  if (collectStat == 0 || stat == NULL)
+    return;
+  stat->total_time.tv_sec += total_time->tv_sec;
+  stat->total_time.tv_usec += total_time->tv_usec;
+}
+
+void inc_entry_lookup_time (const struct timeval* time) {
+  if (collectStat == 0 || stat == NULL)
+    return;
+  stat->total_time_lookup_entry.tv_sec += time->tv_sec;
+  stat->total_time_lookup_entry.tv_usec += time->tv_usec;
+}
+
+void inc_method_call (Value* receiver_ptr) {
+  if (receiver_ptr == NULL
+          || collectStat == 0
+          || stat == NULL)
+    return;
+
+  stat->total_method_call++;
+  switch ((ObjTag)receiver_ptr->tag) {
+  case INT_OBJ:
+    stat->total_int_method_call++;
+    break;
+  case ARRAY_OBJ:
+    stat->total_array_method_call++;
+    break;
+  case OBJ_OBJ:
+    stat->total_envobj_method_call++;
+    break;
+  default:
+    break;
+  }
+}
+
+void write_stat (char* filename) {
+  if (!is_collect_stat() || stat == NULL) return;
+  FILE *f = fopen(filename, "w");
+  if (f == NULL) {
+    printf("Error opening file!\n");
+    exit(1);
+  }
+
+  fprintf(f, "Total Time: %f ms\n", 0.0+stat->total_time.tv_sec*1000.0+stat->total_time.tv_usec/1000.0);
+  fprintf(f, "Total Time Lookup Entry: %f ms\n", 0.0+stat->total_time_lookup_entry.tv_sec*1000.0+stat->total_time_lookup_entry.tv_usec/1000.0);
+  fprintf(f, "Total Method Call: %ld\n", stat->total_method_call);
+  fprintf(f, "Total Integer Method Call: %ld\n", stat->total_int_method_call);
+  fprintf(f, "Total Array Method Call: %ld\n", stat->total_array_method_call);
+  fprintf(f, "Total EnvObj Method Call: %ld\n", stat->total_envobj_method_call);
+
+  fclose(f);
 }
 
 //============================================================
@@ -2163,285 +2317,285 @@ void interpret_bc (Program * p) {
 //============================================================
 
 void free_frame(Frame* frame) {
-	vector_free(frame->slot_vec_ptr);
-	free(frame);
+  vector_free(frame->slot_vec_ptr);
+  free(frame);
 }
 
 MethodValue* to_function_val (Value* val) {
-	if (val == NULL || val->tag != METHOD_VAL) {
-		printf("Error: not a function value.\n");
-		exit(-1);
-	}
-	return (MethodValue*) val;
+  if (val == NULL || val->tag != METHOD_VAL) {
+    printf("Error: not a function value.\n");
+    exit(-1);
+  }
+  return (MethodValue*) val;
 }
 
 RSlotValue* to_slot_val (Value* val) {
-	if (val == NULL || val->tag != SLOT_VAL) {
-		printf("Error: not a var slot.\n");
-		exit(-1);
-	}
-	return (RSlotValue*) val;
+  if (val == NULL || val->tag != SLOT_VAL) {
+    printf("Error: not a var slot.\n");
+    exit(-1);
+  }
+  return (RSlotValue*) val;
 }
 
 IntValue* to_int_val (Value* val) {
-	if (val == NULL || val->tag != INT_VAL) {
-		printf("Error: to_int_val.\n");
-		exit(-1);
-	}
-	return (IntValue*)val;
+  if (val == NULL || val->tag != INT_VAL) {
+    printf("Error: to_int_val.\n");
+    exit(-1);
+  }
+  return (IntValue*)val;
 }
 
 void assert_not_null (void* ptr) {
-	if (ptr == NULL) {
-		printf("Error: assert_not_null.\n");
-		exit(-1);
-	}
+  if (ptr == NULL) {
+    printf("Error: assert_not_null.\n");
+    exit(-1);
+  }
 }
 
 void assert_obj_obj (Value* ptr) {
-	if (ptr == NULL || ptr->tag != OBJ_OBJ) {
-		printf("Error: assert_obj_obj.\n");
-		exit(-1);
-	}
+  if (ptr == NULL || ptr->tag != OBJ_OBJ) {
+    printf("Error: assert_obj_obj.\n");
+    exit(-1);
+  }
 }
 
 void exp_assert (int i, const char * fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	if (!i) {
-		printf("Encountered error: ");
-		vprintf(fmt, args);
-		printf("\n");
-		exit(-1);
-	}
-	va_end(args);
+  va_list args;
+  va_start(args, fmt);
+  if (!i) {
+    printf("Encountered error: ");
+    vprintf(fmt, args);
+    printf("\n");
+    exit(-1);
+  }
+  va_end(args);
 }
 
 int obj_type (Value * o) {
-	return o->tag;
+  return o->tag;
 }
 
 NullValue* make_null_obj () {
-	static NullValue n = {NULL_VAL};
-	return &n;
+  static NullValue n = {NULL_VAL};
+  return &n;
 }
 
 IntValue* make_int_obj (int value) {
-	//cache for memory usage - could make the cache larger
-	static int cache_initted = 0;
-	static IntValue cached[101];
-	if (! cache_initted) {
-		for (int i = 0; i < sizeof(cached) / sizeof(IntValue); ++i) {
-			cached[i].tag = INT_VAL;
-			cached[i].value = i;
-		}
-		cache_initted = 1;
-	}
-	if (value >= 0 && value < sizeof(cached) / sizeof(IntValue)) {
-		return &cached[value];
-	}
+  //cache for memory usage - could make the cache larger
+  static int cache_initted = 0;
+  static IntValue cached[101];
+  if (! cache_initted) {
+    for (int i = 0; i < sizeof(cached) / sizeof(IntValue); ++i) {
+      cached[i].tag = INT_VAL;
+      cached[i].value = i;
+    }
+    cache_initted = 1;
+  }
+  if (value >= 0 && value < sizeof(cached) / sizeof(IntValue)) {
+    return &cached[value];
+  }
 
-	IntValue* t = malloc(sizeof(IntValue));
-	t->tag = INT_VAL;
-	t->value = value;
-	return t;
+  IntValue* t = malloc(sizeof(IntValue));
+  t->tag = INT_VAL;
+  t->value = value;
+  return t;
 }
 
 IntValue* array_length (ArrayValue* array) {
-	return make_int_obj(array->v->size);
+  return make_int_obj(array->v->size);
 }
 
 NullValue* array_set (ArrayValue* a, IntValue* i, Value* v) {
-	if (i->value >= a->v->size || i->value < 0) {
-		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
-		exit(-1);
-	}
+  if (i->value >= a->v->size || i->value < 0) {
+    printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+    exit(-1);
+  }
 
-	vector_set(a->v, i->value, v);
-	return make_null_obj();
+  vector_set(a->v, i->value, v);
+  return make_null_obj();
 }
 
 Value* array_get (ArrayValue* a, IntValue* i) {
-	if (i->value >= a->v->size || i->value < 0) {
-		printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
-		exit(-1);
-	}
-	return vector_get(a->v, i->value);
+  if (i->value >= a->v->size || i->value < 0) {
+    printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+    exit(-1);
+  }
+  return vector_get(a->v, i->value);
 }
 
 ArrayValue* make_array_obj(int length, Value* init) {
-	ArrayValue* t = malloc(sizeof(ArrayValue));
-	t->tag = ARRAY_OBJ;
-	t->v = make_vector();
-	for (int i = 0; i < length; ++i) {
-		vector_add(t->v, init);
-	}
-	return t;
+  ArrayValue* t = malloc(sizeof(ArrayValue));
+  t->tag = ARRAY_OBJ;
+  t->v = make_vector();
+  for (int i = 0; i < length; ++i) {
+    vector_add(t->v, init);
+  }
+  return t;
 }
 
 IntValue* int_obj_add (IntValue * x, IntValue * y) {
-	return make_int_obj(x->value + y->value);
+  return make_int_obj(x->value + y->value);
 }
 IntValue* int_obj_sub (IntValue * x, IntValue * y) {
-	return make_int_obj(x->value - y->value);
+  return make_int_obj(x->value - y->value);
 }
 IntValue* int_obj_mul (IntValue * x, IntValue * y) {
-	return make_int_obj(x->value * y->value);
+  return make_int_obj(x->value * y->value);
 }
 IntValue* int_obj_div (IntValue * x, IntValue * y) {
-	return make_int_obj(x->value / y->value);
+  return make_int_obj(x->value / y->value);
 }
 IntValue* int_obj_mod (IntValue * x, IntValue * y) {
-	return make_int_obj(x->value % y->value);
+  return make_int_obj(x->value % y->value);
 }
 
 Value* eq(IntValue * x, IntValue * y) {
-	return x->value == y->value ?
-	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+  return x->value == y->value ?
+         (Value*)make_int_obj(0) : (Value*)make_null_obj();
 }
 Value* lt(IntValue * x, IntValue * y) {
-	return x->value < y->value ?
-	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+  return x->value < y->value ?
+         (Value*)make_int_obj(0) : (Value*)make_null_obj();
 }
 Value* le(IntValue * x, IntValue * y) {
-	return x->value <= y->value ?
-	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+  return x->value <= y->value ?
+         (Value*)make_int_obj(0) : (Value*)make_null_obj();
 }
 Value* gt(IntValue * x, IntValue * y) {
-	return x->value > y->value ?
-	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+  return x->value > y->value ?
+         (Value*)make_int_obj(0) : (Value*)make_null_obj();
 }
 Value* ge(IntValue * x, IntValue * y) {
-	return x->value >= y->value ?
-	       (Value*)make_int_obj(0) : (Value*)make_null_obj();
+  return x->value >= y->value ?
+         (Value*)make_int_obj(0) : (Value*)make_null_obj();
 }
 
 // convert an interpreter object into a string
 char* toString (Value * val_ptr) {
-	switch (((RValue*)val_ptr)->tag) {
-	case INT_OBJ: {
-		return intToString(((IntValue*)val_ptr)->value);
-	}
-	case OBJ_OBJ: {
-		char *result = malloc(9 * sizeof(char));
-		strcpy(result, "[OBJECT]");
-		return result;
-	}
-	case NULL_OBJ: {
-		char *result = malloc(5 * sizeof(char));
-		strcpy(result, "Null");
-		return result;
-	}
-	case ARRAY_OBJ: {
-		return arrayToString((ArrayValue*)val_ptr);
-	}
-	default:
-		printf("Error: toString.\n");
-		exit(-1);
-	}
-	return NULL;
+  switch (((RValue*)val_ptr)->tag) {
+  case INT_OBJ: {
+    return intToString(((IntValue*)val_ptr)->value);
+  }
+  case OBJ_OBJ: {
+    char *result = malloc(9 * sizeof(char));
+    strcpy(result, "[OBJECT]");
+    return result;
+  }
+  case NULL_OBJ: {
+    char *result = malloc(5 * sizeof(char));
+    strcpy(result, "Null");
+    return result;
+  }
+  case ARRAY_OBJ: {
+    return arrayToString((ArrayValue*)val_ptr);
+  }
+  default:
+    printf("Error: toString.\n");
+    exit(-1);
+  }
+  return NULL;
 }
 
 char* arrayToString (ArrayValue *obj_ptr) {
-	char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
-	int size_of_str = 1; //opening brace
-	for (int i = 0; i < obj_ptr->v->size; ++i) {
-		strs[i] = toString(vector_get(obj_ptr->v, i));
-		size_of_str += strlen(strs[i]);
-		if (i) {
-			size_of_str += 1; //space
-		}
-	}
-	size_of_str += 1; // closing brace
-	size_of_str += 1; // null at end of string
+  char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
+  int size_of_str = 1; //opening brace
+  for (int i = 0; i < obj_ptr->v->size; ++i) {
+    strs[i] = toString(vector_get(obj_ptr->v, i));
+    size_of_str += strlen(strs[i]);
+    if (i) {
+      size_of_str += 1; //space
+    }
+  }
+  size_of_str += 1; // closing brace
+  size_of_str += 1; // null at end of string
 
-	char *result = malloc(size_of_str * sizeof(char));
-	*result = '\0';
+  char *result = malloc(size_of_str * sizeof(char));
+  *result = '\0';
 
-	char* t = result;
-	t = strcat(t, "[");
-	for (int i = 0; i < obj_ptr->v->size; ++i) {
-		t = strcat(t, strs[i]);
-	}
-	t = strcat(t, "]");
-	return result;
+  char* t = result;
+  t = strcat(t, "[");
+  for (int i = 0; i < obj_ptr->v->size; ++i) {
+    t = strcat(t, strs[i]);
+  }
+  t = strcat(t, "]");
+  return result;
 }
 
 char* intToString(int i) {
-	char* b = malloc(20 * sizeof(char));
-	char const digit[] = "0123456789";
-	char* p = b;
-	if (i < 0) {
-		*p++ = '-';
-		i *= -1;
-	}
-	int shifter = i;
-	do { //Move to where representation ends
-		++p;
-		shifter = shifter / 10;
-	} while (shifter);
-	*p = '\0';
-	do { //Move back, inserting digits as u go
-		*--p = digit[i % 10];
-		i = i / 10;
-	} while (i);
-	return b;
+  char* b = malloc(20 * sizeof(char));
+  char const digit[] = "0123456789";
+  char* p = b;
+  if (i < 0) {
+    *p++ = '-';
+    i *= -1;
+  }
+  int shifter = i;
+  do { //Move to where representation ends
+    ++p;
+    shifter = shifter / 10;
+  } while (shifter);
+  *p = '\0';
+  do { //Move back, inserting digits as u go
+    *--p = digit[i % 10];
+    i = i / 10;
+  } while (i);
+  return b;
 }
 
 char* copy_string (const char *string) {
-	char *stringcopy = malloc (1 + strlen (string));
-	if (stringcopy) {
-		strcpy (stringcopy, string);
-	} else {
-		fprintf (stderr, "malloc failure!");
-	}
-	return stringcopy;
+  char *stringcopy = malloc (1 + strlen (string));
+  if (stringcopy) {
+    strcpy (stringcopy, string);
+  } else {
+    fprintf (stderr, "malloc failure!");
+  }
+  return stringcopy;
 }
 
 // You must free the result if result is non-NULL.
 // only replace the first occurrance of *rep
 char* str_replace (char *orig, char *rep, char *with) {
-	char *result; // the return string
-	char *ins;    // the next insert point
-	char *tmp;    // varies
-	int len_rep;  // length of rep
-	int len_with; // length of with
-	int len_front; // distance between rep and end of last rep
-	int count;    // number of replacements
+  char *result; // the return string
+  char *ins;    // the next insert point
+  char *tmp;    // varies
+  int len_rep;  // length of rep
+  int len_with; // length of with
+  int len_front; // distance between rep and end of last rep
+  int count;    // number of replacements
 
-	if (!orig)
-		return NULL;
-	if (!rep)
-		rep = "";
-	len_rep = strlen(rep);
-	if (!with)
-		with = "";
-	len_with = strlen(with);
+  if (!orig)
+    return NULL;
+  if (!rep)
+    rep = "";
+  len_rep = strlen(rep);
+  if (!with)
+    with = "";
+  len_with = strlen(with);
 
-	ins = orig;
-	for (count = 0; (tmp = strstr(ins, rep)); ++count) {
-		ins = tmp + len_rep;
-	}
-	if (count > 0) {
-		count = 1;
-	}
-	// first time through the loop, all the variable are set correctly
-	// from here on,
-	//    tmp points to the end of the result string
-	//    ins points to the next occurrence of rep in orig
-	//    orig points to the remainder of orig after "end of rep"
-	tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
+  ins = orig;
+  for (count = 0; (tmp = strstr(ins, rep)); ++count) {
+    ins = tmp + len_rep;
+  }
+  if (count > 0) {
+    count = 1;
+  }
+  // first time through the loop, all the variable are set correctly
+  // from here on,
+  //    tmp points to the end of the result string
+  //    ins points to the next occurrence of rep in orig
+  //    orig points to the remainder of orig after "end of rep"
+  tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
 
-	if (!result)
-		return NULL;
+  if (!result)
+    return NULL;
 
-	while (count--) {
-		ins = strstr(orig, rep);
-		len_front = ins - orig;
-		tmp = strncpy(tmp, orig, len_front) + len_front;
-		tmp = strcpy(tmp, with) + len_with;
-		orig += len_front + len_rep; // move to next "end of rep"
-	}
-	strcpy(tmp, orig);
-	return result;
+  while (count--) {
+    ins = strstr(orig, rep);
+    len_front = ins - orig;
+    tmp = strncpy(tmp, orig, len_front) + len_front;
+    tmp = strcpy(tmp, with) + len_with;
+    orig += len_front + len_rep; // move to next "end of rep"
+  }
+  strcpy(tmp, orig);
+  return result;
 }

@@ -1,22 +1,55 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/timeb.h>
+// comment out the following line
+// to run in submitted version, which
+// will not collect runtime statistics
+#define PRE_SUBMIT 1
+
 #include "utils.h"
 #include "bytecode.h"
 #include "vm.h"
 
 int main (int argc, char** argvs) {
-  //Check number of arguments
-  if(argc != 2){
-    printf("Expected 2 arguments to commandline.\n");
+  struct timeval start, end;
+  // Check number of arguments
+  if (argc < 2) {
+    printf("Expected at least 1 argument to commandline.\n");
+#ifdef PRE_SUBMIT
+    print_help();
+#endif
+    exit(-1);
+  } else if (argc == 3 || argc > 4 || (argc == 4 && strcmp(argvs[2], "-s") != 0)) {
+    printf("Expected at most 2 arguments to commandline.\n");
+#ifdef PRE_SUBMIT
+    print_help();
+#endif
     exit(-1);
   }
+
+#ifdef PRE_SUBMIT
+  // Read in option
+  if (argc == 4) {
+    set_collect_stat(1);
+    start_time_counter(&start);
+  }
+#endif
 
   //Read in bytecode
   Program* p = load_bytecode(argvs[1]);
   interpret_bc(p);
-  //  initvm(link_program(p));
-  //  runvm();
+
+#ifdef PRE_SUBMIT
+  if (is_collect_stat()) {
+    struct timeval time;
+    end_time_counter(&start, &end, &time);
+    inc_total_time(&time);
+    write_stat(argvs[3]);
+  }
+#endif
   return 0;
 }
 
