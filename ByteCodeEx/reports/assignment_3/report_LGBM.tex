@@ -21,17 +21,17 @@
 \toprule
 test case & total time (ms)    & entry lookup (ms) & \# calls & \# int calls & \# array calls & \# env calls \\
 \midrule
-bsearch       & 0.702      & 0                     & 190          & 145              & 45                 & 0                \\
-inheritance   & 0.569      & 0.002                 & 6            & 2                & 0                  & 4                \\
-cplx          & 0.633      & 0.009                 & 43           & 33               & 0                  & 10               \\
-lists         & 1.099      & 0.038                 & 135          & 40               & 0                  & 95               \\
-vector        & 7.67       & 0.022                 & 130          & 72               & 42                 & 16               \\
-fibonacci     & 0.95       & 0                     & 611          & 611              & 0                  & 0                \\
-sodoku        & 1494.947   & 34.368                & 1586161      & 1046536          & 450449             & 89176            \\
-sodoku2       & 267136.8   & 5804.465              & 316868201    & 209055201        & 90034000           & 17779000         \\
-hanoi\_BM     & 10.591     & 0                     & 463          & 463              & 0                  & 0                \\
-stacks\_BM    & 0.787      & 0.017                 & 132          & 72               & 30                 & 30               \\
-morehanoi\_BM & 4.14       & 0.601                 & 1681         & 852              & 251                & 578              \\
+bsearch       & 0.103      & 0                     & 190          & 145              & 45                 & 0                \\
+inheritance   & 0.152      & 0.002                 & 6            & 2                & 0                  & 4                \\
+cplx          & 0.242      & 0.010                 & 43           & 33               & 0                  & 10               \\
+lists         & 0.353      & 0.014                 & 135          & 40               & 0                  & 95               \\
+vector        & 0.280      & 0.014                 & 130          & 72               & 42                 & 16               \\
+fibonacci     & 0.464      & 0                     & 611          & 611              & 0                  & 0                \\
+sudoku        & 467.676    & 10.517                & 1586161      & 1046536          & 450449             & 89176            \\
+sudoku2       & 77772.050  & 1876.038              & 316868201    & 209055201        & 90034000           & 17779000         \\
+hanoi\_BM     & 0.712      & 0                     & 463          & 463              & 0                  & 0                \\
+stacks\_BM    & 0.298      & 0.019                 & 132          & 72               & 30                 & 30               \\
+morehanoi\_BM & 2.255      & 0.243                 & 1681         & 852              & 251                & 578              \\
 \bottomrule
 \end{tabular}
 }
@@ -40,14 +40,19 @@ morehanoi\_BM & 4.14       & 0.601                 & 1681         & 852         
 \begin{enumerate}
 	\item
 			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the submitted and tested version.
-	\item
-		\begin{enumerate}[(a)]
-			\item TBD
+	\item The verifier could verify the following properties:
+		\begin{enumerate}
+			\item Return instructions run when the operand stack only has one item on it.
+			\item Call and call slot instructions are only done when there are n (n+1 for call slot instructions) or more items on the stack
+			\item The goto instruction only branches to areas within a function call
+			\item All instructions that pop from the stack only do so when the stack is guaranteed to be non-empty (this includes set slot, get slot, drop, set global, set local, print instruction n's arguments, and array instruction).
 		\end{enumerate}
-	\item
-		\begin{enumerate}[(a)]
-			\item TBD
-		\end{enumerate}
+
+	\item The interpreter spends less time in environment-entry lookup because of the
+	\item Break, continue, and goto statements are easily supported via the goto instruction.  Break would have goto go to the end of the loop, continue to the predicate for the loop, and goto would be nearly identical to the instruction itself.  The return instruction can be used for a return statement (using even more-minor changes than the goto instruction to use it for the goto statement).
+	\item The AST interpreter requires significant changes to implement returning from the middle of an expression (the body of a function, which is a logical expression) because the interpreter assumes that control flow mimics Feeny lexical/grammatical structure.  By adding a return expression to the language, we are creating a single expression that does not follow the control flow implied by the parse tree of the language.  We would work around this issue with exceptions, a means of arbitrarily unwinding the expression-evaluation stack.  In the bytecode interpreter, on the other hand, the control flow is intended to be direct from one instruction to another (either by increment of the virtual PC or by setting it) as opposed to nested evaluation of an expression.  Because a return instruction is direct in the sense that you are only jumping back to one location, it is simple to implement.
+
+		In short, the interpreter follows the nesting depths of the language via the call stack, while the bytecode interpreter works with unrolled expressions and by reading a bytecode and executing it without using the call stack to direct execution.  This means that returning is as simple from a nested expression as it is from the end of an function's body for the bytecode interpreter.
 \end{enumerate}
 
 \end{document}
