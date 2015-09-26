@@ -1592,7 +1592,7 @@ void make_set_global_quick(SetGlobalIns* i){
     printf("Error: get global slot by name.\n");
     exit(-1);
   }
-  i->tag = SET_GLOBAL_OP_QUICK;
+  i->tag = (OpCode)SET_GLOBAL_OP_QUICK;
   i->name = name_idx;
 }
 
@@ -1634,7 +1634,7 @@ void make_get_global_quick(GetGlobalIns* i){
     printf("Error: get global slot by name.\n");
     exit(-1);
   }
-  i->tag = GET_GLOBAL_OP_QUICK;
+  i->tag = (OpCode)GET_GLOBAL_OP_QUICK;
   i->name = name_idx;
 }
 
@@ -1673,7 +1673,7 @@ void make_branch_quick(BranchIns *i){
   int addr = get_label_addr(label_str);
 
   i->name = addr;
-  i->tag = BRANCH_OP_QUICK;
+  i->tag = (OpCode)BRANCH_OP_QUICK;
 }
 
 // Pops a value from the operand
@@ -1706,7 +1706,7 @@ void make_goto_quick(GotoIns *i){
   int addr = get_label_addr(label_str);
 
   i->name = addr;
-  i->tag = GOTO_OP_QUICK;
+  i->tag = (OpCode)GOTO_OP_QUICK;
 }
 
 // Sets the instruction pointer to the instruction
@@ -1939,7 +1939,7 @@ void make_call_quick(CallIns * i){
     exit(-1);
   }
 
-  i->tag = CALL_OP_QUICK;
+  i->tag = (OpCode)CALL_OP_QUICK;
   i->name = name_idx;
 }
 
