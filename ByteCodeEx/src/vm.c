@@ -10,12 +10,45 @@
 #include "bytecode.h"
 #include "vm.h"
 
+typedef enum {
+	GET_GLOBAL_OP_QUICK = DROP_OP+1,
+	SET_GLOBAL_OP_QUICK,
+	GOTO_OP_QUICK,
+	BRANCH_OP_QUICK,
+	CALL_OP_QUICK,
+} QOpCode;
+
+typedef struct {
+  OpCode tag;
+  int idx;
+} GetGlobalQuickIns;
+
+typedef struct {
+  OpCode tag;
+  int idx;
+} SetGlobalQuickIns;
+
+typedef struct {
+  OpCode tag;
+  int addr;
+} GotoQuickIns;
+
+typedef struct {
+  OpCode tag;
+  int addr;
+} BranchQuickIns;
+
+typedef struct {
+  OpCode tag;
+  int idx;
+  int arity;
+} CallQuickIns;
+
 // #define DEBUG 1
 
 // Copied from sys/time.h
 // to not pollute our #define space
 // WAS NOT WRITTEN BY LG OR BM - rights belong to original author
-/*
 #define timersub(a, b, result)                  \
   do {                        \
     (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;            \
@@ -25,7 +58,6 @@
       (result)->tv_usec += 1000000;                \
     }                        \
   } while (0)
-*/
 
 //============================================================
 //=========== HASH TABLE IMPLEMENTATION ======================
@@ -1291,7 +1323,7 @@ Value* find_slot_by_name(ObjectValue* obj, char* function_name) {
       ret = NULL;
     }
   }
-  
+
   // end collecting time
   if (is_collect_stat()) {
     struct timeval time;
@@ -1392,12 +1424,22 @@ void set_global_slots (Vector * slots) {
 Vector* get_global_slots () {
   return global_slots;
 }
+
 Value* get_global_slot_by_name (char* name) {
   int slot_idx = find_item(global_slot_table, name);
   if (slot_idx < 0) {
     printf("Error: get global slot by name.\n");
     exit(-1);
   }
+  Value* val = get_val_constant(slot_idx);
+  if (val == NULL) {
+    printf("Error[2]: get global slot by name.\n");
+    exit(-1);
+  }
+  return val;
+}
+
+Value* get_global_slot_by_idx (int slot_idx) {
   Value* val = get_val_constant(slot_idx);
   if (val == NULL) {
     printf("Error[2]: get global slot by name.\n");
@@ -1540,18 +1582,38 @@ void exec_get_local_op (GetLocalIns * i) {
   inst_ptr++;
 }
 
+// In-place makes a quick version of the global ins
+void make_set_global_quick(SetGlobalIns* i){
+  int name_idx = i->name;
+  char* name_str = get_str_constant(name_idx);
+
+  name_idx = find_item(global_slot_table, name_str);
+  if (name_idx < 0) {
+    printf("Error: get global slot by name.\n");
+    exit(-1);
+  }
+  i->tag = SET_GLOBAL_OP_QUICK;
+  i->name = name_idx;
+}
+
 // Sets the global variable with name
 // specified by the String object at index
 // i to the top value in the operand stack.
 void exec_set_global_op (SetGlobalIns * i) {
-  int name_idx = i->name;
-  char* name_str = get_str_constant(name_idx);
+	make_set_global_quick(i);
+}
+
+// Sets the global variable with name
+// specified by the String object at index
+// i to the top value in the operand stack.
+void exec_set_global_quick_op (SetGlobalQuickIns * i) {
+  int name_idx = i->idx;
   Value* val = stack_peek();
   if (val == NULL) {
     printf("Error: set global op.\n");
     exit(-1);
   }
-  Value* slot = get_global_slot_by_name(name_str);
+  Value* slot = get_global_slot_by_idx(name_idx);
   if (slot == NULL || slot->tag != SLOT_OBJ) {
     printf("Error[2]: set global op.\n");
     exit(-1);
@@ -1562,14 +1624,35 @@ void exec_set_global_op (SetGlobalIns * i) {
   inst_ptr++;
 }
 
+// In-place makes a quick version of the global ins
+void make_get_global_quick(GetGlobalIns* i){
+  int name_idx = i->name;
+  char* name_str = get_str_constant(name_idx);
+
+  name_idx = find_item(global_slot_table, name_str);
+  if (name_idx < 0) {
+    printf("Error: get global slot by name.\n");
+    exit(-1);
+  }
+  i->tag = GET_GLOBAL_OP_QUICK;
+  i->name = name_idx;
+}
+
 // Retrieves the value of the
 // global variable with name specified
 // by the String object at index i, and
 // pushes it onto the operand stack.
 void exec_get_global_op (GetGlobalIns * i) {
-  int name_idx = i->name;
-  char* name_str = get_str_constant(name_idx);
-  Value* slot = get_global_slot_by_name(name_str);
+  make_get_global_quick(i);
+}
+
+// Retrieves the value of the
+// global variable with name specified
+// by the String object at index i, and
+// pushes it onto the operand stack.
+void exec_get_global_quick_op (GetGlobalQuickIns * i) {
+  int idx = i->idx;
+  Value* slot = get_global_slot_by_idx(idx);
   if (slot == NULL || slot->tag != SLOT_OBJ) {
     printf("Error: get global op.\n");
     exit(-1);
@@ -1584,6 +1667,15 @@ void exec_get_global_op (GetGlobalIns * i) {
   inst_ptr++;
 }
 
+void make_branch_quick(BranchIns *i){
+  int label_idx = i->name;
+  char* label_str = get_str_constant(label_idx);
+  int addr = get_label_addr(label_str);
+
+  i->name = addr;
+  i->tag = BRANCH_OP_QUICK;
+}
+
 // Pops a value from the operand
 // stack. If this value is not Null,
 // then sets the instruction pointer to
@@ -1591,29 +1683,41 @@ void exec_get_global_op (GetGlobalIns * i) {
 // with the name given by the String
 // object at index i.
 void exec_branch_op (BranchIns * i) {
+	make_branch_quick(i);
+}
+
+
+void exec_branch_quick_op (BranchQuickIns * i) {
   Value* val = stack_pop();
   if (val == NULL) {
     printf("Error: branch op.\n");
     exit(-1);
   }
   if (val->tag != NULL_OBJ) {
-    int label_idx = i->name;
-    char* label_str = get_str_constant(label_idx);
-    int addr = get_label_addr(label_str);
-    inst_ptr = addr;
+    inst_ptr = i->addr;
   } else {
     inst_ptr++;
   }
+}
+
+void make_goto_quick(GotoIns *i){
+  int label_idx = i->name;
+  char* label_str = get_str_constant(label_idx);
+  int addr = get_label_addr(label_str);
+
+  i->name = addr;
+  i->tag = GOTO_OP_QUICK;
 }
 
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
 // the String object at index i.
 void exec_goto_op (GotoIns * i) {
-  int label_idx = i->name;
-  char* label_str = get_str_constant(label_idx);
-  int addr = get_label_addr(label_str);
-  inst_ptr = addr;
+  make_goto_quick(i);
+}
+
+void exec_goto_quick_op (GotoQuickIns *i){
+	inst_ptr = i->addr;
 }
 
 // Pops and discards the top value from
@@ -1824,6 +1928,21 @@ void call_func (MethodValue * function_slot, int arity) {
   inst_ptr = 0;
 }
 
+void make_call_quick(CallIns * i){
+  int function_name_idx = i->name;
+  int arity = i->arity;
+
+  char* function_name = get_str_constant(function_name_idx);
+  int name_idx = find_item(global_slot_table, function_name);
+  if (name_idx < 0) {
+    printf("Error: get global slot by name.\n");
+    exit(-1);
+  }
+
+  i->tag = CALL_OP_QUICK;
+  i->name = name_idx;
+}
+
 // Pops n values from the operand stack
 // for the arguments to the call. The name of the function to call is given
 // by the String object at index i. A new local frame is created for the context
@@ -1835,16 +1954,16 @@ void call_func (MethodValue * function_slot, int arity) {
 // newly created frame as the current frame, and setting the instruction
 // pointer to the address of the body of the function.
 void exec_call_op (CallIns * i) {
-  int function_name_idx = i->name;
-  int arity = i->arity;
+  make_call_quick(i);
+}
 
-  char* function_name = get_str_constant(function_name_idx);
-  Value* function_slot = get_global_slot_by_name(function_name);
+void exec_call_quick_op(CallQuickIns * i){
+  Value* function_slot = get_global_slot_by_idx(i->idx);
   if (function_slot == NULL || function_slot->tag != METHOD_VAL) {
     printf("Error: exec_call_op.\n");
     exit(-1);
   }
-  call_func((MethodValue*)function_slot, arity);
+  call_func((MethodValue*)function_slot, i->arity);
   // instruction pointer is updated in call_func
 }
 
@@ -2033,6 +2152,11 @@ void exec_ins (ByteIns * ins) {
   case CALL_OP: {
     CallIns* i = (CallIns*)ins;
     exec_call_op(i);
+    //break;
+  }
+  case CALL_OP_QUICK: {
+    CallQuickIns* i = (CallQuickIns*)ins;
+    exec_call_quick_op(i);
     break;
   }
   case SET_LOCAL_OP: {
@@ -2048,22 +2172,42 @@ void exec_ins (ByteIns * ins) {
   case SET_GLOBAL_OP: {
     SetGlobalIns* i = (SetGlobalIns*)ins;
     exec_set_global_op(i);
+    //break; // exec_set_global_op transforms the type
+  }
+  case SET_GLOBAL_OP_QUICK: {
+    SetGlobalQuickIns* i = (SetGlobalQuickIns*)ins;
+    exec_set_global_quick_op(i);
     break;
   }
   case GET_GLOBAL_OP: {
     GetGlobalIns* i = (GetGlobalIns*)ins;
     exec_get_global_op(i);
+    //break; // exec_get_global_op transforms the type
+  }
+  case GET_GLOBAL_OP_QUICK: {
+    GetGlobalQuickIns* i = (GetGlobalQuickIns*)ins;
+    exec_get_global_quick_op(i);
     break;
   }
   case BRANCH_OP: {
     BranchIns* i = (BranchIns*)ins;
     exec_branch_op(i);
+    //break; // exec_branch_op transforms the type
+  }
+  case BRANCH_OP_QUICK: {
+    BranchQuickIns* i = (BranchQuickIns*)ins;
+    exec_branch_quick_op(i);
     break;
   }
   case GOTO_OP: {
     GotoIns* i = (GotoIns*)ins;
     exec_goto_op(i);
-    break;
+    //break; // exec_goto_op transforms the type
+  }
+  case GOTO_OP_QUICK: {
+    GotoQuickIns* i = (GotoQuickIns*) ins;
+	 exec_goto_quick_op(i);
+	 break;
   }
   case RETURN_OP: {
     exec_return_op();
@@ -2599,3 +2743,4 @@ char* str_replace (char *orig, char *rep, char *with) {
   strcpy(tmp, orig);
   return result;
 }
+
