@@ -40,6 +40,7 @@ CompilerEx/fail/*
 *.blg
 *.log
 *.pdf
+*.hgtags
 
 # the compiled binary
 ASTEx/cfeeny
