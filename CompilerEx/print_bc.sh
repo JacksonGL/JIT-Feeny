@@ -3,10 +3,10 @@
 # the byte code compiled from the
 # standard byte code compiler
 
-rm output/*.ast
-rm output/*.out
-rm output/*.bc
-rm output/*.bc.txt
+# rm output/*.ast
+# rm output/*.out
+# rm output/*.bc
+# rm output/*.bc.std
 
 # compile the byte code printer
 gcc -O3 -std=c99 src/bc_printer.c src/utils.c src/ast.c src/bytecode.c -o bc_printer -Wno-int-to-void-pointer-cast
@@ -24,12 +24,12 @@ elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
 	echo 'OS not supported. Abort.'
 fi
 
-echo " "
-echo " "
+# echo " "
+# echo " "
 
 # run the byte code printer
-./bc_printer output/$1.bc 2>&1 | tee output/$1.bc.txt
+./bc_printer output/$1.bc > output/$1.bc.std
 
-echo " "
-echo " "
-echo "The result is also written in "output/$1.bc.txt"."
+# echo " "
+# echo " "
+# echo "The result is also written in "output/$1.bc.std"."

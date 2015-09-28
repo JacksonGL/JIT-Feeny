@@ -10,7 +10,7 @@ of Feeny code ```test/hello.feeny```, type the following command:
 ./print_bc.sh hello
 ```
 
-The result will be written in ```output/hello.feeny```.
+The result will be written in ```output/hello.bc.std```.
 
 Example of Byte Code Structure
 ------------------------------

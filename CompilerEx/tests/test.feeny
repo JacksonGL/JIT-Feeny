@@ -1,11 +1,3 @@
-defn hello (i) :
-   printf("Hello ~ ", i)
-   
-defn world (j, k) :
-   printf("World ~ ~\n", j, k)
-
-defn main () :
-   hello(3)
-   world(4, 5)
-
-main()
+var a = 1
+var b = 2
+a

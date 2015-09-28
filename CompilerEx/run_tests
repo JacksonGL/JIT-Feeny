@@ -4,9 +4,12 @@ gcc -O3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/$1 src/$2
 # Clean output folder
 rm output/*.out
 rm output/*.ast
+rm output/*.bc
+rm output/*.bc.std
 
 # Run output
 function test {
+	./print_bc.sh $1
 	if [ "$(uname)" == "Darwin" ]; then
 	    # Do something under Mac OS X platform
 		./parser_osx -i tests/$1.feeny -oast output/$1.ast
@@ -20,6 +23,7 @@ function test {
    
    ./cfeeny output/$1.ast > output/$1.out
 }
+test test
 test hello
 test hello2
 test hello3
