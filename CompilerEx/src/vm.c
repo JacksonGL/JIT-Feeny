@@ -1809,6 +1809,7 @@ void exec_printf_op (PrintfIns * i) {
     free(new_str);
   }
   vector_free(args);
+  stack_push(make_null_obj());
   inst_ptr++;
 }
 
