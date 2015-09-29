@@ -2,4 +2,5 @@ var a = 1
 var b = 2
 defn fn (test, a) :
     test + a
+    test = 1;
 a

@@ -21,15 +21,17 @@ typedef struct {
 
 Program* compile (ScopeStmt* stmt);
 int compile_null_exp (Program* p, Vector* body, Scope* sp);
-void compile_entry_fun (Program* program, MethodValue* entry_fun);
-int compile_exp (Exp* e, Program* program, Vector* body, Scope* sp);
+void compile_entry_fun (Program* p, MethodValue* entry_fun);
+int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp);
 int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp);
+int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp);
 int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp);
 int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp);
-void compile_slotstmt (SlotStmt* s, Program* program, Vector* body, Scope* sp);
-void compile_var_stmt (ScopeVar *s, Program* program, Vector* body, Scope* sp);
+void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp);
+void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp);
+int compile_printf_exp (PrintfExp* e, Program* p, Vector* body, Scope* sp);
+void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp);
 int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp);
-void compile_scopestmt (ScopeStmt* s, Program* program, Vector* body, Scope* sp);
 // util logics
 Scope* make_scope ();
 Value* make_null_val ();
@@ -52,6 +54,7 @@ ByteIns* make_GetGlobalIns (int name_idx);
 ByteIns* make_SetGlobalIns (int name_idx);
 ByteIns* make_CallIns (int name_idx, int arity);
 ByteIns* make_CallSlotIns (int f_name_idx, int arity);
+ByteIns* make_PrintfIns (int format_str_idx, int arity);
 // register values in constant pool
 int register_const_null (Program* p);
 int register_const_int (Program* p, int val);
@@ -73,20 +76,12 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 	}
 	case NULL_EXP: {
 		return compile_null_exp(p, body, sp);
-		break;
 	}
-	/*
 	case PRINTF_EXP: {
 		PrintfExp* e2 = (PrintfExp*)e;
-		printf("printf(");
-		print_string(e2->format);
-		for (int i = 0; i < e2->nexps; i++) {
-			printf(", ");
-			compile_exp(e2->exps[i]);
-		}
-		printf(")");
-		break;
+		return compile_printf_exp(e2, p, body, sp);
 	}
+	/*
 	case ARRAY_EXP: {
 		ArrayExp* e2 = (ArrayExp*)e;
 		printf("array(");
@@ -127,13 +122,11 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		CallExp* e2 = (CallExp*)e;
 		return compile_call_exp(e2, p, body, sp);
 	}
-	/*case SET_EXP: {
+	case SET_EXP: {
 		SetExp* e2 = (SetExp*)e;
-		printf("%s = ", e2->name);
-		compile_exp(e2->exp);
-		break;
+		return compile_set_exp(e2, p, body, sp);
 	}
-	case IF_EXP: {
+	/*case IF_EXP: {
 		IfExp* e2 = (IfExp*)e;
 		printf("if ");
 		compile_exp(e2->pred);
@@ -162,6 +155,28 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 	default:
 		printf("Unrecognized Expression with tag %d\n", e->tag);
 		// exit(-1);
+	}
+	return -1;
+}
+
+int compile_printf_exp (PrintfExp* e, Program* p, Vector* body, Scope* sp) {
+	int format_str_idx = register_const_str(p, e->format);
+	for (int i = 0; i < e->nexps; i++) {
+		compile_exp(e->exps[i], p, body, sp);
+	}
+	vector_add(body, make_PrintfIns(format_str_idx, e->nexps));
+	return -1;
+}
+
+int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp) {
+	int var_idx;
+	compile_exp(e->exp, p, body, sp);
+	if (isGlobalScope(sp, e->name)) {
+		var_idx = register_const_str(p, e->name);
+		vector_add(body, make_SetGlobalIns(var_idx));
+	} else {
+		var_idx = get_var_idx_in_scope(sp, e->name);
+		vector_add(body, make_SetLocalIns(var_idx));
 	}
 	return -1;
 }
@@ -211,11 +226,11 @@ int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp) {
 	return -1;
 }
 
-void compile_slotstmt (SlotStmt* s, Program* program, Vector* body, Scope* sp) {
+void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp) {
 	switch (s->tag) {
 	case VAR_STMT: {
 		SlotVar* s2 = (SlotVar*)s;
-		compile_exp(s2->exp, program, body, sp);
+		compile_exp(s2->exp, p, body, sp);
 		break;
 	}
 	case FN_STMT: {
@@ -226,7 +241,7 @@ void compile_slotstmt (SlotStmt* s, Program* program, Vector* body, Scope* sp) {
 			printf("%s", s2->args[i]);
 		}
 		printf(") : (");
-		compile_scopestmt(s2->body, program, body, sp);
+		compile_scopestmt(s2->body, p, body, sp);
 		printf(")");
 		break;
 	}
@@ -244,7 +259,7 @@ void compile_slotstmt (SlotStmt* s, Program* program, Vector* body, Scope* sp) {
 */
 void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp) {
 	int exp_val_idx = compile_exp(s->exp, p, body, sp);
-	int name_idx = register_const_str(p, s->name);
+	// register the var name in the current scope
 	vector_add(sp->vars, s->name);
 	int local_fram_name_idx = sp->vars->size - 1;
 	// vector_add(body, make_LitIns(exp_val_idx));
@@ -252,6 +267,7 @@ void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp) {
 		// if global, then create a var slot and
 		// push into constant pool, add the slot
 		// idx into the global vars
+		int name_idx = register_const_str(p, s->name);
 		int slot_idx = register_const_slot(p, s->name);
 		vector_add(p->slots, (void*)slot_idx);
 		vector_add(body, make_SetGlobalIns(name_idx));
@@ -278,6 +294,12 @@ void compile_fn_stmt (ScopeFn* s, Program* p, Vector* body, Scope* sp) {
 	compile_scopestmt(s->body, p, method->code, nsp);
 	// register the function's name
 	method->name = register_const_str(p, s->name);
+	// if the last instruction is a drop, remove it
+	ByteIns* last_ins = vector_get(method->code,
+	                               method->code->size - 1);
+	if (last_ins->tag == DROP_OP) {
+		vector_pop(method->code);
+	}
 	// add a return statment
 	vector_add(method->code, make_ReturnIns());
 	int method_idx = register_const_method(p, method);
@@ -311,6 +333,7 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
 	case EXP_STMT: {
 		ScopeExp* s2 = (ScopeExp*)s;
 		compile_exp(s2->exp, p, body, sp);
+		vector_add(body, make_DropIns());
 		break;
 	}
 	default:
@@ -327,22 +350,21 @@ void compile_entry_fun (Program* p, MethodValue* entry_f) {
 	int entry_fun_idx = register_const_method(p, entry_f);
 	p->entry = entry_fun_idx;
 	// finally add load null and return
-	vector_add(entry_f->code, make_DropIns());
+	// vector_add(entry_f->code, make_DropIns());
 	vector_add(entry_f->code, make_LitIns(null_idx));
 	vector_add(entry_f->code, make_ReturnIns());
 }
 
 Program* compile (ScopeStmt* stmt) {
-	Program* program = (Program*)malloc(sizeof(Program));
-	program->values = make_vector();
-	program->slots = make_vector();
+	Program* p = (Program*)malloc(sizeof(Program));
+	p->values = make_vector();
+	p->slots = make_vector();
 	// create entry function
 	MethodValue* entry_fun = make_method_value();
-	compile_scopestmt(stmt, program, entry_fun->code, get_root_scope());
+	compile_scopestmt(stmt, p, entry_fun->code, get_root_scope());
 	// finally add entry method
-	compile_entry_fun(program, entry_fun);
-	print_prog(program);
-	printf("\n");
+	compile_entry_fun(p, entry_fun);
+	print_prog(p);
 	exit(-1);
 	// TODO: return the compiled byte code AST
 }
@@ -586,6 +608,14 @@ ByteIns* make_CallSlotIns (int f_name_idx, int arity) {
 	CallSlotIns* ins = (CallSlotIns*)malloc(sizeof(CallSlotIns));
 	ins->tag = CALL_SLOT_OP;
 	ins->name = f_name_idx;
+	ins->arity = arity;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_PrintfIns (int format_str_idx, int arity) {
+	PrintfIns* ins = (PrintfIns*)malloc(sizeof(PrintfIns));
+	ins->tag = PRINTF_OP;
+	ins->format = format_str_idx;
 	ins->arity = arity;
 	return (ByteIns*)ins;
 }

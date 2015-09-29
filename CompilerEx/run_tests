@@ -24,12 +24,6 @@ function test {
    ./cfeeny output/$1.ast > output/$1.out
 }
 test test
-test hello
-test hello2
-test hello3
-test hello4
-test hello5
-test hello6
 test hello7
 test hello8
 test hello9
@@ -41,3 +35,10 @@ test lists
 test vector
 test sudoku
 test sudoku2
+
+test hello
+test hello2
+test hello3
+test hello4
+test hello5
+test hello6
