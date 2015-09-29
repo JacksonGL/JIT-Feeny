@@ -23,6 +23,7 @@ Program* compile (ScopeStmt* stmt);
 int compile_null_exp (Program* p, Vector* body, Scope* sp);
 void compile_entry_fun (Program* p, MethodValue* entry_fun);
 int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp);
+int compile_if_exp (IfExp* e, Program* p, Vector* body, Scope* sp);
 int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp);
 int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp);
 int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp);
@@ -34,20 +35,29 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp);
 int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp);
 // util logics
 Scope* make_scope ();
+char* get_end_label();
 Value* make_null_val ();
+char* get_entry_label();
+char* get_conseq_label();
+int get_next_entry_id ();
 Scope* get_root_scope ();
+int get_next_entry_id ();
 IntValue* make_int_val (int val);
 MethodValue* make_method_value ();
 StringValue* make_string_val (char* str);
 int isGlobalScope (Scope* sp, char* name);
 Scope* search_var (Scope* sp, char* name);
+char* get_label(int entry_id, char* prefix);
 Value* make_slot_val (Program* p, char* name);
 int get_var_idx_in_scope (Scope* sp, char *name);
-void count_nlocals (ScopeStmt* s, MethodValue* method_val);
+void count_nlocals (ScopeStmt* s, MethodValue* mv);
 // make instruction operations
 ByteIns* make_DropIns ();
 ByteIns* make_ReturnIns ();
 ByteIns* make_LitIns (int val_idx);
+ByteIns* make_GotoIns (int name_idx);
+ByteIns* make_LabelIns (int name_idx);
+ByteIns* make_BranchIns (int name_idx);
 ByteIns* make_GetLocalIns (int slot_idx);
 ByteIns* make_SetLocalIns (int slot_idx);
 ByteIns* make_GetGlobalIns (int name_idx);
@@ -126,17 +136,11 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		SetExp* e2 = (SetExp*)e;
 		return compile_set_exp(e2, p, body, sp);
 	}
-	/*case IF_EXP: {
+	case IF_EXP: {
 		IfExp* e2 = (IfExp*)e;
-		printf("if ");
-		compile_exp(e2->pred);
-		printf(" : (");
-		compile_scopestmt(e2->conseq);
-		printf(") else : (");
-		compile_scopestmt(e2->alt);
-		printf(")");
-		break;
+		return compile_if_exp(e2, p, body, sp);
 	}
+	/*
 	case WHILE_EXP: {
 		WhileExp* e2 = (WhileExp*)e;
 		printf("while ");
@@ -159,11 +163,31 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 	return -1;
 }
 
+int compile_if_exp (IfExp* e, Program* p, Vector* body, Scope* sp) {
+	int conseq_idx = register_const_str(p, get_conseq_label());
+	int end_idx = register_const_str(p, get_end_label());
+	// compile the conditional expression
+	compile_exp(e->pred, p, body, sp);
+	// add the branch instruction
+	vector_add(body, make_BranchIns(conseq_idx));
+	// compile else case
+	compile_scopestmt(e->alt, p, body, sp);
+	// add goto instruction
+	vector_add(body, make_GotoIns(end_idx));
+	// add the label for then
+	vector_add(body, make_LabelIns(conseq_idx));
+	// compile then case
+	compile_scopestmt(e->conseq, p, body, sp);
+	// add end label
+	vector_add(body, make_LabelIns(end_idx));
+	return -1;
+}
+
 int compile_printf_exp (PrintfExp* e, Program* p, Vector* body, Scope* sp) {
-	int format_str_idx = register_const_str(p, e->format);
 	for (int i = 0; i < e->nexps; i++) {
 		compile_exp(e->exps[i], p, body, sp);
 	}
+	int format_str_idx = register_const_str(p, e->format);
 	vector_add(body, make_PrintfIns(format_str_idx, e->nexps));
 	return -1;
 }
@@ -333,7 +357,8 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
 	case EXP_STMT: {
 		ScopeExp* s2 = (ScopeExp*)s;
 		compile_exp(s2->exp, p, body, sp);
-		vector_add(body, make_DropIns());
+		if (s2->exp->tag != PRINTF_EXP)
+			vector_add(body, make_DropIns());
 		break;
 	}
 	default:
@@ -345,7 +370,7 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
 void compile_entry_fun (Program* p, MethodValue* entry_f) {
 	// entry function name
 	int null_idx = register_const_null(p);
-	entry_f->name = register_const_str(p, "entry35");
+	entry_f->name = register_const_str(p, get_entry_label());
 	// add entry function into the constant pool
 	int entry_fun_idx = register_const_method(p, entry_f);
 	p->entry = entry_fun_idx;
@@ -364,14 +389,38 @@ Program* compile (ScopeStmt* stmt) {
 	compile_scopestmt(stmt, p, entry_fun->code, get_root_scope());
 	// finally add entry method
 	compile_entry_fun(p, entry_fun);
+	// TODO remove the following two lines of code
 	print_prog(p);
 	exit(-1);
-	// TODO: return the compiled byte code AST
+	return p;
 }
 
 //============================================================
 //==================== UTIL LOGICS ===========================
 //============================================================
+
+char* get_conseq_label() {
+	return get_label(get_next_entry_id(), "conseq");
+}
+
+char* get_end_label() {
+	return get_label(get_next_entry_id(), "end");
+}
+
+char* get_entry_label() {
+	return get_label(get_next_entry_id(), "entry");
+}
+
+char* get_label(int entry_id, char* prefix) {
+	char* ret = (char*)malloc(12 * sizeof(char));
+	sprintf(ret, "%s%d", prefix, entry_id);
+	return ret;
+}
+
+int get_next_entry_id () {
+	static int cur_entry_id = 35;
+	return cur_entry_id++;
+}
 
 void count_nlocals (ScopeStmt* s, MethodValue* method_val) {
 	switch (s->tag) {
@@ -410,7 +459,7 @@ int get_var_idx_in_scope (Scope* sp, char *name) {
 
 Scope* search_var (Scope* sp, char* name) {
 	if (sp == NULL) {
-		printf("Error: search_var.\n");
+		printf("Error: search_var: %s.\n", name);
 		exit(-1);
 	}
 	for (int i = 0; i < sp->vars->size; i++) {
@@ -617,6 +666,27 @@ ByteIns* make_PrintfIns (int format_str_idx, int arity) {
 	ins->tag = PRINTF_OP;
 	ins->format = format_str_idx;
 	ins->arity = arity;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_LabelIns (int name_idx) {
+	LabelIns* ins = (LabelIns*)malloc(sizeof(LabelIns));
+	ins->tag = LABEL_OP;
+	ins->name = name_idx;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_BranchIns (int name_idx) {
+	BranchIns* ins = (BranchIns*)malloc(sizeof(BranchIns));
+	ins->tag = BRANCH_OP;
+	ins->name = name_idx;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_GotoIns (int name_idx) {
+	GotoIns* ins = (GotoIns*)malloc(sizeof(GotoIns));
+	ins->tag = GOTO_OP;
+	ins->name = name_idx;
 	return (ByteIns*)ins;
 }
 
