@@ -28,6 +28,7 @@ int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp);
 int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp);
 int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp);
 int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp);
+int compile_array_exp (ArrayExp* e, Program* p, Vector* body, Scope* sp);
 int compile_while_exp (WhileExp* e, Program* p, Vector* body, Scope* sp);
 void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp);
 void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp);
@@ -56,6 +57,7 @@ int get_var_idx_in_scope (Scope* sp, char *name);
 void count_nlocals (ScopeStmt* s, MethodValue* mv);
 // make instruction operations
 ByteIns* make_DropIns ();
+ByteIns* make_ArrayIns ();
 ByteIns* make_ReturnIns ();
 ByteIns* make_LitIns (int val_idx);
 ByteIns* make_GotoIns (int name_idx);
@@ -94,17 +96,11 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		PrintfExp* e2 = (PrintfExp*)e;
 		return compile_printf_exp(e2, p, body, sp);
 	}
-	/*
 	case ARRAY_EXP: {
 		ArrayExp* e2 = (ArrayExp*)e;
-		printf("array(");
-		compile_exp(e2->length);
-		printf(", ");
-		compile_exp(e2->init);
-		printf(")");
-		break;
+		return compile_array_exp(e2, p, body, sp);
 	}
-	case OBJECT_EXP: {
+	/*case OBJECT_EXP: {
 		ObjectExp* e2 = (ObjectExp*)e;
 		printf("object : (");
 		for (int i = 0; i < e2->nslots; i++) {
@@ -156,6 +152,13 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		printf("Unrecognized Expression with tag %d\n", e->tag);
 		// exit(-1);
 	}
+	return -1;
+}
+
+int compile_array_exp (ArrayExp* e, Program* p, Vector* body, Scope* sp) {
+	compile_exp(e->length, p, body, sp);
+	compile_exp(e->init, p, body, sp);
+	vector_add(body, make_ArrayIns());
 	return -1;
 }
 
@@ -660,6 +663,12 @@ ByteIns* make_ReturnIns () {
 ByteIns* make_DropIns () {
 	ByteIns* ins = (ByteIns*)malloc(sizeof(ByteIns));
 	ins->tag = DROP_OP;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_ArrayIns () {
+	ByteIns* ins = (ByteIns*)malloc(sizeof(ByteIns));
+	ins->tag = ARRAY_OP;
 	return (ByteIns*)ins;
 }
 
