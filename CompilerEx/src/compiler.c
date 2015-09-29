@@ -28,6 +28,7 @@ int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp);
 int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp);
 int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp);
 int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp);
+int compile_while_exp (WhileExp* e, Program* p, Vector* body, Scope* sp);
 void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp);
 void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp);
 int compile_printf_exp (PrintfExp* e, Program* p, Vector* body, Scope* sp);
@@ -36,6 +37,8 @@ int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp);
 // util logics
 Scope* make_scope ();
 char* get_end_label();
+char* get_test_label();
+char* get_loop_label();
 Value* make_null_val ();
 char* get_entry_label();
 char* get_conseq_label();
@@ -140,17 +143,10 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		IfExp* e2 = (IfExp*)e;
 		return compile_if_exp(e2, p, body, sp);
 	}
-	/*
 	case WHILE_EXP: {
 		WhileExp* e2 = (WhileExp*)e;
-		printf("while ");
-		compile_exp(e2->pred);
-		printf(" : (");
-		compile_scopestmt(e2->body);
-		printf(")");
-		break;
+		return compile_while_exp(e2, p, body, sp);
 	}
-	*/
 	case REF_EXP: {
 		RefExp* e2 = (RefExp*)e;
 		return compile_ref_exp(p, e2, body, sp);
@@ -160,6 +156,27 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		printf("Unrecognized Expression with tag %d\n", e->tag);
 		// exit(-1);
 	}
+	return -1;
+}
+
+int compile_while_exp (WhileExp* e, Program* p, Vector* body, Scope* sp) {
+	int test_idx = register_const_str(p, get_test_label());
+	int loop_idx = register_const_str(p, get_loop_label());
+	// add goto instruction (to the test expression part)
+	vector_add(body, make_GotoIns(test_idx));
+	// add the label for the body
+	vector_add(body, make_LabelIns(loop_idx));
+	// compile the body
+	compile_scopestmt(e->body, p, body, sp);
+	// add label for the test expression part
+	vector_add(body, make_LabelIns(test_idx));
+	// compile the conditional expression
+	compile_exp(e->pred, p, body, sp);
+	// add the branch instruction
+	vector_add(body, make_BranchIns(loop_idx));
+	int null_idx = register_const_null(p);
+	// finally add a lit null operation
+	vector_add(body, make_LitIns(null_idx));
 	return -1;
 }
 
@@ -231,11 +248,11 @@ int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp) {
 
 int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp) {
 	compile_exp(e->exp, p, body, sp);
-	int f_name_idx = register_const_str(p, e->name);
 	// generate get instrctions for loading arguments
 	for (int i = 0; i < e->nargs; i++) {
 		compile_exp(e->args[i], p, body, sp);
 	}
+	int f_name_idx = register_const_str(p, e->name);
 	vector_add(body, make_CallSlotIns(f_name_idx, e->nargs + 1));
 	return -1;
 }
@@ -357,8 +374,8 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
 	case EXP_STMT: {
 		ScopeExp* s2 = (ScopeExp*)s;
 		compile_exp(s2->exp, p, body, sp);
-		if (s2->exp->tag != PRINTF_EXP)
-			vector_add(body, make_DropIns());
+		// if (s2->exp->tag != PRINTF_EXP)
+		vector_add(body, make_DropIns());
 		break;
 	}
 	default:
@@ -399,6 +416,14 @@ Program* compile (ScopeStmt* stmt) {
 //==================== UTIL LOGICS ===========================
 //============================================================
 
+char* get_test_label() {
+	return get_label(get_next_entry_id(), "test");
+}
+
+char* get_loop_label() {
+	return get_label(get_next_entry_id(), "loop");
+}
+
 char* get_conseq_label() {
 	return get_label(get_next_entry_id(), "conseq");
 }
@@ -418,7 +443,7 @@ char* get_label(int entry_id, char* prefix) {
 }
 
 int get_next_entry_id () {
-	static int cur_entry_id = 35;
+	static int cur_entry_id = 36;
 	return cur_entry_id++;
 }
 
