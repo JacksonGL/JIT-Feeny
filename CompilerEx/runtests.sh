@@ -9,6 +9,7 @@ rm output/*.out
 rm output/reference/*.out
 rm output/*.bc
 rm output/stat/*.stat
+rm output/*
 
 # Run output
 function test {

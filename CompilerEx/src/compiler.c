@@ -10,14 +10,30 @@
 //=================== HEADER FUNCTIONS =======================
 //============================================================
 
+typedef enum {
+	// the root scope is
+	// a frame scope
+	/*ROOT_SCOPE,*/
+	BRANCH_SCOPE,
+	FRAME_SCOPE,
+	OBJECT_SCOPE
+} ScpTag;
+
 typedef struct {
+	ScpTag tag;
 	Vector* vars;
 } _Scope;
 
 typedef struct {
+	ScpTag tag;
 	Vector* vars;
 	_Scope* parent;
 } Scope;
+
+typedef struct {
+	char* name;	// name of the variable
+	int idx;	// its index in the local frame
+} VarItem;
 
 Program* compile (ScopeStmt* stmt);
 int compile_null_exp (Program* p, Vector* body, Scope* sp);
@@ -41,7 +57,6 @@ int compile_set_slot_exp (SetSlotExp* e, Program* p, Vector* body, Scope* sp);
 int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp);
 int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp);
 // util logics
-Scope* make_scope ();
 char* get_end_label();
 char* get_test_label();
 char* get_loop_label();
@@ -53,9 +68,12 @@ int get_next_entry_id ();
 int isGlobalScope (Scope* sp, char* name);
 Scope* search_var (Scope* sp, char* name);
 char* get_label(int entry_id, char* prefix);
-int get_var_idx_in_scope (Scope* sp, char *name);
-void count_nlocals_exp (Exp* e, MethodValue* mv);
-void count_nlocals (ScopeStmt* s, MethodValue* mv);
+Scope* make_scope (Scope* parent, ScpTag tag);
+Scope* get_containing_frame_scope (Scope* sp);
+int register_var_in_scope (Scope* sp, char* name);
+int get_var_idx_in_frame_scope (Scope* sp, char *name);
+void count_nlocals_exp (Exp* e, MethodValue* mv, Vector* vars);
+void count_nlocals (ScopeStmt* s, MethodValue* mv, Vector* vars);
 // make value methods
 Value* make_null_val ();
 IntValue* make_int_val (int val);
@@ -175,9 +193,7 @@ int compile_set_slot_exp (SetSlotExp* e, Program* p, Vector* body, Scope* sp) {
 int compile_object_exp (ObjectExp* e, Program* p, Vector* body, Scope* sp) {
 	// compile for the parent object
 	compile_exp(e->parent, p, body, sp);
-	Scope* nsp = make_scope(sp);
-	// this variable is the first variable in the object scope
-	// vector_add(nsp->vars, "this");
+	Scope* nsp = make_scope(sp, OBJECT_SCOPE);
 	Vector* slots = make_vector();
 	// compile for each slot
 	for (int i = 0; i < e->nslots; i++) {
@@ -204,7 +220,9 @@ int compile_while_exp (WhileExp* e, Program* p, Vector* body, Scope* sp) {
 	// add the label for the body
 	vector_add(body, make_LabelIns(loop_idx));
 	// compile the body
-	compile_scopestmt(e->body, p, body, sp);
+	compile_scopestmt(e->body, p, body, make_scope(sp, BRANCH_SCOPE));
+	// at the end of the while body, insert a drop inst
+	vector_add(body, make_DropIns());
 	// add label for the test expression part
 	vector_add(body, make_LabelIns(test_idx));
 	// compile the conditional expression
@@ -225,13 +243,13 @@ int compile_if_exp (IfExp* e, Program* p, Vector* body, Scope* sp) {
 	// add the branch instruction
 	vector_add(body, make_BranchIns(conseq_idx));
 	// compile else case
-	compile_scopestmt(e->alt, p, body, sp);
+	compile_scopestmt(e->alt, p, body, make_scope(sp, BRANCH_SCOPE));
 	// add goto instruction
 	vector_add(body, make_GotoIns(end_idx));
 	// add the label for then
 	vector_add(body, make_LabelIns(conseq_idx));
 	// compile then case
-	compile_scopestmt(e->conseq, p, body, sp);
+	compile_scopestmt(e->conseq, p, body, make_scope(sp, BRANCH_SCOPE));
 	// add end label
 	vector_add(body, make_LabelIns(end_idx));
 	return -1;
@@ -253,7 +271,7 @@ int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp) {
 		var_idx = register_const_str(p, e->name);
 		vector_add(body, make_SetGlobalIns(var_idx));
 	} else {
-		var_idx = get_var_idx_in_scope(sp, e->name);
+		var_idx = get_var_idx_in_frame_scope(sp, e->name);
 		if (var_idx == -1) {
 			printf("Error: unknown property: %s.\n", e->name);
 			exit(-1);
@@ -269,7 +287,7 @@ int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp) {
 		var_idx = register_const_str(p, e->name);
 		vector_add(body, make_GetGlobalIns(var_idx));
 	} else {
-		var_idx = get_var_idx_in_scope(sp, e->name);
+		var_idx = get_var_idx_in_frame_scope(sp, e->name);
 		if (var_idx != -1) {
 			vector_add(body, make_GetLocalIns(var_idx));
 		} else if (strcmp(e->name, "this") == 0) {
@@ -319,7 +337,7 @@ int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp) {
 int compile_var_slot_stmt (SlotVar *s, Program* p, Vector* body, Scope* sp) {
 	compile_exp(s->exp, p, body, (Scope*)sp->parent);
 	// register the var name in the current scope
-	vector_add(sp->vars, s->name);
+	register_var_in_scope(sp, s->name);
 	// if the sope is inside a object creation
 	// register a slot and return its index
 	int name_idx = register_const_str(p, s->name);
@@ -329,18 +347,18 @@ int compile_var_slot_stmt (SlotVar *s, Program* p, Vector* body, Scope* sp) {
 
 int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp) {
 	MethodValue* method = make_method_value();
-	// for slot methods, there is an additional this argument
+	// for slot methods, there is an additional "this" argument
 	method->nargs = s->nargs + 1;
 	// put this function name into the scope
 	// which will be used later for checking
 	// global or local scope
-	vector_add(sp->vars, s->name);
-	count_nlocals(s->body, method);
-	Scope* nsp = make_scope(sp);
-	// for slot methods, the first argument is this argument
-	vector_add(nsp->vars, "this");
+	register_var_in_scope(sp, s->name);
+	// count_nlocals(s->body, method, make_vector());
+	Scope* nsp = make_scope(sp, FRAME_SCOPE);
+	// for slot methods, the first argument is "this" argument
+	register_var_in_scope(nsp, "this");
 	for (int i = 0; i < s->nargs; i++) {
-		vector_add(nsp->vars, s->args[i]);
+		register_var_in_scope(nsp, s->args[i]);
 	}
 	compile_scopestmt(s->body, p, method->code, nsp);
 	// register the function's name
@@ -359,6 +377,9 @@ int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp) {
 	if (isGlobalScope(sp, s->name)) {
 		vector_add(p->slots, (void*)method_idx);
 	}
+	// finally count the number of
+	// local vars in the frame scope
+	method->nlocals = nsp->vars->size - method->nargs;
 	return method_idx;
 }
 
@@ -387,9 +408,7 @@ int compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp) {
 */
 void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp) {
 	int exp_val_idx = compile_exp(s->exp, p, body, sp);
-	// register the var name in the current scope
-	vector_add(sp->vars, s->name);
-	int local_fram_name_idx = sp->vars->size - 1;
+	int local_fram_name_idx = register_var_in_scope(sp, s->name);
 	// vector_add(body, make_LitIns(exp_val_idx));
 	if (isGlobalScope(sp, s->name)) {
 		// if global, then create a var slot and
@@ -413,11 +432,11 @@ void compile_fn_stmt (ScopeFn* s, Program* p, Vector* body, Scope* sp) {
 	// put this function name into the scope
 	// which will be used later for checking
 	// global or local scope
-	vector_add(sp->vars, s->name);
-	count_nlocals(s->body, method);
-	Scope* nsp = make_scope(sp);
+	register_var_in_scope(sp, s->name);
+	// count_nlocals(s->body, method, make_vector());
+	Scope* nsp = make_scope(sp, FRAME_SCOPE);
 	for (int i = 0; i < s->nargs; i++) {
-		vector_add(nsp->vars, s->args[i]);
+		register_var_in_scope(nsp, s->args[i]);
 	}
 	compile_scopestmt(s->body, p, method->code, nsp);
 	// register the function's name
@@ -436,6 +455,9 @@ void compile_fn_stmt (ScopeFn* s, Program* p, Vector* body, Scope* sp) {
 	if (isGlobalScope(sp, s->name)) {
 		vector_add(p->slots, (void*)method_idx);
 	}
+	// finally count the number of
+	// local vars in the frame scope
+	method->nlocals = nsp->vars->size - method->nargs;
 }
 
 void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
@@ -495,8 +517,8 @@ Program* compile (ScopeStmt* stmt) {
 	// finally add entry method
 	compile_entry_fun(p, entry_fun);
 	// TODO remove the following two lines of code
-	print_prog(p);
-	exit(-1);
+	// print_prog(p);
+	// exit(-1);
 	return p;
 }
 
@@ -535,40 +557,55 @@ int get_next_entry_id () {
 	return cur_entry_id++;
 }
 
-void count_nlocals_exp (Exp* e, MethodValue* method_val) {
+void count_nlocals_exp (Exp* e, MethodValue* method_val, Vector* vars) {
 	switch (e->tag) {
 	case IF_EXP: {
 		IfExp* e2 = (IfExp*)e;
-		count_nlocals(e2->conseq, method_val);
-		count_nlocals(e2->alt, method_val);
+		count_nlocals(e2->conseq, method_val, vars);
+		count_nlocals(e2->alt, method_val, vars);
 	}
 	case WHILE_EXP: {
 		WhileExp* e2 = (WhileExp*)e;
-		count_nlocals(e2->body, method_val);
+		count_nlocals(e2->body, method_val, vars);
 	}
 	default: return;
 	}
 }
 
-void count_nlocals (ScopeStmt* s, MethodValue* method_val) {
+void count_nlocals (ScopeStmt* s, MethodValue* method_val, Vector* vars) {
 	switch (s->tag) {
 	case EXP_STMT: {
 		ScopeExp* s2 = (ScopeExp*)s;
-		count_nlocals_exp(s2->exp, method_val);
+		count_nlocals_exp(s2->exp, method_val, vars);
 		break;
 	}
 	case FN_STMT: {
 		method_val->nlocals++;
+		ScopeFn* s2 = (ScopeFn*)s;
+		// TODO: does not allow redefinition
+		// with the same function name
+		vector_add(vars, s2->name);
 		break;
 	}
 	case VAR_STMT: {
-		method_val->nlocals++;
+		ScopeVar *s2 = (ScopeVar *)s;
+		int found = 0;
+		// search the var name in the current scope
+		for (int i = 0; i < vars->size; i++)
+			if (strcmp(vector_get(vars, i), s2->name) == 0)
+				found = 1;
+		// if the var is not defined
+		// register the var name in the current scope
+		if (found == 0) {
+			method_val->nlocals++;
+			vector_add(vars, s2->name);
+		}
 		break;
 	}
 	case SEQ_STMT: {
 		ScopeSeq* s2 = (ScopeSeq*)s;
-		count_nlocals(s2->a, method_val);
-		count_nlocals(s2->b, method_val);
+		count_nlocals(s2->a, method_val, vars);
+		count_nlocals(s2->b, method_val, vars);
 		break;
 	}
 	default:
@@ -577,27 +614,77 @@ void count_nlocals (ScopeStmt* s, MethodValue* method_val) {
 	}
 }
 
-int get_var_idx_in_scope (Scope* sp, char *name) {
-	if (sp == NULL) {
-		// printf("Error: get_var_idx_in_scope.\n");
-		// exit(-1);
-		return -1;
+// returns the inner most frame scope
+// of scope sp
+Scope* get_containing_frame_scope (Scope* sp) {
+	Scope* ret = sp;
+	while (ret != NULL) {
+		if (ret->tag == FRAME_SCOPE ||
+		        ret->tag == OBJECT_SCOPE)
+			return ret;
+		ret = (Scope*)ret->parent;
 	}
+	return ret;
+}
+
+int register_var_in_scope (Scope* sp, char* name) {
+	// search the var name in the current scope
 	for (int i = 0; i < sp->vars->size; i++) {
 		if (strcmp(vector_get(sp->vars, i), name) == 0) {
-			return i;
+			printf("Error: redefined variable: %s.\n", name);
 		}
 	}
-	return get_var_idx_in_scope((Scope*)sp->parent, name);
+	// register it in the inner most surrounding frame scope
+	VarItem* item = (VarItem*)malloc(sizeof(VarItem));
+	Scope* fsp = get_containing_frame_scope(sp);
+	item->idx = fsp->vars->size;
+	if (fsp != sp) {
+		item->name = copy_str("*_*_*");
+	} else {
+		item->name = name;
+	}
+	vector_add(fsp->vars, item);
+	// register it in the current scope
+	if (fsp != sp) {
+		VarItem* local_item = (VarItem*)malloc(sizeof(VarItem));
+		local_item->name = name;
+		local_item->idx = item->idx;
+		vector_add(sp->vars, local_item);
+	}
+	return item->idx;
+}
+
+int get_var_idx_in_frame_scope (Scope* sp, char *name) {
+	if (sp == NULL) {
+		printf("ERROR: Could not resolve variable %s in environment.\n", name);
+		exit(-1);
+	}
+	// search the var name in the current scope
+	for (int i = 0; i < sp->vars->size; i++) {
+		VarItem* vi = vector_get(sp->vars, i);
+		if (strcmp(vi->name, name) == 0) {
+			return vi->idx;
+		}
+	}
+	// will not search further if
+	// current scope is a frame scope
+	int is_this = !strcmp("this", name);
+	if ((!is_this && sp->tag == FRAME_SCOPE) ||
+	        (is_this && sp->tag == OBJECT_SCOPE)) {
+		printf("ERROR[2]: Could not resolve variable %s in environment.\n", name);
+		exit(-1);
+	}
+	return get_var_idx_in_frame_scope((Scope*)sp->parent, name);
 }
 
 Scope* search_var (Scope* sp, char* name) {
 	if (sp == NULL) {
-		printf("Error: search_var: %s.\n", name);
+		printf("ERROR[3]: Could not resolve variable %s in environment.\n", name);
 		exit(-1);
 	}
 	for (int i = 0; i < sp->vars->size; i++) {
-		if (strcmp(vector_get(sp->vars, i), name) == 0) {
+		VarItem* vi = vector_get(sp->vars, i);
+		if (strcmp(vi->name, name) == 0) {
 			return sp;
 		}
 	}
@@ -623,13 +710,14 @@ int isGlobalScope (Scope* sp, char* name) {
 Scope* get_root_scope () {
 	static Scope* root_scope = NULL;
 	if (root_scope == NULL) {
-		root_scope = make_scope(NULL);
+		root_scope = make_scope(NULL, FRAME_SCOPE);
 	}
 	return root_scope;
 }
 
-Scope* make_scope (Scope* parent) {
+Scope* make_scope (Scope* parent, ScpTag tag) {
 	Scope* sp = (Scope*)malloc(sizeof(Scope));
+	sp->tag = tag;
 	sp->vars = make_vector();
 	sp->parent = (_Scope*)parent;
 	return sp;

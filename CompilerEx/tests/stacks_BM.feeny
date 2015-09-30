@@ -19,7 +19,7 @@ defn _test (i, s):
     if i >= 0 :
         s.push(i)
         if _test(i - 1, s) : i == s.pop()
-        else null
+        else : null
     else :
         1
 

@@ -24,7 +24,7 @@ function test {
    
    ./cfeeny output/$1.ast > output/$1.out
 }
-test fibonacci
+test sudoku
 test test2
 test test
 test hello
