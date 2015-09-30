@@ -6,6 +6,7 @@ rm output/*.out
 rm output/*.ast
 rm output/*.bc
 rm output/*.bc.std
+rm output/*
 
 # Run output
 function test {
@@ -23,7 +24,15 @@ function test {
    
    ./cfeeny output/$1.ast > output/$1.out
 }
+test fibonacci
+test test2
 test test
+test hello
+test hello2
+test hello3
+test hello4
+test hello5
+test hello6
 test hello7
 test hello8
 test hello9
@@ -35,10 +44,3 @@ test lists
 test vector
 test sudoku
 test sudoku2
-
-test hello
-test hello2
-test hello3
-test hello4
-test hello5
-test hello6

@@ -27,42 +27,53 @@ int compile_if_exp (IfExp* e, Program* p, Vector* body, Scope* sp);
 int compile_int_exp (IntExp* e, Program* p, Vector* body, Scope* sp);
 int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp);
 int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp);
+int compile_slot_exp (SlotExp* e, Program* p, Vector* body, Scope* sp);
 int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp);
+int compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp);
 int compile_array_exp (ArrayExp* e, Program* p, Vector* body, Scope* sp);
 int compile_while_exp (WhileExp* e, Program* p, Vector* body, Scope* sp);
-void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp);
 void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp);
+int compile_object_exp (ObjectExp* e, Program* p, Vector* body, Scope* sp);
 int compile_printf_exp (PrintfExp* e, Program* p, Vector* body, Scope* sp);
 void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp);
+int compile_var_slot_stmt (SlotVar *s, Program* p, Vector* body, Scope* sp);
+int compile_set_slot_exp (SetSlotExp* e, Program* p, Vector* body, Scope* sp);
+int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp);
 int compile_call_slot_exp (CallSlotExp* e, Program* p, Vector* body, Scope* sp);
 // util logics
 Scope* make_scope ();
 char* get_end_label();
 char* get_test_label();
 char* get_loop_label();
-Value* make_null_val ();
 char* get_entry_label();
 char* get_conseq_label();
 int get_next_entry_id ();
 Scope* get_root_scope ();
 int get_next_entry_id ();
-IntValue* make_int_val (int val);
-MethodValue* make_method_value ();
-StringValue* make_string_val (char* str);
 int isGlobalScope (Scope* sp, char* name);
 Scope* search_var (Scope* sp, char* name);
 char* get_label(int entry_id, char* prefix);
-Value* make_slot_val (Program* p, char* name);
 int get_var_idx_in_scope (Scope* sp, char *name);
+void count_nlocals_exp (Exp* e, MethodValue* mv);
 void count_nlocals (ScopeStmt* s, MethodValue* mv);
+// make value methods
+Value* make_null_val ();
+IntValue* make_int_val (int val);
+MethodValue* make_method_value ();
+StringValue* make_string_val (char* str);
+ClassValue* make_class_val(Vector* slots);
+Value* make_slot_val (Program* p, char* name);
 // make instruction operations
 ByteIns* make_DropIns ();
 ByteIns* make_ArrayIns ();
 ByteIns* make_ReturnIns ();
 ByteIns* make_LitIns (int val_idx);
+ByteIns* make_SlotIns(int name_idx);
 ByteIns* make_GotoIns (int name_idx);
 ByteIns* make_LabelIns (int name_idx);
 ByteIns* make_BranchIns (int name_idx);
+ByteIns* make_ObjectIns(int class_idx);
+ByteIns* make_SetSlotIns(int name_idx);
 ByteIns* make_GetLocalIns (int slot_idx);
 ByteIns* make_SetLocalIns (int slot_idx);
 ByteIns* make_GetGlobalIns (int name_idx);
@@ -75,6 +86,7 @@ int register_const_null (Program* p);
 int register_const_int (Program* p, int val);
 int register_const_str (Program* p, char* name);
 int register_const_slot (Program* p, char* name);
+int register_const_class(Program* p, ClassValue* cv);
 int register_const_method (Program* p, MethodValue* mv);
 // util functions
 char* copy_str (const char *string);
@@ -100,29 +112,18 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 		ArrayExp* e2 = (ArrayExp*)e;
 		return compile_array_exp(e2, p, body, sp);
 	}
-	/*case OBJECT_EXP: {
+	case OBJECT_EXP: {
 		ObjectExp* e2 = (ObjectExp*)e;
-		printf("object : (");
-		for (int i = 0; i < e2->nslots; i++) {
-			if (i > 0) printf(" ");
-			compile_slotstmt(e2->slots[i]);
-		}
-		printf(")");
-		break;
+		return compile_object_exp(e2, p, body, sp);
 	}
 	case SLOT_EXP: {
 		SlotExp* e2 = (SlotExp*)e;
-		compile_exp(e2->exp);
-		printf(".%s", e2->name);
-		break;
+		return compile_slot_exp(e2, p, body, sp);
 	}
 	case SET_SLOT_EXP: {
 		SetSlotExp* e2 = (SetSlotExp*)e;
-		compile_exp(e2->exp);
-		printf(".%s = ", e2->name);
-		compile_exp(e2->value);
-		break;
-	}*/
+		return compile_set_slot_exp(e2, p, body, sp);
+	}
 	case CALL_SLOT_EXP: {
 		CallSlotExp* e2 = (CallSlotExp*)e;
 		return compile_call_slot_exp(e2, p, body, sp);
@@ -150,8 +151,41 @@ int compile_exp (Exp* e, Program* p, Vector* body, Scope* sp) {
 	}
 	default:
 		printf("Unrecognized Expression with tag %d\n", e->tag);
+		// TODO uncomment the following statement
 		// exit(-1);
 	}
+	return -1;
+}
+
+int compile_slot_exp (SlotExp* e, Program* p, Vector* body, Scope* sp) {
+	compile_exp(e->exp, p, body, sp);
+	int slot_name_idx = register_const_str(p, e->name);
+	vector_add(body, make_SlotIns(slot_name_idx));
+	return -1;
+}
+
+int compile_set_slot_exp (SetSlotExp* e, Program* p, Vector* body, Scope* sp) {
+	compile_exp(e->exp, p, body, sp);
+	compile_exp(e->value, p, body, sp);
+	int slot_name_idx = register_const_str(p, e->name);
+	vector_add(body, make_SetSlotIns(slot_name_idx));
+	return -1;
+}
+
+int compile_object_exp (ObjectExp* e, Program* p, Vector* body, Scope* sp) {
+	// compile for the parent object
+	compile_exp(e->parent, p, body, sp);
+	Scope* nsp = make_scope(sp);
+	// this variable is the first variable in the object scope
+	// vector_add(nsp->vars, "this");
+	Vector* slots = make_vector();
+	// compile for each slot
+	for (int i = 0; i < e->nslots; i++) {
+		int slot_idx = compile_slotstmt(e->slots[i], p, body, nsp);
+		vector_add(slots, (void*)slot_idx);
+	}
+	int class_idx = register_const_class(p, make_class_val(slots));
+	vector_add(body, make_ObjectIns(class_idx));
 	return -1;
 }
 
@@ -220,6 +254,10 @@ int compile_set_exp (SetExp* e, Program* p, Vector* body, Scope* sp) {
 		vector_add(body, make_SetGlobalIns(var_idx));
 	} else {
 		var_idx = get_var_idx_in_scope(sp, e->name);
+		if (var_idx == -1) {
+			printf("Error: unknown property: %s.\n", e->name);
+			exit(-1);
+		}
 		vector_add(body, make_SetLocalIns(var_idx));
 	}
 	return -1;
@@ -232,7 +270,15 @@ int compile_ref_exp (Program* p, RefExp* e, Vector* body, Scope* sp) {
 		vector_add(body, make_GetGlobalIns(var_idx));
 	} else {
 		var_idx = get_var_idx_in_scope(sp, e->name);
-		vector_add(body, make_GetLocalIns(var_idx));
+		if (var_idx != -1) {
+			vector_add(body, make_GetLocalIns(var_idx));
+		} else if (strcmp(e->name, "this") == 0) {
+			int this_idx = register_const_str(p, "this");
+			vector_add(body, make_GetGlobalIns(this_idx));
+		} else {
+			printf("Error: unknown reference: %s.\n", e->name);
+			exit(-1);
+		}
 	}
 	return var_idx;
 }
@@ -270,29 +316,67 @@ int compile_call_exp (CallExp* e, Program* p, Vector* body, Scope* sp) {
 	return -1;
 }
 
-void compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp) {
+int compile_var_slot_stmt (SlotVar *s, Program* p, Vector* body, Scope* sp) {
+	compile_exp(s->exp, p, body, (Scope*)sp->parent);
+	// register the var name in the current scope
+	vector_add(sp->vars, s->name);
+	// if the sope is inside a object creation
+	// register a slot and return its index
+	int name_idx = register_const_str(p, s->name);
+	int slot_idx = register_const_slot(p, s->name);
+	return slot_idx;
+}
+
+int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp) {
+	MethodValue* method = make_method_value();
+	// for slot methods, there is an additional this argument
+	method->nargs = s->nargs + 1;
+	// put this function name into the scope
+	// which will be used later for checking
+	// global or local scope
+	vector_add(sp->vars, s->name);
+	count_nlocals(s->body, method);
+	Scope* nsp = make_scope(sp);
+	// for slot methods, the first argument is this argument
+	vector_add(nsp->vars, "this");
+	for (int i = 0; i < s->nargs; i++) {
+		vector_add(nsp->vars, s->args[i]);
+	}
+	compile_scopestmt(s->body, p, method->code, nsp);
+	// register the function's name
+	method->name = register_const_str(p, s->name);
+	// if the last instruction is a drop, remove it
+	ByteIns* last_ins = vector_get(method->code,
+	                               method->code->size - 1);
+	if (last_ins->tag == DROP_OP) {
+		vector_pop(method->code);
+	}
+	// add a return statment
+	vector_add(method->code, make_ReturnIns());
+	int method_idx = register_const_method(p, method);
+	// if this is the global scope, add
+	// into the global var list
+	if (isGlobalScope(sp, s->name)) {
+		vector_add(p->slots, (void*)method_idx);
+	}
+	return method_idx;
+}
+
+int compile_slotstmt (SlotStmt* s, Program* p, Vector* body, Scope* sp) {
 	switch (s->tag) {
 	case VAR_STMT: {
 		SlotVar* s2 = (SlotVar*)s;
-		compile_exp(s2->exp, p, body, sp);
-		break;
+		return compile_var_slot_stmt(s2, p, body, sp);
 	}
 	case FN_STMT: {
 		SlotMethod* s2 = (SlotMethod*)s;
-		printf("method %s (", s2->name);
-		for (int i = 0; i < s2->nargs; i++) {
-			if (i > 0) printf(", ");
-			printf("%s", s2->args[i]);
-		}
-		printf(") : (");
-		compile_scopestmt(s2->body, p, body, sp);
-		printf(")");
-		break;
+		return compile_fn_slot_stmt(s2, p, body, sp);
 	}
 	default:
 		printf("Unrecognized slot statement with tag %d\n", s->tag);
 		exit(-1);
 	}
+	return -1;
 }
 
 /*
@@ -316,8 +400,8 @@ void compile_var_stmt (ScopeVar *s, Program* p, Vector* body, Scope* sp) {
 		vector_add(p->slots, (void*)slot_idx);
 		vector_add(body, make_SetGlobalIns(name_idx));
 	} else {
-		// if the sope is inside a object creation
-		// create a var slot; push it into constant pool
+		// if the sope is inside a function
+		// just a set local instruction
 		vector_add(body, make_SetLocalIns(local_fram_name_idx));
 	}
 	vector_add(body, make_DropIns());
@@ -371,14 +455,15 @@ void compile_scopestmt (ScopeStmt* s, Program* p, Vector* body, Scope* sp) {
 	case SEQ_STMT: {
 		ScopeSeq* s2 = (ScopeSeq*)s;
 		compile_scopestmt(s2->a, p, body, sp);
+		if (s2->a->tag == EXP_STMT) {
+			vector_add(body, make_DropIns());
+		}
 		compile_scopestmt(s2->b, p, body, sp);
 		break;
 	}
 	case EXP_STMT: {
 		ScopeExp* s2 = (ScopeExp*)s;
 		compile_exp(s2->exp, p, body, sp);
-		// if (s2->exp->tag != PRINTF_EXP)
-		vector_add(body, make_DropIns());
 		break;
 	}
 	default:
@@ -395,7 +480,7 @@ void compile_entry_fun (Program* p, MethodValue* entry_f) {
 	int entry_fun_idx = register_const_method(p, entry_f);
 	p->entry = entry_fun_idx;
 	// finally add load null and return
-	// vector_add(entry_f->code, make_DropIns());
+	vector_add(entry_f->code, make_DropIns());
 	vector_add(entry_f->code, make_LitIns(null_idx));
 	vector_add(entry_f->code, make_ReturnIns());
 }
@@ -450,10 +535,30 @@ int get_next_entry_id () {
 	return cur_entry_id++;
 }
 
+void count_nlocals_exp (Exp* e, MethodValue* method_val) {
+	switch (e->tag) {
+	case IF_EXP: {
+		IfExp* e2 = (IfExp*)e;
+		count_nlocals(e2->conseq, method_val);
+		count_nlocals(e2->alt, method_val);
+	}
+	case WHILE_EXP: {
+		WhileExp* e2 = (WhileExp*)e;
+		count_nlocals(e2->body, method_val);
+	}
+	default: return;
+	}
+}
+
 void count_nlocals (ScopeStmt* s, MethodValue* method_val) {
 	switch (s->tag) {
-	case EXP_STMT:
+	case EXP_STMT: {
+		ScopeExp* s2 = (ScopeExp*)s;
+		count_nlocals_exp(s2->exp, method_val);
+		break;
+	}
 	case FN_STMT: {
+		method_val->nlocals++;
 		break;
 	}
 	case VAR_STMT: {
@@ -474,8 +579,9 @@ void count_nlocals (ScopeStmt* s, MethodValue* method_val) {
 
 int get_var_idx_in_scope (Scope* sp, char *name) {
 	if (sp == NULL) {
-		printf("Error: get_var_idx_in_scope.\n");
-		exit(-1);
+		// printf("Error: get_var_idx_in_scope.\n");
+		// exit(-1);
+		return -1;
 	}
 	for (int i = 0; i < sp->vars->size; i++) {
 		if (strcmp(vector_get(sp->vars, i), name) == 0) {
@@ -567,6 +673,14 @@ MethodValue* make_method_value () {
 	return method_val;
 }
 
+ClassValue* make_class_val(Vector* slots) {
+	ClassValue* class_val =
+	    (ClassValue*)malloc(sizeof(ClassValue));
+	class_val->tag = CLASS_VAL;
+	class_val->slots = slots;
+	return class_val;
+}
+
 int register_const_null (Program* p) {
 	// search constant pool
 	int len = p->values->size;
@@ -619,6 +733,11 @@ int register_const_slot (Program* p, char* name) {
 
 int register_const_method(Program* p, MethodValue* mv) {
 	vector_add(p->values, mv);
+	return p->values->size - 1;
+}
+
+int register_const_class(Program* p, ClassValue* cv) {
+	vector_add(p->values, cv);
 	return p->values->size - 1;
 }
 
@@ -721,6 +840,27 @@ ByteIns* make_GotoIns (int name_idx) {
 	GotoIns* ins = (GotoIns*)malloc(sizeof(GotoIns));
 	ins->tag = GOTO_OP;
 	ins->name = name_idx;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_SlotIns(int name_idx) {
+	SlotIns* ins = (SlotIns*)malloc(sizeof(SlotIns));
+	ins->tag = SLOT_OP;
+	ins->name = name_idx;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_SetSlotIns(int name_idx) {
+	SetSlotIns* ins = (SetSlotIns*)malloc(sizeof(SetSlotIns));
+	ins->tag = SET_SLOT_OP;
+	ins->name = name_idx;
+	return (ByteIns*)ins;
+}
+
+ByteIns* make_ObjectIns(int class_idx) {
+	ObjectIns* ins = (ObjectIns*)malloc(sizeof(ObjectIns));
+	ins->tag = OBJECT_OP;
+	ins->class = class_idx;
 	return (ByteIns*)ins;
 }
 

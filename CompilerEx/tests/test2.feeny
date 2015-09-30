@@ -4,8 +4,6 @@ defn cplx (r, i) :
       var real = r
       var imag = i
       method add (c) :
-         defn hello2 (i) :
-            printf("Hello123 ~ ", i)
          cplx(this.real + c.real,
               this.imag + c.imag)
       method sub (c) :
