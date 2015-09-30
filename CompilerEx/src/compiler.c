@@ -72,8 +72,6 @@ Scope* make_scope (Scope* parent, ScpTag tag);
 Scope* get_containing_frame_scope (Scope* sp);
 int register_var_in_scope (Scope* sp, char* name);
 int get_var_idx_in_frame_scope (Scope* sp, char *name);
-void count_nlocals_exp (Exp* e, MethodValue* mv, Vector* vars);
-void count_nlocals (ScopeStmt* s, MethodValue* mv, Vector* vars);
 // make value methods
 Value* make_null_val ();
 IntValue* make_int_val (int val);
@@ -353,7 +351,6 @@ int compile_fn_slot_stmt (SlotMethod* s, Program* p, Vector* body, Scope* sp) {
 	// which will be used later for checking
 	// global or local scope
 	register_var_in_scope(sp, s->name);
-	// count_nlocals(s->body, method, make_vector());
 	Scope* nsp = make_scope(sp, FRAME_SCOPE);
 	// for slot methods, the first argument is "this" argument
 	register_var_in_scope(nsp, "this");
@@ -433,7 +430,6 @@ void compile_fn_stmt (ScopeFn* s, Program* p, Vector* body, Scope* sp) {
 	// which will be used later for checking
 	// global or local scope
 	register_var_in_scope(sp, s->name);
-	// count_nlocals(s->body, method, make_vector());
 	Scope* nsp = make_scope(sp, FRAME_SCOPE);
 	for (int i = 0; i < s->nargs; i++) {
 		register_var_in_scope(nsp, s->args[i]);
@@ -555,63 +551,6 @@ char* get_label(int entry_id, char* prefix) {
 int get_next_entry_id () {
 	static int cur_entry_id = 36;
 	return cur_entry_id++;
-}
-
-void count_nlocals_exp (Exp* e, MethodValue* method_val, Vector* vars) {
-	switch (e->tag) {
-	case IF_EXP: {
-		IfExp* e2 = (IfExp*)e;
-		count_nlocals(e2->conseq, method_val, vars);
-		count_nlocals(e2->alt, method_val, vars);
-	}
-	case WHILE_EXP: {
-		WhileExp* e2 = (WhileExp*)e;
-		count_nlocals(e2->body, method_val, vars);
-	}
-	default: return;
-	}
-}
-
-void count_nlocals (ScopeStmt* s, MethodValue* method_val, Vector* vars) {
-	switch (s->tag) {
-	case EXP_STMT: {
-		ScopeExp* s2 = (ScopeExp*)s;
-		count_nlocals_exp(s2->exp, method_val, vars);
-		break;
-	}
-	case FN_STMT: {
-		method_val->nlocals++;
-		ScopeFn* s2 = (ScopeFn*)s;
-		// TODO: does not allow redefinition
-		// with the same function name
-		vector_add(vars, s2->name);
-		break;
-	}
-	case VAR_STMT: {
-		ScopeVar *s2 = (ScopeVar *)s;
-		int found = 0;
-		// search the var name in the current scope
-		for (int i = 0; i < vars->size; i++)
-			if (strcmp(vector_get(vars, i), s2->name) == 0)
-				found = 1;
-		// if the var is not defined
-		// register the var name in the current scope
-		if (found == 0) {
-			method_val->nlocals++;
-			vector_add(vars, s2->name);
-		}
-		break;
-	}
-	case SEQ_STMT: {
-		ScopeSeq* s2 = (ScopeSeq*)s;
-		count_nlocals(s2->a, method_val, vars);
-		count_nlocals(s2->b, method_val, vars);
-		break;
-	}
-	default:
-		printf("Unrecognized scope statement with tag %d\n", s->tag);
-		exit(-1);
-	}
 }
 
 // returns the inner most frame scope
