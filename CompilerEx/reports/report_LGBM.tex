@@ -1,0 +1,57 @@
+
+\documentclass[notitlepage]{report}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{booktabs}
+\usepackage{verbatim}
+
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 3 Answers}
+\date{\vspace{-0.5in}September 25, 2015}
+\author{\vspace{-0.5in}Liang Gong and Ben Mehne\vspace{-0.5in}}
+
+\begin{document}
+\maketitle
+
+\begin{table}[!htp]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+{\footnotesize
+\begin{tabular}{llll}
+\toprule
+test case & compile time (ms)    & interpret\_bc time (ms) & percentage time compiling \\
+\midrule
+bsearch        & 0.043          & 0.059          & 22.871\%     \\
+inheritance    & 0.071          & 0.044          & 22.129\%     \\
+cplx           & 0.054          & 0.050          & 22.058\%     \\
+lists          & 0.112          & 0.251          & 18.163\%     \\
+vector         & 0.148          & 0.152          & 24.908\%     \\
+fibonacci      & 0.024          & 0.150          & 9.473\%      \\
+sudoku         & 0.258          & 335.431        & 0.076\%      \\
+sudoku2        & 0.239          & 67680.319      & 0.000\%      \\
+hanoi\_BM      & 0.034          & 0.229          & 10.091\%     \\
+stacks\_BM     & 0.092          & 0.129          & 22.176\%     \\
+morehanoi\_BM  & 0.153          & 1.270          & 9.322\%      \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{enumerate}
+	\item
+			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the submitted and tested version.
+	\item
+		While method and function calls are maintained in the bytecode, variables are not - a decompiler cannot reconstruct the naming of the variables.    Additionally, some of the control systems are difficult to decompile - the purpose of a label as being the target of an if-expression or a looping expression is not directly apparent from reading the label bytecodes.  Since Feeny has extremely limited options for control flow, reconstructing which labels refer to loops versus if-expressions is not difficult in practice, but could become so with a more sophisticated compiler.
+
+		Below is an example of decompiled bytecode for vector.feeny:
+		\verbatiminput{vector.decompile.feeny}
+	\item % maybe the uninitialized vars?
+		The error handling and ordering of errors, especially referencing variables before they are defined via the ``var" keyword (which the AST interpreter complains about, while the bytecode system treats as well-defined behavior with a null value).  Generally, this area would cause some programs to be accepted by the Feeny bytecode system but not the AST interpreter - one system for running Feeny accepts programs that the other does not.  This incompatibility would make porting more difficult in the case of programs accepted by the bytecode system - this is not an unusual phenomenom as the most popular languages (C and Javascript, for example) seem to only guarantee compatibility in correct programs, and sometimes behave as intended with incorrect programs.
+	\item We need to specify a format for the bytecode to reside on disk (or over the network, or via whatever distribution/storage medium).  In particular, we would need to define an encoding that is standardized (a value for each tag) and a means of unrolling the pointer structures that exist in the bytecode instructions (the strings and the vectors in the Program struct, for instance).  Additionally, it would be a good idea to give a specification for whether the file is compressed or if there are any ordering constraints on the instructions (whether labels or the constants are organized in particular way).  A system to verify the integrity of the file format, along with a mimetype would be ideal.
+	\item The disadvantage of labels is that they are slow - labels require translation before being put into use during execution (either the label must be looked up in a translation table of labels to locations or the translation is JIT'ed away).  Direct offsets can just be applied.  On the other hand, direct offsets allow for abuse.  Naively, labels can be scoped so that branching can only be done in a function.  Offsets have the disadvantage that they must be verified in two different ways (and cannot be naively scoped) - they possible destination must be checked to be in the same function, and it must fall on a valid instruction (versus midway through a multi-byte instruction).  The use of offsets in branches in x86, for instance, is used for code-gadget attacks.
+
+		Lastly, labels are far easier to debug since they are human-readable.  Generally, intermediate formats, like everything else, should be debuggable, even at the cost of a single pass during load-time.
+\end{enumerate}
+
+\end{document}

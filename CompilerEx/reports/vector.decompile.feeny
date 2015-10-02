@@ -1,0 +1,78 @@
+defn copy-array(a,b,c,d):
+  var x = 0
+  while x.lt(d) :
+    a.set(c.add(x), a.get(c.add(x))
+    x=x.add(1)
+  a
+
+defn max (a,b) :
+  if a.lt(b):
+    b
+  else :
+    a
+
+defn ensure-capacity (a, b) :
+  var x = a.array.length()
+  if x.lt(b) :
+    var y = max(x * 2, b)
+    var z = array(y, 0)
+    copy-array(z, a.array, 0, a.size)
+    a.array = z
+
+defn vector () :
+  object :
+    array: array(4, 0, null)
+    size : 0
+    defn add(a):
+      ensure-capcity(this, this.size.add(1))
+      this.array.set(this.size, a)
+      this.size = this.size.add(1)
+    defn get(a):
+      this.array.get(a)
+    defn set(a,b):
+      if this.size.eq(a):
+        this.add(b)
+      else:
+        this.array.set(a,b)
+    defn length () :
+      this.size
+    defn print ():
+      if this.size.eq(0) :
+        printf("[]")
+      else :
+        printf("[~", this.array.get(0))
+        var x = 1
+        while this.size.lt(x):
+          printf(", ~", this.array.get(x))
+          x = x.add(1)
+        printf("]")
+
+
+defn main () :
+  printf("Create empty vector.\n")
+  var x = vector()
+  x.print()
+  printf("\n")
+  printf("Add some elements.\n")
+  x.add(2)
+  x.add(10)
+  x.add(22)
+  x.add(17)
+  x.add(23)
+  x.add(2)
+  x.add(7)
+  x.print()
+  printf("\n")
+  printf("Retrieving some elements.\n")
+  printf("v[~] = ~.\n", 2, x.get(2))
+  printf("v[~] = ~.\n", 4, x.get(4))
+  printf("v[~] = ~.\n", 1, x.get(1))
+  printf("Setting first 3 elements to 0.\n")
+  x.set(0, 0)
+  x.set(1, 0)
+  x.set(2, 0)
+  x.print()
+  printf("\n")
+
+main()
+null
