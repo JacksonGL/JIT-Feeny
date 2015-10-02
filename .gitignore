@@ -33,14 +33,19 @@ ASTEx/fail/*
 ASTEx/tests/*.oracle
 ByteCodeEx/output/*
 ByteCodeEx/fail/*
+CompilerEx/output/*
+CompilerEx/fail/*
 *.aux
 *.bbl
 *.blg
 *.log
 *.pdf
+*.hgtags
 
 # the compiled binary
 ASTEx/cfeeny
 ASTEx/cfeeny.dSYM*
 ByteCodeEx/cfeeny
 ByteCodeEx/cfeeny.dSYM*
+CompilerEx/cfeeny
+CompilerEx/cfeeny.dSYM*
