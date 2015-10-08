@@ -1,5 +1,5 @@
 # Compile
-gcc -O3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast
+gcc -O3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast || exit 1
 
 # Clean output folder
 mkdir -p output/reference
@@ -43,7 +43,8 @@ function test {
 	fi
 	if which valgrind
 	then
-		valgrind --log-file="valgrind.out" --error-exitcode=121 ./cfeeny output/"$OUTPUT".bc > output/"$OUTPUT".out
+		valgrind --log-file="valgrind.out" --error-exitcode=121 \
+			./cfeeny output/"$OUTPUT".ast output/stat/"$OUTPUT".stat > output/"$OUTPUT".out
 		RESULT="$?"
 		if [ "$RESULT" == "121" ]
 		then
@@ -58,7 +59,7 @@ function test {
 		US="$?"
 	else
 		# ./cfeeny output/"$OUTPUT".bc -s output/stat/"$OUTPUT".stat > output/"$OUTPUT".out
-		./cfeeny output/"$OUTPUT".ast > output/"$OUTPUT".out
+		./cfeeny output/"$OUTPUT".ast output/stat/"$OUTPUT".stat > output/"$OUTPUT".out
 		[ "$?" == "0" ]
 		US="$?"
 	fi

@@ -6,8 +6,8 @@
 \usepackage{booktabs}
 \usepackage{verbatim}
 
-\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 4 Answers}
-\date{\vspace{-0.5in}October 2, 2015}
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 3 Answers}
+\date{\vspace{-0.5in}September 25, 2015}
 \author{\vspace{-0.5in}Liang Gong and Ben Mehne\vspace{-0.5in}}
 
 \begin{document}
@@ -40,12 +40,14 @@ morehanoi\_BM  & 0.153          & 1.270          & 9.322\%      \\
 
 \begin{enumerate}
 	\item
-			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the submitted and tested version.
+			See Table~\ref{statistics}.  Ben Mehne's implementation of hanoi, stacks, and morehanoi is the tested version.
 	\item
 		While method and function calls are maintained in the bytecode, variables are not - a decompiler cannot reconstruct the naming of the variables.    Additionally, some of the control-flow constructs are difficult to decompile - the purpose of a label as being the target of an if-expression as opposed to a looping expression is not directly apparent from reading the label bytecode.  Since Feeny has extremely limited options for control-flow, reconstructing which labels refer to loops versus if-expressions is not difficult in practice, but could become so with a more sophisticated compiler.
 
 		Below is an example of decompiled bytecode for vector.feeny (I did simple inlining for the entry function and used a simple naming paradigm for arguments vs local variables):
-		\verbatiminput{vector.decompile.feeny}
+		{\scriptsize
+			\verbatiminput{vector.decompile.feeny}
+		}
 	\item % maybe the uninitialized vars?
 		The error handling and ordering of errors is not the same between the AST interpreter and the bytecode interpreter - in particular, referencing variables before they are defined via the ``var" keyword is different as the AST interpreter complains about it, while the bytecode system treats as well-defined behavior with a null value.  Generally, this area would cause some programs to be accepted by the Feeny bytecode system but not the AST interpreter - one system for running Feeny accepts programs that the other does not.  This incompatibility would make porting more difficult in the case of programs accepted by the bytecode system - this is not an unusual phenomenom as the most popular languages (C and Javascript, for example) seem to only guarantee compatibility in correct programs, and sometimes behave as intended with incorrect programs.  This could be corrected with a more aggressive checking in the front-end.
 	\item We need to specify a format for the bytecode to reside on disk (or over the network, or via whatever distribution/storage medium).  In particular, we would need to define an encoding that is standardized (an encoding for each tag type) and a means of flattening the pointed-to structures that exist in the bytecode instructions (the strings and the vectors in the Program struct, for instance).  Additionally, it would be a good idea to give a specification for whether the file is compressed or if there are any ordering constraints on the instructions (whether labels or the constants are organized in particular way).  A system to verify the integrity of the file format, along with a required mimetype or magic number would be ideal.
