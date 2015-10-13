@@ -324,6 +324,10 @@ Value* find_slot_by_name(ObjectValue* obj, char* function_name) {
   int ret_val_idx = find_item(obj->class_ptr->name_to_slot_vec,
                               function_name);
   if (ret_val_idx != -1) {
+	  if (ret_val_idx >= obj->slot_vec_ptr->size) { // this is a method slot
+			int slot_idx = (int)vector_get(obj->class_ptr->slots, ret_val_idx);
+		  return get_val_constant(slot_idx);
+		}
     ret = (Value*)vector_get(obj->slot_vec_ptr, ret_val_idx);
   } else {
     // search in the parent object
@@ -838,16 +842,15 @@ void exec_object_op (ObjectIns * i) {
   ObjectValue* obj = (ObjectValue*)malloc(sizeof(ObjectValue));
   obj->tag = OBJ_OBJ;
   obj->slot_vec_ptr = make_vector();
-  vector_set_length(obj->slot_vec_ptr, class_val->slots->size, NULL);
-  //TODO: only copy num_slots of items, otherwise use class to find mehtods...
-  // iterate from last slot to the first slot
-  for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
+	vector_set_length(obj->slot_vec_ptr, num_slots, NULL);
+	for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
+
     int slot_idx = (int)vector_get(class_val->slots, i);
     Value* slot_in_class = get_val_constant(slot_idx);
     assert_not_null(slot_in_class);
     if (slot_in_class->tag == METHOD_VAL) {
-      // copy method slot
-      vector_set(obj->slot_vec_ptr, i, slot_in_class);
+		 // Only copy all variable slots - stop on the first method slot
+		continue;
     } else if (slot_in_class->tag == SLOT_VAL) {
       // copy var slot
       RSlotValue* new_slot =
@@ -1085,7 +1088,6 @@ void exec_call_slot_op (CallSlotIns * i) {
     break;
   }
   case OBJ_OBJ: {
-	//TODO: change this to search on the class pointer, not the object pointer
     Value* slot = find_slot_by_name((ObjectValue*)receiver_ptr, method_name);
     assert_not_null(slot);
     MethodValue* method_slot = to_function_val(slot);
@@ -1234,6 +1236,24 @@ IdxClassValue* create_class(Vector * values, ClassValue * v2) {
   new_v->tag = v2->tag;
   new_v->slots = v2->slots;
   new_v->name_to_slot_vec = make_vector();
+
+  int index_slot = 0, index_method = v2->slots->size-1;
+	while(index_slot < index_method && index_method >= 0){
+		while(index_method >= 0 && ((Value*)vector_get(values, (int)vector_get(v2->slots, index_method)))->tag == METHOD_OBJ){
+			index_method--;
+		}
+		while(index_slot <= index_method && ((Value*)vector_get(values, (int)vector_get(v2->slots, index_slot)))->tag == SLOT_OBJ){
+			index_slot++;
+		}
+		if(index_slot < index_method && index_method >=0){
+			void * ind = vector_get(v2->slots, index_slot);
+			vector_set(v2->slots, index_slot, vector_get(v2->slots, index_method));
+			vector_set(v2->slots, index_method, ind);
+			index_slot++;
+			index_method--;
+		}
+	}
+
   // iterate over all slots
   for (int i = 0; i < v2->slots->size; i++) {
     // get the slot value
