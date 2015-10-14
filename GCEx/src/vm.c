@@ -110,7 +110,8 @@ typedef struct {
 
 typedef struct {
   intptr_t tag;
-  Vector* v;
+  intptr_t length;
+  IValue* slots[0];
 } ArrayIValue;
 
 typedef struct {
@@ -131,7 +132,7 @@ typedef struct {
   intptr_t tag;
   ClassIValue* class_ptr;
   IValue* parent_obj_ptr;
-  Vector* slot_vec_ptr;
+  SlotIValue* var_slots[0];
 } ObjectIValue;
 
 typedef struct {
@@ -312,11 +313,11 @@ IValue* find_slot_by_name(ObjectIValue* obj, char* function_name) {
   int ret_val_idx = find_item(obj->class_ptr->name_to_slot_vec,
                               function_name);
   if (ret_val_idx != -1) {
-	  if (ret_val_idx >= obj->slot_vec_ptr->size) { // this is a method slot
+	  if (ret_val_idx >= get_num_var_slots(obj->class_ptr)) { // this is a method slot
 			int slot_idx = (int)vector_get(obj->class_ptr->slots, ret_val_idx);
 		  return get_val_constant(slot_idx);
 		}
-    ret = (IValue*)vector_get(obj->slot_vec_ptr, ret_val_idx);
+    ret = (IValue*)obj->var_slots[ret_val_idx];
   } else {
     // search in the parent object
     // assumes that in Feeny, object can only inherit from
@@ -827,10 +828,8 @@ void exec_object_op (ObjectIns * i) {
   ClassIValue* class_val = (ClassIValue*)class;
   int num_slots = get_num_var_slots(class_val);
   // init new object value
-  ObjectIValue* obj = (ObjectIValue*)malloc(sizeof(ObjectIValue));
+  ObjectIValue* obj = (ObjectIValue*)malloc(sizeof(ObjectIValue)+sizeof(IValue*)*(num_slots));
   obj->tag = OBJ_OBJ;
-  obj->slot_vec_ptr = make_vector();
-	vector_set_length(obj->slot_vec_ptr, num_slots, NULL);
 	for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
 
     int slot_idx = (int)vector_get(class_val->slots, i);
@@ -850,7 +849,7 @@ void exec_object_op (ObjectIns * i) {
         printf("Error[2]: exec_object_op.\n");
         exit(-1);
       }
-      vector_set(obj->slot_vec_ptr, i, new_slot);
+      obj->var_slots[i]=new_slot;
     } else {
       printf("Error[3]: exec_object_op.\n");
       exit(-1);
@@ -1581,33 +1580,32 @@ IntIValue* make_int_obj (int value) {
 }
 
 IntIValue* array_length (ArrayIValue* array) {
-  return make_int_obj(array->v->size);
+  return make_int_obj(array->length);
 }
 
 NullIValue* array_set (ArrayIValue* a, IntIValue* i, IValue* v) {
-  if (i->value >= a->v->size || i->value < 0) {
-    printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+  if (i->value >= a->length || i->value < 0) {
+    printf("array index out of bound. array length: %d. index: %d", a->length, i->value);
     exit(-1);
   }
-
-  vector_set(a->v, i->value, v);
+  a->slots[i->value] = v;
   return make_null_obj();
 }
 
 IValue* array_get (ArrayIValue* a, IntIValue* i) {
-  if (i->value >= a->v->size || i->value < 0) {
-    printf("array index out of bound. array length: %d. index: %d", a->v->size, i->value);
+  if (i->value >= a->length || i->value < 0) {
+    printf("array index out of bound. array length: %d. index: %d", a->length, i->value);
     exit(-1);
   }
-  return vector_get(a->v, i->value);
+  return a->slots[i->value];
 }
 
 ArrayIValue* make_array_obj(int length, IValue* init) {
-  ArrayIValue* t = malloc(sizeof(ArrayIValue));
+  ArrayIValue* t = malloc(sizeof(ArrayIValue)+sizeof(IValue*)*length);
   t->tag = ARRAY_OBJ;
-  t->v = make_vector();
+  t->length = length;
   for (int i = 0; i < length; ++i) {
-    vector_add(t->v, init);
+	  t->slots[i] = init;
   }
   return t;
 }
@@ -1676,10 +1674,10 @@ char* toString (IValue * val_ptr) {
 }
 
 char* arrayToString (ArrayIValue *obj_ptr) {
-  char** strs = malloc(sizeof(char*) * obj_ptr->v->size);
+  char** strs = malloc(sizeof(char*) * obj_ptr->length);
   int size_of_str = 1; //opening brace
-  for (int i = 0; i < obj_ptr->v->size; ++i) {
-    strs[i] = toString(vector_get(obj_ptr->v, i));
+  for (int i = 0; i < obj_ptr->length; ++i) {
+    strs[i] = toString(obj_ptr->slots[i]);
     size_of_str += strlen(strs[i]);
     if (i) {
       size_of_str += 1; //space
@@ -1693,7 +1691,7 @@ char* arrayToString (ArrayIValue *obj_ptr) {
 
   char* t = result;
   t = strcat(t, "[");
-  for (int i = 0; i < obj_ptr->v->size; ++i) {
+  for (int i = 0; i < obj_ptr->length; ++i) {
     t = strcat(t, strs[i]);
   }
   t = strcat(t, "]");
