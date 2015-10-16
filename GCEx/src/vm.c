@@ -46,6 +46,9 @@ typedef struct {
 } CallQuickIns;
 
 //#define DEBUG
+#ifdef DEBUG
+#include <execinfo.h>
+#endif //DEBUG
 
 // Copied from sys/time.h
 // to not pollute our #define space
@@ -64,8 +67,24 @@ typedef struct {
 //============================================================
 //=============== BASIC DATA STRUCTURE =======================
 //============================================================
+void debugf(const char * format, ...);
 
+void error(const char* msg){
+	printf("%s", msg);
+#ifdef DEBUG
+	void *array[10];
+	size_t size = backtrace (array, sizeof(array)/sizeof(void*));
+	char **strings = backtrace_symbols (array, size);
 
+	debugf ("Obtained %zd stack frames.\n", size);
+
+	for (size_t i = 0; i < size; i++)
+		 debugf ("%s\n", strings[i]);
+
+	free (strings);
+#endif
+	exit(-1);
+}
 
 typedef enum {
   INT_OBJ,
@@ -328,9 +347,10 @@ IValue* find_slot_by_name(ObjectIValue* obj, char* function_name) {
                                function_name);
     } else {
       if (obj_type(parent) != NULL_OBJ) {
-        printf("Error[2]: find_slot_by_name.\n");
+		  debugf("Has addr %x\n", obj);
+		  debugf("Has addr %x\n", parent);
 		  debugf("Has type %d\n", obj_type(parent));
-        exit(-1);
+        error("Error[2]: find_slot_by_name.\n");
       }
       ret = NULL;
     }
@@ -378,8 +398,7 @@ void * _halloc(size_t size){
 	next_free_cur += size;
 	if(next_free_cur >= HEAP_SIZE){
 		if(is_currently_collecting){
-			printf("Ran out of heap while collecting garbage!\n");
-			exit(-1);
+			error("Ran out of heap while collecting garbage!\n");
 		}
 		garbage_collector();
 		// redo the allocation
@@ -409,8 +428,7 @@ void scan_new_heap();
 
 void* garbage_collector(){
 	if(is_currently_collecting){
-		printf("Can't collect while already collecting!\n");
-		exit(-1);
+		error("Can't collect while already collecting!\n");
 	}
 	is_currently_collecting = 1;
 	debugf("Starting garbage collection!!\n");
@@ -442,9 +460,8 @@ size_t sizeIValue(IValue * t){
 			return sizeof(ObjectIValue)+sizeof(IValue*)*(num_slots);
 		}
 		default:
-			printf("Unexpected IValue type to iterate through!\n");
 			debugf("Has tag %d\n", obj_type(t));
-			exit(-1);
+			error("Unexpected IValue type to iterate through!\n");
 	}
 }
 
@@ -589,12 +606,14 @@ void scan_IValue(IValue* t){
 				o->var_slots[i] = (SlotIValue*) get_post_gc_ptr((IValue*)o->var_slots[i]);
 				debugf("%x\n", o->var_slots[i]);
 			}
+			debugf("%x to ", o->parent_obj_ptr);
+			o->parent_obj_ptr = get_post_gc_ptr(o->parent_obj_ptr);
+			debugf("%x\n", o->parent_obj_ptr);
 			return;
 		}
 		default:
-			printf("Unexpected IValue type to get size of!\n");
 			debugf("Has tag:%d\n", obj_type(t));
-			exit(-1);
+			error("Unexpected IValue type to get size of!\n");
 	}
 }
 
@@ -637,8 +656,7 @@ void set_val_constant(int idx, IValue * v) {
 char* get_str_constant(int idx) {
   IValue* val = get_val_constant(idx);
   if (val == NULL || obj_type(val) != STR_OBJ) {
-    printf("Error: get string constant.\n");
-    exit(-1);
+    error("Error: get string constant.\n");
   }
   return ((StringIValue*)val)->value;
 }
@@ -693,13 +711,11 @@ Vector* get_global_slots () {
 IValue* get_global_slot_by_name (char* name) {
   int slot_idx = find_item(global_slot_vec, name);
   if (slot_idx < 0) {
-    printf("Error: get global slot by name.\n");
-    exit(-1);
+    error("Error: get global slot by name.\n");
   }
   IValue* val = get_val_constant(slot_idx);
   if (val == NULL) {
-    printf("Error[2]: get global slot by name.\n");
-    exit(-1);
+    error("Error[2]: get global slot by name.\n");
   }
   return val;
 }
@@ -707,8 +723,7 @@ IValue* get_global_slot_by_name (char* name) {
 IValue* get_global_slot_by_idx (int slot_idx) {
   IValue* val = get_val_constant(slot_idx);
   if (val == NULL) {
-    printf("Error[2]: get global slot by name.\n");
-    exit(-1);
+    error("Error[2]: get global slot by name.\n");
   }
   return val;
 }
@@ -771,15 +786,13 @@ void set_frame_slot (Frame * frame, int idx, IValue * val) {
   } else if (0 <= idx && idx < frame->slot_vec_ptr->size) {
     vector_set(frame->slot_vec_ptr, idx, val);
   } else {
-    printf("Error: set frame value.\n");
-    exit(-1);
+    error("Error: set frame value.\n");
   }
 }
 
 IValue* get_frame_slot (Frame * frame, int idx) {
   if (idx >= frame->slot_vec_ptr->size) {
-    printf("Error: get frame value.\n");
-    exit(-1);
+    error("Error: get frame value.\n");
   }
   return vector_get(frame->slot_vec_ptr, idx);
 }
@@ -807,8 +820,7 @@ void exec_set_local_op (SetLocalIns * i) {
   int slot_idx = i->idx;
   IValue* val = stack_peek();
   if (val == NULL) {
-    printf("Error: set local op.\n");
-    exit(-1);
+    error("Error: set local op.\n");
   }
   Frame* frame = get_cur_frame();
   set_frame_slot(frame, slot_idx, val);
@@ -825,8 +837,7 @@ void exec_get_local_op (GetLocalIns * i) {
   int slot_idx = i->idx;
   Frame* frame = get_cur_frame();
   if (frame == NULL) {
-    printf("Error: get local op.\n");
-    exit(-1);
+    error("Error: get local op.\n");
   }
   IValue* val = get_frame_slot(frame, slot_idx);
   stack_push(val);
@@ -840,8 +851,7 @@ void make_set_global_quick(SetGlobalIns* i){
 
   name_idx = find_item(global_slot_vec, name_str);
   if (name_idx < 0) {
-    printf("Error: get global slot by name.\n");
-    exit(-1);
+    error("Error: get global slot by name.\n");
   }
   i->tag = (OpCode)SET_GLOBAL_OP_QUICK;
   i->name = name_idx;
@@ -861,13 +871,11 @@ void exec_set_global_quick_op (SetGlobalQuickIns * i) {
   int name_idx = i->idx;
   IValue* val = stack_peek();
   if (val == NULL) {
-    printf("Error: set global op.\n");
-    exit(-1);
+    error("Error: set global op.\n");
   }
   IValue* slot = get_global_slot_by_idx(name_idx);
   if (slot == NULL || obj_type(slot) != SLOT_OBJ) { // TODO: make safe?
-    printf("Error[2]: set global op.\n");
-    exit(-1);
+    error("Error[2]: set global op.\n");
   }
   SlotIValue* rSlot = (SlotIValue*)slot;
   rSlot->value = val;
@@ -882,8 +890,7 @@ void make_get_global_quick(GetGlobalIns* i){
 
   name_idx = find_item(global_slot_vec, name_str);
   if (name_idx < 0) {
-    printf("Error: get global slot by name.\n");
-    exit(-1);
+    error("Error: get global slot by name.\n");
   }
   i->tag = (OpCode)GET_GLOBAL_OP_QUICK;
   i->name = name_idx;
@@ -905,14 +912,12 @@ void exec_get_global_quick_op (GetGlobalQuickIns * i) {
   int idx = i->idx;
   IValue* slot = get_global_slot_by_idx(idx);
   if (slot == NULL || obj_type(slot) != SLOT_OBJ) { // TODO: make safe?
-    printf("Error: get global op.\n");
-    exit(-1);
+    error("Error: get global op.\n");
   }
   SlotIValue* rSlot = (SlotIValue*)slot;
   IValue* val = rSlot->value;
   if (val == NULL) {
-    printf("Error[2]: get global op.\n");
-    exit(-1);
+    error("Error[2]: get global op.\n");
   }
   stack_push(val);
   inst_ptr++;
@@ -941,8 +946,7 @@ void exec_branch_op (BranchIns * i) {
 void exec_branch_quick_op (BranchQuickIns * i) {
   IValue* val = stack_pop();
   if (val == NULL) {
-    printf("Error: branch op.\n");
-    exit(-1);
+    error("Error: branch op.\n");
   }
   if (obj_type(val) != NULL_OBJ) {
     inst_ptr = i->addr;
@@ -987,7 +991,7 @@ void exec_lit_op (LitIns * i) {
   IValue* val = get_val_constant(val_idx);
   if (val == NULL || (obj_type(val) != INT_OBJ && obj_type(val) != NULL_OBJ)) {
     printf("Error in LIT_OP. %x\n", val);
-    exit(-1);
+	 exit(-1);
   }
   stack_push(val);
   inst_ptr++;
@@ -1042,8 +1046,7 @@ void exec_printf_op (PrintfIns * i) {
     vector_add(args, stack_pop());
   }
   if (args->size != arity) {
-    printf("Error: exec_printf_op.\n");
-    exit(-1);
+    error("Error: exec_printf_op.\n");
   }
   n = arity;
   while (n-- > 0) {
@@ -1079,8 +1082,7 @@ void exec_object_op (ObjectIns * i) {
   int class_idx = i->class;
   IValue* class = get_val_constant(class_idx);
   if (class == NULL || obj_type(class) != CLASS_VAL) {
-    printf("Error: exec_object_op.\n");
-    exit(-1);
+    error("Error: exec_object_op.\n");
   }
   ClassIValue* class_val = (ClassIValue*)class;
   int num_slots = get_num_var_slots(class_val);
@@ -1103,13 +1105,11 @@ void exec_object_op (ObjectIns * i) {
       // to the deepest value on the stack
       new_slot->value = stack_pop();
       if (new_slot->value == NULL) {
-        printf("Error[2]: exec_object_op.\n");
-        exit(-1);
+        error("Error[2]: exec_object_op.\n");
       }
       obj->var_slots[i]=new_slot;
     } else {
-      printf("Error[3]: exec_object_op.\n");
-      exit(-1);
+      error("Error[3]: exec_object_op.\n");
     }
   }
   obj->parent_obj_ptr = stack_pop();
@@ -1186,8 +1186,7 @@ void make_call_quick(CallIns * i){
   char* function_name = get_str_constant(function_name_idx);
   int name_idx = find_item(global_slot_vec, function_name);
   if (name_idx < 0) {
-    printf("Error: get global slot by name.\n");
-    exit(-1);
+    error("Error: get global slot by name.\n");
   }
 
   i->tag = (OpCode)CALL_OP_QUICK;
@@ -1211,8 +1210,7 @@ void exec_call_op (CallIns * i) {
 void exec_call_quick_op(CallQuickIns * i){
   IValue* function_slot = get_global_slot_by_idx(i->idx);
   if (function_slot == NULL || obj_type(function_slot) != METHOD_OBJ) {
-    printf("Error: exec_call_op.\n");
-    exit(-1);
+    error("Error: exec_call_op.\n");
   }
   call_func((MethodIValue*)function_slot, i->arity);
   // instruction pointer is updated in call_func
@@ -1250,6 +1248,7 @@ void exec_return_op () {
 // and setting the instruction pointer to the address of the body of the
 // method.
 void exec_call_slot_op (CallSlotIns * i) {
+	debugf("Starting exec_call_slot_op\n");
   int method_name_idx = i->name;
   char* method_name = get_str_constant(method_name_idx);
   int arity = i->arity > 0 ? i->arity - 1 : 0;
@@ -1505,15 +1504,13 @@ ClassIValue* create_class(Vector * values, ClassValue * v2) {
     int slot_index = (int)vector_get(v2->slots, i);
     IValue* value = vector_get(values, slot_index);
     if (obj_type(value) != SLOT_OBJ && obj_type(value) != METHOD_OBJ) {
-      printf("non-slot or method value in class\n");
-      exit(-1);
+      error("non-slot or method value in class\n");
     }
     int name_index = ((SlotValue*)value)->name;
     // get the string value of name
     value = vector_get(values, name_index);
     if (obj_type(value) != STR_OBJ) {
-      printf("Slot value name is not a string.\n");
-      exit(-1);
+      error("Slot value name is not a string.\n");
     }
     char* name_ptr = ((StringValue*)value)->value;
     // map the string name to the slot index in new_v->slots
@@ -1759,41 +1756,36 @@ void free_frame(Frame* frame) {
 
 MethodIValue* to_function_val (IValue* val) {
   if (val == NULL || obj_type(val) != METHOD_OBJ) {
-    printf("Error: not a function value.\n");
-    exit(-1);
+    error("Error: not a function value.\n");
   }
   return (MethodIValue*) val;
 }
 
 SlotIValue* to_slot_val (IValue* val) {
   if (val == NULL || obj_type(val) != SLOT_VAL) {
-    printf("Error: not a var slot.\n");
 	 debugf("Has addr: %x\n", val);
 	 debugf("Has tag: %d\n", obj_type(val));
-    exit(-1);
+    error("Error: not a var slot.\n");
   }
   return (SlotIValue*) val;
 }
 
 IntIValue* to_int_val (IValue* val) {
   if (val == NULL || obj_type(val) != INT_OBJ) {
-    printf("Error: to_int_val.\n");
-    exit(-1);
+    error("Error: to_int_val.\n");
   }
   return (IntIValue*)val;
 }
 
 void assert_not_null (void* ptr) {
   if (ptr == NULL) {
-    printf("Error: assert_not_null.\n");
-    exit(-1);
+    error("Error: assert_not_null.\n");
   }
 }
 
 void assert_obj_obj (IValue* ptr) {
   if (ptr == NULL || obj_type(ptr) != OBJ_OBJ) {
-    printf("Error: assert_obj_obj.\n");
-    exit(-1);
+    error("Error: assert_obj_obj.\n");
   }
 }
 
@@ -1921,8 +1913,7 @@ char* toString (IValue * val_ptr) {
     return arrayToString((ArrayIValue*)val_ptr);
   }
   default:
-    printf("Error: toString.\n");
-    exit(-1);
+    error("Error: toString.\n");
   }
   return NULL;
 }
