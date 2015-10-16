@@ -35,6 +35,8 @@ ByteCodeEx/output/*
 ByteCodeEx/fail/*
 CompilerEx/output/*
 CompilerEx/fail/*
+GCEx/output/*
+GCEx/fail/*
 *.aux
 *.bbl
 *.blg
@@ -49,3 +51,5 @@ ByteCodeEx/cfeeny
 ByteCodeEx/cfeeny.dSYM*
 CompilerEx/cfeeny
 CompilerEx/cfeeny.dSYM*
+GCEx/cfeeny
+GCEx/cfeeny.dSYM*
