@@ -45,7 +45,7 @@ typedef struct {
   int arity;
 } CallQuickIns;
 
-// #define DEBUG 1
+//#define DEBUG
 
 // Copied from sys/time.h
 // to not pollute our #define space
@@ -74,11 +74,12 @@ typedef enum {
   METHOD_OBJ,
   SLOT_OBJ,
   CLASS_OBJ,
+  ARRAY_OBJ,
+  BROKEN_HEART,
   OBJ_OBJ,
-  ARRAY_OBJ
 } ObjTag;
 
-typedef struct {
+typedef struct { //can go on heap
   intptr_t tag;
   intptr_t space;
 } NullIValue;
@@ -90,7 +91,7 @@ typedef struct {
   intptr_t space;
 } IValue;
 
-typedef struct {
+typedef struct { //can go on heap
   intptr_t tag;
   intptr_t value;
 } IntIValue;
@@ -108,7 +109,7 @@ typedef struct {
   int nlocals;
 } MethodIValue;
 
-typedef struct {
+typedef struct { //must go on heap
   intptr_t tag;
   intptr_t length;
   IValue* slots[0];
@@ -122,32 +123,20 @@ typedef struct {
   Vector* name_to_slot_vec;
 } ClassIValue;
 
-typedef struct {
+typedef struct { //must go on heap?
   intptr_t tag;
   IValue* value;
   int name;
 } SlotIValue;
 
-typedef struct {
-  intptr_t tag;
+typedef struct { // must go on heap
   ClassIValue* class_ptr;
   IValue* parent_obj_ptr;
   SlotIValue* var_slots[0];
 } ObjectIValue;
 
-typedef struct {
-  // the values of all local variables
-  // defined in the function
-  Vector* slot_vec_ptr;
-  // address of the call byte
-  // code instruction, this is
-  // also the return address
-  ByteIns* call_ins_idx;
-  // function slot pointer
-  MethodIValue* func_ptr;
-} _Frame;
-
-typedef struct {
+typedef struct Frame Frame; //forward declaration
+struct Frame {
   // the values of all local variables
   // defined in the function
   Vector* slot_vec_ptr;
@@ -158,8 +147,17 @@ typedef struct {
   // function slot pointer
   MethodIValue* func_ptr;
   // caller's frame
-  _Frame* call_frame_ptr;
-} Frame;
+  Frame* call_frame_ptr;
+};
+
+void debugf(const char * format, ...){
+#ifdef DEBUG
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+#endif // DEBUG
+}
 
 // global data structure operations
 
@@ -173,6 +171,7 @@ int get_entry_function ();
 Vector* get_global_slots ();
 Vector* get_constant_pool ();
 IValue* get_val_constant(int idx);
+void set_val_constant(int idx, IValue* t);
 void associate_labels(MethodIValue *val);
 void set_global_slots (Vector* slots);
 void set_entry_function (int entry_index);
@@ -211,6 +210,7 @@ void call_func (MethodIValue * function_slot, int arity);
 SlotIValue* copy_var_slot (SlotIValue* slot);
 int get_num_var_slots (ClassIValue* class_val);
 IValue* find_slot_by_name(ObjectIValue* receiver, char* function_name);
+IValue* get_global_slot_by_idx (int slot_idx);
 
 Frame* create_frame (int call_ins_idx,
                      MethodIValue* func_ptr, Frame* call_frame);
@@ -329,6 +329,7 @@ IValue* find_slot_by_name(ObjectIValue* obj, char* function_name) {
     } else {
       if (obj_type(parent) != NULL_OBJ) {
         printf("Error[2]: find_slot_by_name.\n");
+		  debugf("Has type %d\n", obj_type(parent));
         exit(-1);
       }
       ret = NULL;
@@ -359,9 +360,253 @@ int get_num_var_slots (ClassIValue * class_val) {
   return var_slot_count;
 }
 
+void* garbage_collector();
+void scan_root_set();
+
+#define HEAP_SIZE 1024*1024
+char heap1[HEAP_SIZE];
+char heap2[HEAP_SIZE];
+char (*heap_cur)[HEAP_SIZE] = &heap1;
+char (*heap_old)[HEAP_SIZE] = &heap2;
+int next_free_cur = 0;
+int next_free_old = 0;
+int is_currently_collecting = 0;
+
+void * _halloc(size_t size){
+	char* heap = *heap_cur;
+	void * ret = &heap[next_free_cur];
+	next_free_cur += size;
+	if(next_free_cur >= HEAP_SIZE){
+		if(is_currently_collecting){
+			printf("Ran out of heap while collecting garbage!\n");
+			exit(-1);
+		}
+		garbage_collector();
+		// redo the allocation
+		return _halloc(size);
+	}
+	debugf("Allocating %x for size %d\n", ret, size);
+	return ret;
+}
+
+void * halloc(size_t size){
+	//garbage_collector();
+	return _halloc(size);
+}
+
+void swap_heaps(){
+	char (*heap_tmp)[HEAP_SIZE] = heap_cur;
+	debugf("heap_cur %x, heap_old %x\n", heap_cur, heap_old);
+	heap_cur = heap_old;
+	heap_old = heap_tmp;
+	debugf("heap_cur %x, heap_old %x\n", heap_cur, heap_old);
+
+	next_free_old = next_free_cur;
+	next_free_cur = 0; // current heap is empty
+}
+
+void scan_new_heap();
+
+void* garbage_collector(){
+	if(is_currently_collecting){
+		printf("Can't collect while already collecting!\n");
+		exit(-1);
+	}
+	is_currently_collecting = 1;
+	debugf("Starting garbage collection!!\n");
+	swap_heaps();
+	scan_root_set();
+	scan_new_heap();
+	debugf("Finished garbage collecting!\n");
+	debugf("Finished checking garbage collector!\n");
+	is_currently_collecting = 0;
+}
+
+size_t sizeIValue(IValue * t){
+	switch(obj_type(t)){
+		case INT_OBJ:
+			return sizeof(IntIValue);
+		case NULL_OBJ:
+			return sizeof(NullIValue);
+		//skipping IValue types that should not be
+		// in the feeny heap
+		case SLOT_OBJ:
+			return sizeof(SlotIValue);
+		case ARRAY_OBJ:{
+			ArrayIValue* a = (ArrayIValue*) t;
+			return sizeof(ArrayIValue) + a->length*sizeof(IValue*);
+		}
+		case OBJ_OBJ:{
+			ObjectIValue* o = (ObjectIValue*) t;
+			int num_slots = get_num_var_slots(o->class_ptr);
+			return sizeof(ObjectIValue)+sizeof(IValue*)*(num_slots);
+		}
+		default:
+			printf("Unexpected IValue type to iterate through!\n");
+			debugf("Has tag %d\n", obj_type(t));
+			exit(-1);
+	}
+}
+
+IValue * copyIValue(IValue* from){
+	size_t size = sizeIValue(from);
+	IValue * t = _halloc(size);
+	memcpy(t, from, size);
+	return t;
+}
+
+IValue* get_post_gc_ptr(IValue* obj){
+	char* old_heap = *heap_old;
+	if((uintptr_t)obj >= (uintptr_t)&old_heap[HEAP_SIZE] || (uintptr_t)obj < (uintptr_t)&old_heap[0]){
+		//TODO: fix this - the reason we cannot fail here is becase
+		// we intermix constants and globals (so when we fix a global
+		// we may later hit it as a constant)
+		return obj;
+	}
+	if(obj_type(obj) == BROKEN_HEART){
+		return (IValue*) obj->space;
+	}
+
+	IValue* new_obj = copyIValue(obj);
+	obj->tag = BROKEN_HEART;
+	obj->space = (intptr_t)new_obj;
+	return new_obj;
+}
+
+void scan_root_set(){
+	char *heap = *heap_old;
+	char *heap_curs = *heap_cur;
+	// scan through global variables
+	debugf("Heap is %x to %x\n", &heap[0], &heap[HEAP_SIZE]);
+	debugf("NEW Heap is %x to %x\n", &heap_curs[0], &heap_curs[HEAP_SIZE]);
+	debugf("Global slots!\n");
+	Vector* global_slots = get_global_slots();
+	for(int i = 0; i < global_slots->size; ++i){
+		int idx = (int) vector_get(global_slots,i);
+		IValue * v = get_global_slot_by_idx(idx);
+		// this is because we are storing silly things in
+		// the constant pool
+		if(!v || ( obj_type(v) != INT_VAL && obj_type(v) != NULL_VAL &&
+				obj_type(v) != SLOT_VAL)){
+			continue;
+		}
+		IValue* ptr = get_global_slot_by_idx(idx);
+		IValue* old_ptr = ptr;
+		ptr = get_post_gc_ptr(ptr);
+		debugf("%x to ", old_ptr);
+		debugf("%x with obj_type %d\n", ptr, obj_type(ptr));
+		set_val_constant(idx, ptr);
+	}
+
+	debugf("Constants slots!\n");// TODO: this is silly - remove it
+	int constant_pool_size = get_constant_pool()->size;
+	for(int i = 0; i < constant_pool_size; ++i){
+		IValue * ptr = get_val_constant(i);
+		// this is because we are storing silly things in
+		// the constant pool
+		if(!ptr || (obj_type(ptr) != INT_VAL && obj_type(ptr) != NULL_VAL &&
+				obj_type(ptr) != SLOT_VAL)){
+			continue;
+		}
+		IValue* old_ptr = ptr;
+		ptr = get_post_gc_ptr(ptr);
+		debugf("%x to ", old_ptr);
+		debugf("%x with obj_type %d\n", ptr, obj_type(ptr));
+		set_val_constant(i, ptr);
+	}
+
+	// scan through operand stack
+	debugf("Operand Stack!\n");
+	Vector * operand_stack = get_operand_stack();
+	for(int i = 0; i < operand_stack->size; ++i){
+		IValue* ptr = vector_get(operand_stack,i);
+		debugf("%x to ", ptr);
+		ptr = get_post_gc_ptr(ptr);
+		debugf("%x with obj_type %d\n", ptr, obj_type(ptr));
+		vector_set(operand_stack, i, ptr);
+	}
+
+	debugf("Frames!\n");
+	Frame* cur_frame = get_cur_frame();
+	while(cur_frame != get_root_frame()){
+		Vector * slots = cur_frame->slot_vec_ptr;
+		for(int i = 0; i < cur_frame->slot_vec_ptr->size; ++i){
+			IValue* ptr = vector_get(slots, i);
+			debugf("%x to ", ptr);
+			ptr = get_post_gc_ptr(ptr);
+			debugf("%x with obj_type %d\n", ptr, obj_type(ptr));
+			vector_set(slots, i, ptr);
+		}
+		cur_frame = cur_frame->call_frame_ptr;
+	}
+}
+
+void scan_IValue(IValue* t);
+
+void scan_new_heap(){
+	char *heap = *heap_cur;
+	// scan through global variables
+	debugf("Heap is %x to %x\n", &heap[0], &heap[HEAP_SIZE]);
+	debugf("Current Heap Scan!\n");
+	int position = 0;
+	while(position < next_free_cur){
+		IValue* iv = (IValue*) &heap[position];
+		debugf("Working on %x\n", iv);
+		position += sizeIValue(iv);
+		scan_IValue(iv);
+	}
+}
+
+void scan_IValue(IValue* t){
+	switch(obj_type(t)){
+		case INT_OBJ:
+		case NULL_OBJ:
+			debugf("Either null or int!\n");
+			return; // no child items
+		//skipping IValue types that should not be
+		// in the feeny heap
+		case SLOT_OBJ: {
+			SlotIValue* s = (SlotIValue*) t;
+			debugf("%x to ", s->value);
+			s->value = get_post_gc_ptr(s->value);
+			debugf("%x\n", s->value);
+			return;
+		}
+		case ARRAY_OBJ:{
+			ArrayIValue* a = (ArrayIValue*) t;
+			for(int i = 0; i < a->length; ++i){
+				debugf("%x to ", a->slots[i]);
+				a->slots[i] = get_post_gc_ptr(a->slots[i]);
+				debugf("%x\n", a->slots[i]);
+			}
+			return;
+		}
+		case OBJ_OBJ:{
+			ObjectIValue* o = (ObjectIValue*) t;
+			int num_slots = get_num_var_slots(o->class_ptr);
+			for(int i = 0; i < num_slots; ++i){
+				debugf("%x to ", o->var_slots[i]);
+				o->var_slots[i] = (SlotIValue*) get_post_gc_ptr((IValue*)o->var_slots[i]);
+				debugf("%x\n", o->var_slots[i]);
+			}
+			return;
+		}
+		default:
+			printf("Unexpected IValue type to get size of!\n");
+			debugf("Has tag:%d\n", obj_type(t));
+			exit(-1);
+	}
+}
+
+// TODO: this is unsafe - we should not
+// have a pointer to feeny heap on our stack
+// b/c we cannot fix it during garbage collection
 SlotIValue* copy_var_slot (SlotIValue * slot) {
+	debugf("Copying var slot\n");
   SlotIValue* rSlot =
-    (SlotIValue*)malloc(sizeof(SlotIValue));
+    (SlotIValue*)_halloc(sizeof(SlotIValue));
+  // if we interupt this halloc, then the pointer src
+  // is on our stack!
   rSlot->tag = slot->tag;
   rSlot->name = slot->name;
   rSlot->value = NULL;
@@ -380,6 +625,11 @@ Vector* get_constant_pool () {
 IValue* get_val_constant(int idx) {
   Vector* constant_pool = get_constant_pool();
   return vector_get(constant_pool, idx);
+}
+
+void set_val_constant(int idx, IValue * v) {
+  Vector* constant_pool = get_constant_pool();
+  return vector_set(constant_pool, idx, v);
 }
 
 // returns the string content
@@ -420,7 +670,7 @@ void set_global_slots (Vector * slots) {
   int val_idx, name_idx;
   IValue* value = NULL;
   char* name_str = NULL;
-  global_slots = slots;
+  global_slots = get_global_slots();
   // establish string name to
   // slot index hashtable
   global_slot_vec = make_vector();
@@ -433,6 +683,10 @@ void set_global_slots (Vector * slots) {
   }
 }
 Vector* get_global_slots () {
+	static Vector* global_slots = NULL;
+	if (!global_slots) {
+		global_slots = make_vector();
+	}
   return global_slots;
 }
 
@@ -497,6 +751,9 @@ Frame* get_root_frame () {
   return root_frame_ptr;
 }
 Frame* get_cur_frame () {
+	if(!current_frame_ptr){
+		get_root_frame();
+	}
   return current_frame_ptr;
 }
 
@@ -533,7 +790,7 @@ Frame* create_frame (int call_ins_idx,
   ret->slot_vec_ptr = make_vector();
   ret->call_ins_idx = call_ins_idx;
   ret->func_ptr = func_ptr;
-  ret->call_frame_ptr = (_Frame*)call_frame;
+  ret->call_frame_ptr = call_frame;
   return ret;
 }
 
@@ -729,7 +986,7 @@ void exec_lit_op (LitIns * i) {
   int val_idx = i->idx;
   IValue* val = get_val_constant(val_idx);
   if (val == NULL || (obj_type(val) != INT_OBJ && obj_type(val) != NULL_OBJ)) {
-    printf("Error in LIT_OP.\n");
+    printf("Error in LIT_OP. %x\n", val);
     exit(-1);
   }
   stack_push(val);
@@ -828,8 +1085,8 @@ void exec_object_op (ObjectIns * i) {
   ClassIValue* class_val = (ClassIValue*)class;
   int num_slots = get_num_var_slots(class_val);
   // init new object value
-  ObjectIValue* obj = (ObjectIValue*)malloc(sizeof(ObjectIValue)+sizeof(IValue*)*(num_slots));
-  obj->tag = OBJ_OBJ;
+  debugf("Making object\n");
+  ObjectIValue* obj = (ObjectIValue*)halloc(sizeof(ObjectIValue)+sizeof(IValue*)*(num_slots));
 	for (int i = class_val->slots->size - 1; i >= 0 ; i--) {
 
     int slot_idx = (int)vector_get(class_val->slots, i);
@@ -893,6 +1150,7 @@ void exec_set_slot_op (SetSlotIns * i) {
   IValue* obj = stack_pop();
   assert_obj_obj(obj);
   IValue* slot = find_slot_by_name((ObjectIValue*)obj, slot_name);
+  debugf("Called from set slot op\n");
   SlotIValue* slotVal = to_slot_val(slot);
   slotVal->value = val;
   stack_push(val);
@@ -1220,7 +1478,7 @@ void exec_ins (ByteIns * ins) {
 ClassIValue* create_class(Vector * values, ClassValue * v2) {
   ClassIValue* new_v =
     (ClassIValue*)malloc(sizeof(ClassIValue));
-  new_v->tag = v2->tag;
+  new_v->tag = CLASS_OBJ;
   new_v->slots = v2->slots;
   new_v->name_to_slot_vec = make_vector();
 
@@ -1315,9 +1573,13 @@ void addto_constant_pool (Vector * values, Value * v) {
     break;
   }
   case SLOT_VAL: {
+	// these are global variables and should be stored thereby.
+	// currently I am using a hack!
     SlotValue* v2 = (SlotValue*)v;
-    SlotIValue* new_v = (SlotIValue*)malloc(sizeof(SlotIValue));
-    new_v->tag = v2->tag;
+
+	 debugf("Working on var slot\n");
+    SlotIValue* new_v = (SlotIValue*)halloc(sizeof(SlotIValue));
+    new_v->tag = SLOT_VAL;
     new_v->name = v2->name;
     new_v->value = NULL;
     vector_add(constant_pool, new_v);
@@ -1357,15 +1619,11 @@ void start_exec() {
       printf("Error: wrong inst_ptr: %d.\n", inst_ptr);
       exit(-1);
     }
-#ifdef DEBUG
-    printf("%d, %d\n", code->size, inst_ptr);
-    printf("stack size: %d\n", operand_stack->size);
-#endif
+    //debugf("%d, %d\n", code->size, inst_ptr);
+    //debugf("stack size: %d\n", operand_stack->size);
     ByteIns* ins = vector_get(code, inst_ptr);
-#ifdef DEBUG
-    print_ins(ins);
-    printf("\n");
-#endif
+    //print_ins(ins);
+    //printf("\n");
     exec_ins(ins);
   }
 }
@@ -1510,6 +1768,8 @@ MethodIValue* to_function_val (IValue* val) {
 SlotIValue* to_slot_val (IValue* val) {
   if (val == NULL || obj_type(val) != SLOT_VAL) {
     printf("Error: not a var slot.\n");
+	 debugf("Has addr: %x\n", val);
+	 debugf("Has tag: %d\n", obj_type(val));
     exit(-1);
   }
   return (SlotIValue*) val;
@@ -1550,30 +1810,20 @@ void exp_assert (int i, const char * fmt, ...) {
 }
 
 ObjTag obj_type (IValue * o) {
-  return (ObjTag)o->tag;
+  return min((ObjTag)o->tag, OBJ_OBJ);
 }
 
 NullIValue* make_null_obj () {
-  static NullIValue n = {NULL_OBJ, 0};
-  return &n;
+	debugf("Making null\n");
+	NullIValue* n = halloc(sizeof(NullIValue));
+	n->tag = NULL_OBJ;
+	n->space = 0;
+  return n;
 }
 
 IntIValue* make_int_obj (int value) {
-  //cache for memory usage - could make the cache larger
-  static int cache_initted = 0;
-  static IntIValue cached[101];
-  if (! cache_initted) {
-    for (int i = 0; i < sizeof(cached) / sizeof(IntIValue); ++i) {
-      cached[i].tag = INT_OBJ;
-      cached[i].value = i;
-    }
-    cache_initted = 1;
-  }
-  if (value >= 0 && value < sizeof(cached) / sizeof(IntIValue)) {
-    return &cached[value];
-  }
-
-  IntIValue* t = malloc(sizeof(IntIValue));
+	debugf("Making int\n");
+  IntIValue* t = halloc(sizeof(IntIValue));
   t->tag = INT_OBJ;
   t->value = value;
   return t;
@@ -1600,8 +1850,12 @@ IValue* array_get (ArrayIValue* a, IntIValue* i) {
   return a->slots[i->value];
 }
 
+
+// TODO: this is unsafe - we should not have a pointer
+// to an object in the feeny heap while we are alloc'ing
 ArrayIValue* make_array_obj(int length, IValue* init) {
-  ArrayIValue* t = malloc(sizeof(ArrayIValue)+sizeof(IValue*)*length);
+	debugf("Making array\n");
+  ArrayIValue* t = _halloc(sizeof(ArrayIValue)+sizeof(IValue*)*length);
   t->tag = ARRAY_OBJ;
   t->length = length;
   for (int i = 0; i < length; ++i) {
