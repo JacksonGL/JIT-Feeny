@@ -1,0 +1,64 @@
+
+\documentclass[notitlepage]{report}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{booktabs}
+\usepackage{verbatim}
+% define the font for code
+\newcommand{\code}[1]{{\ttfamily #1}}
+
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 5 Answers}
+\date{\vspace{-0.5in}October 15, 2015}
+\author{\vspace{-0.5in}Liang Gong and Ben Mehne\vspace{-0.5in}}
+
+\begin{document}
+\maketitle
+
+\begin{table}[!htp]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+{\footnotesize
+\begin{tabular}{lllll}
+\toprule
+test case & interpret\_bc time (ms) & garbage collector time (ms) & \code{halloc} bytes & \code{halloc} integer bytes \\
+\midrule
+bsearch        & TBD          & TBD          & TBD          & TBD     \\
+inheritance    & TBD          & TBD          & TBD          & TBD     \\
+cplx           & TBD          & TBD          & TBD          & TBD     \\
+lists          & TBD          & TBD          & TBD          & TBD     \\
+vector         & TBD          & TBD          & TBD          & TBD     \\
+fibonacci      & TBD          & TBD          & TBD          & TBD     \\
+sudoku         & TBD          & TBD          & TBD          & TBD     \\
+sudoku2        & TBD          & TBD          & TBD          & TBD     \\
+hanoi\_BM      & TBD          & TBD          & TBD          & TBD     \\
+stacks\_BM     & TBD          & TBD          & TBD          & TBD     \\
+morehanoi\_BM  & TBD          & TBD          & TBD          & TBD     \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{enumerate}
+	\item
+		See Table~\ref{statistics}. Ben Mehne's implementation of hanoi, stacks, and morehanoi is the tested version.
+	\item
+		An error could happen in the following situation: when calling \code{halloc} and the heap does not have enough space to allocate the array, garbage collector will be triggered. Both \code{init} and \code{length} have been popped from the operand stack. If any one of these two Feeny objects are just literal integers and the same values is not used anywhere in the program, the integer objects \code{init} and \code{length} are refering to could be GCed. If that happens, accessing \code{length} or \code{init} after the \code{halloc} call could lead to unexpected behavior since they might have been freed. \\
+		Another error could happen if \code{length.value} is a pointer to an integer value, and after interpreting of \code{ARRAY} bytecode instructions, \code{length} is no longer referenced from the root, the object pointed by \code{length} could be collected and the area \code{array[1]} points to could be rewritten unexpectedly.
+	\item
+		Writing a garbage collector for a bytecode interpreter might be more difficult for an AST interpreter for Feeny, one example of tricky problem that could happen has been mentioned in the answer to the previous question (question 2). \\
+		On the other hand, writing a GC for a AST interpreter could also be tricky, consider the statement: \code{b = fun()}. Assuming that \code{fun()} returns a newly allocated object, if GC happens right before assigning the object to \code{b}, the newly created object could be GCed if the implementation is not careful (since the object is not referenced from the root set). 
+	\item 
+		If using a stop-and-copy garbage collector without generational GC strategy, the very large array has to be scanned and copied each GC time. That is every expensive comparing to a non-copying technique.
+	\item 
+		In \code{Feeny}, integers are represented by objects. Comparing to a VM in which intergers are represented by primitives in the host language, more traversing have to be done during the marking phase, and more forwardings have to be done during the copying phase. Morever, under stop-and-copy GC, those large arrays must be scanned during the marking phase.
+	\item 
+		Significantly more traversing (during marking phase) and forwarding (during copying phase) need to be done when the program makes heavy use of linked lists in the current GC.
+	\item 
+		The performance complexity can be divided into two parts, the marking phase and the copying phase. Both seems to be heavily dependent on three aspects: 1) the number of objects alive in the heap, 2) the number of references among them, and 3) the size of those live objects.
+	\item 
+		Comparing to an FFI for a non-garbage collected language, the GC for Feeny must make sure that the Feeny objects to be collected as garbage must not be referenced by the other language. Moveover, it also must make sure that any objects that are transitively reachable from the root set of the other language are not garbage collected by Feeny's GC. (On the other side, the other language should not free objects that will be used in Feeny runtime.)
+\end{enumerate}
+
+\end{document}
