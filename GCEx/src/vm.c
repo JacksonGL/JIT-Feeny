@@ -271,31 +271,6 @@ void exp_assert(int i, const char * fmt, ...);
 // free functions
 void free_frame(Frame* frame);
 
-#ifndef PRE_SUBMIT
-// statistics data structure
-typedef struct {
-  struct timeval total_time;               // total time in ms
-  long total_method_call;        // # of method calls
-  long total_int_method_call;    // # of method calls with integer receiver
-  long total_array_method_call;  // # of method calls with array receiver
-  long total_envobj_method_call; // # of method calls with env obj receiver
-  struct timeval total_time_lookup_entry;  // total time in ms spend looking
-  // up an entry in env obj
-} Stat;
-
-// collect statistics operations
-void init_stat ();
-void print_help ();
-int is_collect_stat ();
-void write_stat (char* filename);
-void set_collect_stat (int flag);
-void inc_total_time (const struct timeval *total_time);
-void inc_entry_lookup_time (const struct timeval* time);
-void inc_method_call (IValue* receiver_ptr);
-void start_time_counter (struct timeval *t);
-void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* diff);
-#endif // PRE_SUBMIT
-
 //============================================================
 //========== GLOBAL DATA STRUCTURE OPERATIONS ================
 //============================================================
@@ -325,8 +300,6 @@ void add_item(Vector * pairs, char*name, int idx){
 IValue* find_slot_by_name(ObjectIValue* obj, char* function_name) {
   struct timeval start, end;
   // start collecting time
-  if (is_collect_stat())
-    start_time_counter(&start);
 
   IValue* ret = NULL;
   int ret_val_idx = find_item(obj->class_ptr->name_to_slot_vec,
@@ -357,11 +330,6 @@ IValue* find_slot_by_name(ObjectIValue* obj, char* function_name) {
   }
 
   // end collecting time
-  if (is_collect_stat()) {
-    struct timeval time;
-    end_time_counter(&start, &end, &time);
-    inc_entry_lookup_time(&time);
-  }
   return ret;
 }
 
@@ -408,7 +376,9 @@ void * _halloc(size_t size){
 	return ret;
 }
 
+size_t halloc_bytes =0;
 void * halloc(size_t size){
+	halloc_bytes += size;
 	//garbage_collector();
 	return _halloc(size);
 }
@@ -426,7 +396,10 @@ void swap_heaps(){
 
 void scan_new_heap();
 
+double gc_time=0.0;
 void* garbage_collector(){
+  struct timeval total_start,start, end;
+		gettimeofday(&start, NULL);
 	if(is_currently_collecting){
 		error("Can't collect while already collecting!\n");
 	}
@@ -438,6 +411,8 @@ void* garbage_collector(){
 	debugf("Finished garbage collecting!\n");
 	debugf("Finished checking garbage collector!\n");
 	is_currently_collecting = 0;
+		gettimeofday(&end, NULL);
+		gc_time+= (end.tv_sec * 1000.0 + end.tv_usec/1000.0) - (start.tv_sec * 1000.0 + start.tv_usec/1000.0);
 }
 
 size_t sizeIValue(IValue * t){
@@ -1020,10 +995,22 @@ void exec_label_op (LabelIns * i) {
 void exec_array_op () {
   IValue* init_value = stack_pop();
   assert_not_null(init_value);
-  IValue* length = stack_pop();
-  IntIValue* len = to_int_val(length);
-  IValue* array = (IValue*)make_array_obj(len->value, init_value);
-  stack_push(array);
+  IValue* lengthi = stack_pop();
+
+  IntIValue* len = to_int_val(lengthi);
+
+  int length = len->value;
+  stack_push(init_value); // for safety
+
+  ArrayIValue* t = _halloc(sizeof(ArrayIValue)+sizeof(IValue*)*length);
+  t->tag = ARRAY_OBJ;
+  t->length = length;
+  init_value = stack_pop(); // for safety
+  for (int i = 0; i < length; ++i) {
+	  t->slots[i] = init_value;
+  }
+
+  stack_push((IValue*) t);
   inst_ptr++;
 }
 
@@ -1265,7 +1252,6 @@ void exec_call_slot_op (CallSlotIns * i) {
   exp_assert(obj_type(receiver_ptr) != NULL_OBJ,
              "Null object does not have methods!");
   IValue* retVal = NULL;
-  inc_method_call(receiver_ptr);
 
   switch (obj_type(receiver_ptr)) {
   // handle built in functions
@@ -1646,105 +1632,6 @@ void interpret_bc (Program * p) {
   exec_prog(p);
 }
 
-
-//============================================================
-//==================== COLLECT STAT ==========================
-//============================================================
-
-void print_help () {
-  printf("Command line:\n\tcfeeny filename [-s path]\n\n\t-s print statistics to the specified file\n");
-}
-
-
-static int collectStat = 0;
-static Stat* stat = NULL;
-
-void set_collect_stat (int flag) {
-  collectStat = flag;
-  if (flag) {
-    init_stat();
-  }
-}
-
-int is_collect_stat () {
-  return collectStat != 0;
-}
-
-void init_stat () {
-  stat = malloc(sizeof(Stat));
-  stat->total_time.tv_usec = 0;
-  stat->total_time.tv_sec = 0;
-  stat->total_method_call = 0;
-  stat->total_int_method_call = 0;
-  stat->total_array_method_call = 0;
-  stat->total_envobj_method_call = 0;
-  stat->total_time_lookup_entry.tv_sec = 0;
-  stat->total_time_lookup_entry.tv_usec = 0;
-}
-
-void start_time_counter (struct timeval *t) {
-  gettimeofday(t, NULL);
-}
-
-void end_time_counter (struct timeval *start, struct timeval *end, struct timeval* result) {
-  gettimeofday(end, NULL);
-  timersub(end, start, result);
-}
-
-void inc_total_time (const struct timeval *total_time) {
-  if (collectStat == 0 || stat == NULL)
-    return;
-  stat->total_time.tv_sec += total_time->tv_sec;
-  stat->total_time.tv_usec += total_time->tv_usec;
-}
-
-void inc_entry_lookup_time (const struct timeval* time) {
-  if (collectStat == 0 || stat == NULL)
-    return;
-  stat->total_time_lookup_entry.tv_sec += time->tv_sec;
-  stat->total_time_lookup_entry.tv_usec += time->tv_usec;
-}
-
-void inc_method_call (IValue* receiver_ptr) {
-  if (receiver_ptr == NULL
-          || collectStat == 0
-          || stat == NULL)
-    return;
-
-  stat->total_method_call++;
-  switch (obj_type(receiver_ptr)) {
-  case INT_OBJ:
-    stat->total_int_method_call++;
-    break;
-  case ARRAY_OBJ:
-    stat->total_array_method_call++;
-    break;
-  case OBJ_OBJ:
-    stat->total_envobj_method_call++;
-    break;
-  default:
-    break;
-  }
-}
-
-void write_stat (char* filename) {
-  if (!is_collect_stat() || stat == NULL) return;
-  FILE *f = fopen(filename, "w");
-  if (f == NULL) {
-    printf("Error opening file!\n");
-    exit(1);
-  }
-
-  fprintf(f, "Total Time: %f ms\n", 0.0+stat->total_time.tv_sec*1000.0+stat->total_time.tv_usec/1000.0);
-  fprintf(f, "Total Time Lookup Entry: %f ms\n", 0.0+stat->total_time_lookup_entry.tv_sec*1000.0+stat->total_time_lookup_entry.tv_usec/1000.0);
-  fprintf(f, "Total Method Call: %ld\n", stat->total_method_call);
-  fprintf(f, "Total Integer Method Call: %ld\n", stat->total_int_method_call);
-  fprintf(f, "Total Array Method Call: %ld\n", stat->total_array_method_call);
-  fprintf(f, "Total EnvObj Method Call: %ld\n", stat->total_envobj_method_call);
-
-  fclose(f);
-}
-
 //============================================================
 //================== UTIL FUNCITONS ==========================
 //============================================================
@@ -1813,9 +1700,11 @@ NullIValue* make_null_obj () {
   return n;
 }
 
+size_t halloc_int_bytes=0;
 IntIValue* make_int_obj (int value) {
 	debugf("Making int\n");
   IntIValue* t = halloc(sizeof(IntIValue));
+  halloc_int_bytes += sizeof(IntIValue);
   t->tag = INT_OBJ;
   t->value = value;
   return t;
@@ -1845,6 +1734,7 @@ IValue* array_get (ArrayIValue* a, IntIValue* i) {
 
 // TODO: this is unsafe - we should not have a pointer
 // to an object in the feeny heap while we are alloc'ing
+// TODO: this is now never called
 ArrayIValue* make_array_obj(int length, IValue* init) {
 	debugf("Making array\n");
   ArrayIValue* t = _halloc(sizeof(ArrayIValue)+sizeof(IValue*)*length);
