@@ -1,5 +1,5 @@
 # Compile
-gcc -g -03 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast || exit 1
+gcc -g -o3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast || exit 1
 
 if [ "$1" != "-nvg" ]
 then
