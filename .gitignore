@@ -37,6 +37,8 @@ CompilerEx/output/*
 CompilerEx/fail/*
 GCEx/output/*
 GCEx/fail/*
+TagOptEx/output/*
+TagOptEx/fail/*
 *.aux
 *.bbl
 *.blg
@@ -53,3 +55,5 @@ CompilerEx/cfeeny
 CompilerEx/cfeeny.dSYM*
 GCEx/cfeeny
 GCEx/cfeeny.dSYM*
+TagOptEx/cfeeny
+TagOptEx/cfeeny.dSYM*

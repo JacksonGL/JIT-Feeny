@@ -379,7 +379,7 @@ void * _halloc(size_t size){
 size_t halloc_bytes =0;
 void * halloc(size_t size){
 	halloc_bytes += size;
-	//garbage_collector();
+	// garbage_collector();
 	return _halloc(size);
 }
 
@@ -1689,7 +1689,21 @@ void exp_assert (int i, const char * fmt, ...) {
 }
 
 ObjTag obj_type (IValue * o) {
-  return min((ObjTag)o->tag, OBJ_OBJ);
+	switch((ObjTag)(o->tag)) {
+		case INT_OBJ:
+  		case NULL_OBJ:
+  		case STR_OBJ:
+  		case METHOD_OBJ:
+  		case SLOT_OBJ:
+  		case CLASS_OBJ:
+  		case ARRAY_OBJ:
+  		case BROKEN_HEART:
+  		case OBJ_OBJ:
+  		return o->tag;
+  		default:
+  		return OBJ_OBJ;
+	}
+  //return min((ObjTag)o->tag, OBJ_OBJ);
 }
 
 NullIValue* make_null_obj () {
