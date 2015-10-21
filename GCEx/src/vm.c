@@ -151,7 +151,7 @@ void exec_lit_null_op (ByteIns* i);
 void exec_set_slot_op (SetSlotIns* i);
 void exec_slot_op (SlotIns* i); // get_slot
 int exec_call_slot_op (CallSlotIns* i, int pc);
-int exec_built_in_method(CallSlotIns* i); 
+int exec_built_in_method(CallSlotIns* i);
 // returns true if it is a built-in method and executes it
 
 int exec_goto_op (GotoIns* i);
@@ -371,7 +371,7 @@ void push_frame(int return_addr, int num_locals, int num_args){
 }
 
 int pop_frame(){
-	debugf("Called pop frame and will return with parent frame = %x\n", current->parent);	
+	debugf("Called pop frame and will return with parent frame = %x\n", current->parent);
 	int ret = current->return_addr;
 
 	int size_of_current_frame = (frames+frame_top)-(char*)current;
@@ -525,7 +525,7 @@ void scan_root_set(){
 	debugf("Global slots!\n");
 
 	for(int i = 0; i < max_globals; ++i){
-		set_global_slot_by_idx(i, 
+		set_global_slot_by_idx(i,
 			get_post_gc_ptr(get_global_slot_by_idx(i)));
 	}
 
@@ -727,7 +727,7 @@ void exec_printf_op (PrintfIns * i) {
 		}
 	}
 	// if there are no ~, we do not print in the loop
-	// here we must print then.  
+	// here we must print then.
 	if(start_for_print < format_str+str_len){
 		printf("%s", start_for_print);
 	}
@@ -1041,7 +1041,7 @@ void print_frame(){
 	printf("Frames!\n");
 	const Frame* cur_frame = current;
 	uintptr_t last = (uintptr_t) &frames[frame_top];
-	
+
 	// if last == cur_frame, then there are no frames, since frames
 	// take up space
 	while(cur_frame != NULL && last != (uintptr_t)cur_frame){
@@ -1183,7 +1183,7 @@ char* get_str_constant_by_idx(int idx){
 	return vector_get(strs, idx);
 }
 
-int get_str_constant_value(StringValue* si){ 
+int get_str_constant_value(StringValue* si){
 	if(!strs){
 		strs = make_vector();
 	}
@@ -1417,8 +1417,8 @@ int quicken(Program * p){
 			case METHOD_VAL:{
 				MethodValue* mv = (MethodValue*) v;
 				int entry = make_code(mv, p, call_instr_to_redo, class_layouts);
-				
-				// so we can get the frame 
+
+				// so we can get the frame
 				AllInsData* aid = (AllInsData*)get_ins(entry);
 				aid->locals = mv->nlocals;
 
@@ -1579,7 +1579,8 @@ void assert_obj_obj (IValue* ptr) {
 }
 
 ObjTag obj_type (IValue * o) {
-  return min((ObjTag)o->tag, OBJ_OBJ);
+  uintptr_t tag = o->tag;
+  return tag > OBJ_OBJ? OBJ_OBJ : tag;
 }
 
 NullIValue* make_null_obj () {
