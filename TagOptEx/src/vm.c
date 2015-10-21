@@ -290,7 +290,7 @@ void exp_assert(int i, const char * fmt, ...);
 // free functions
 void free_frame(Frame* frame);
 
-// vector that work with arbitrary potiner values
+// vector that work with arbitrary pointer values
 Vector2* make_vector_2 ();
 void vector_free_2 (Vector2* v);
 void vector_clear_2 (Vector2* v);
