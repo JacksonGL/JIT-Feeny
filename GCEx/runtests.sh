@@ -1,5 +1,5 @@
 # Compile
-gcc -g -O3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast || exit 1
+gcc -g -O3 -rdynamic -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/vm.c src/compiler.c -o cfeeny -Wno-int-to-void-pointer-cast || exit 1
 
 if [ "$1" != "-nvg" ]
 then
@@ -91,7 +91,16 @@ function test {
 		cp "$INPUT" fail/
 		exit 1
 	fi
+
+	# if we reach here, we have "passed the test case"
+	if [ "$(dirname "$INPUT")" == "fail" ]
+	then
+		rm "$INPUT"
+	fi
+
 }
+
+#test "tests/sudoku.feeny"
 
 for a in `find fail/ -maxdepth 1 -type f -name "*.feeny" -exec wc -l {} \; | sort -n | awk '{ print $2 }'`
 do

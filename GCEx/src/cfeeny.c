@@ -38,8 +38,8 @@ int main (int argc, char** argvs) {
 		fprintf(stat, "interpret: %f\n", (end.tv_sec * 1000.0 + end.tv_usec/1000.0) - (start.tv_sec * 1000.0 + start.tv_usec/1000.0));
 
 		fprintf(stat, "gabage_collector time: %f\n", gc_time);
-		fprintf(stat, "halloc bytes: %zu\n", halloc_bytes);
-		fprintf(stat, "halloc integer object bytes: %zu\n", halloc_int_bytes);
+		//fprintf(stat, "halloc bytes: %zu\n", halloc_bytes);
+		//fprintf(stat, "halloc integer object bytes: %zu\n", halloc_int_bytes);
 	}
 	fclose(stat);
 
