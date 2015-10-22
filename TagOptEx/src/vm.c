@@ -223,7 +223,7 @@ void print_frame();
 // assert functions
 void assert_obj_obj (IValue* ptr);
 void assert_not_null (void* ptr);
-//#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include <execinfo.h>
@@ -241,18 +241,19 @@ NullIValue* to_null_val(IValue* val);
 ObjectIValue* to_obj_val(IValue* val);
 ArrayIValue* to_array_val(IValue* val);
 
-IValue* from_array_val(ArrayIValue* val);
-IValue* from_obj_val(ObjectIValue* val);
+int to_int (IntIValue* val);
 IValue* from_int_val(IntIValue* val);
 IValue* from_null_val(NullIValue* val);
+IValue* from_obj_val(ObjectIValue* val);
+IValue* from_array_val(ArrayIValue* val);
 
-void set_forward_ptr(IValue* v, IValue* c);
-IValue* get_forward_ptr(IValue* v);
-void set_tag(IValue* v, ObjTag o);
 intptr_t _get_tag(IValue* v);
+void set_tag(IValue* v, ObjTag o);
+IValue* get_forward_ptr(IValue* v);
+void set_forward_ptr(IValue* v, IValue* c);
 
-int to_int (IntIValue* val);
-
+void print_code (int pc);
+void print_objectivalue (ObjectIValue* t);
 
 int INT_ADD_NAME = -1;
 int INT_SUB_NAME = -1;
@@ -1538,7 +1539,7 @@ int quicken(Program * p){
 	return entry_point;
 }
 
-void print_code(int pc){
+void print_code (int pc) {
 	for(int j = 0; j < end_code_section; ++j){
 		printf("%s | %5d |", (pc == j)?"pc->":"    ", j);
 		ByteIns* i = get_ins(j);
@@ -1727,7 +1728,7 @@ IntIValue* int_obj_sub (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = (IntIValue*)(xi - yi);
-  #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) - to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx - 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1738,7 +1739,7 @@ IntIValue* int_obj_mul (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   IntIValue* v =  (IntIValue*)(xi * to_int(to_int_val(y)));
 
-    #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1754,7 +1755,7 @@ IntIValue* int_obj_mod (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue * v = (IntIValue*)(xi % yi);
-  #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) % to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx %% 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1837,7 +1838,7 @@ void print_arrayivalue(ArrayIValue* t){
 	printf("]");
 }
 
-void print_objectivalue(ObjectIValue* t){
+void print_objectivalue (ObjectIValue* t) {
 	printf("{");
 	for(int i = 0; i < t->class_ptr->num_slots; ++i){
 		if(i){
