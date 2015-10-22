@@ -42,6 +42,5 @@ int main (int argc, char** argvs) {
 		//fprintf(stat, "halloc integer object bytes: %zu\n", halloc_int_bytes);
 	}
 	fclose(stat);
-
   return 0;
 }
