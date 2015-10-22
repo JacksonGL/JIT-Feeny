@@ -878,7 +878,7 @@ int exec_call_slot_op (CallSlotIns * i, int pc) {
 	int method_idx = find_method_by_name(receiver_ptr, i->name);
 	AllInsData* aid = (AllInsData*) get_ins(method_idx);
 	push_frame(pc+1, aid->locals, i->arity);
-	for(int j = max(i->arity-1,0); j >= 0; --j ){
+	for(int j = (i->arity-1>0)?i->arity-1:0; j >= 0; --j ){
 		set_local(j, stack_pop());
 	}
 	debugf("Going to method at %d\n", method_idx);
@@ -889,7 +889,7 @@ int exec_built_in_method(CallSlotIns* i){
 	debugf("stack_top:%d arity:%d\n", stack_top, i->arity);
 	IValue* receiver_ptr = stack[stack_top - i->arity];
 	debugf("Working with type:%d\n", obj_type(receiver_ptr));
-	int arity = max(i->arity-1, 0);
+	int arity = (i->arity-1>0)? i->arity-1:0;
 	int method_name = i->name;
 	switch (obj_type(receiver_ptr)) {
 		case INT_OBJ: {
