@@ -252,18 +252,19 @@ NullIValue* to_null_val(IValue* val);
 ObjectIValue* to_obj_val(IValue* val);
 ArrayIValue* to_array_val(IValue* val);
 
-IValue* from_array_val(ArrayIValue* val);
-IValue* from_obj_val(ObjectIValue* val);
+int to_int (IntIValue* val);
 IValue* from_int_val(IntIValue* val);
 IValue* from_null_val(NullIValue* val);
+IValue* from_obj_val(ObjectIValue* val);
+IValue* from_array_val(ArrayIValue* val);
 
-void set_forward_ptr(IValue* v, IValue* c);
-IValue* get_forward_ptr(IValue* v);
-void set_tag(IValue* v, ObjTag o);
 intptr_t _get_tag(IValue* v);
+void set_tag(IValue* v, ObjTag o);
+IValue* get_forward_ptr(IValue* v);
+void set_forward_ptr(IValue* v, IValue* c);
 
-int to_int (IntIValue* val);
-
+void print_code (int pc);
+void print_objectivalue (ObjectIValue* t);
 
 int INT_ADD_NAME = -1;
 int INT_SUB_NAME = -1;
@@ -897,9 +898,11 @@ int exec_built_in_method(CallSlotIns* i){
 	int method_name = i->name;
 	switch (obj_type(receiver_ptr)) {
 		case INT_OBJ: {
-			assert_msg(arity == 1, "Not enough arguments!\n");
-			IValue* arg = stack_pop();
-			assert_msg(obj_type(arg) == INT_OBJ, "Wrong argument type!");
+			IValue* arg;
+			assert_msg(arity == 1 && obj_type(arg = stack_pop()) == INT_OBJ,
+					"native int function error - %s",
+					arity != 1 ? "not enough arguments!" :
+					"wrong argument type!");
 			stack_pop();
 			if (method_name == INT_ADD_NAME) {
 				stack_push(from_int_val(int_obj_add(receiver_ptr, arg)));
@@ -1547,7 +1550,7 @@ int quicken(Program * p){
 	return entry_point;
 }
 
-void print_code(int pc){
+void print_code (int pc) {
 	for(int j = 0; j < end_code_section; ++j){
 		printf("%s | %5d |", (pc == j)?"pc->":"    ", j);
 		ByteIns* i = get_ins(j);
@@ -1735,7 +1738,7 @@ IntIValue* int_obj_sub (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = (IntIValue*)(xi - yi);
-  #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) - to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx - 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1745,8 +1748,7 @@ IntIValue* int_obj_mul (IValue * x, IValue * y) {
   assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   IntIValue* v =  (IntIValue*)(xi * to_int(to_int_val(y)));
-
-    #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1757,6 +1759,9 @@ IntIValue* int_obj_div (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = make_int_obj((int)(xi/yi));
+#ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx / 0x%lx\n", v, x, y);
+#endif
   return v;
 }
 
@@ -1765,7 +1770,7 @@ IntIValue* int_obj_mod (IValue * x, IValue * y) {
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue * v = (IntIValue*)(xi % yi);
-  #ifdef DEBUG
+#ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) % to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx %% 0x%lx\n", v, x, y);
 #endif
   return v;
@@ -1848,7 +1853,7 @@ void print_arrayivalue(ArrayIValue* t){
 	printf("]");
 }
 
-void print_objectivalue(ObjectIValue* t){
+void print_objectivalue (ObjectIValue* t) {
 	printf("{");
 	for(int i = 0; i < t->class_ptr->num_slots; ++i){
 		if(i){
@@ -1866,14 +1871,14 @@ void error(const char* format, ...){
 	va_end(args);
 }
 
-void _errorif (int boolean, const char* msg, ...){
+void errorif (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(boolean, msg, args);
 	va_end(args);
 }
 
-void _assert_msg (int boolean, const char* msg, ...){
+void assert_msg (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(!boolean, msg, args);
