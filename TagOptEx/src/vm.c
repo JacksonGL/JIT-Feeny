@@ -1738,7 +1738,6 @@ IntIValue* int_obj_mul (IValue * x, IValue * y) {
   assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   IntIValue* v =  (IntIValue*)(xi * to_int(to_int_val(y)));
-
 #ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
 #endif
@@ -1747,7 +1746,13 @@ IntIValue* int_obj_mul (IValue * x, IValue * y) {
 
 IntIValue* int_obj_div (IValue * x, IValue * y) {
   assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
-  return make_int_obj(to_int(to_int_val(x)) / to_int(to_int_val(y)));
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  IntIValue* v = (IntIValue*)((xi / yi) << 3);
+#ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
+#endif
+  return v;
 }
 
 IntIValue* int_obj_mod (IValue * x, IValue * y) {
