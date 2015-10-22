@@ -898,11 +898,9 @@ int exec_built_in_method(CallSlotIns* i){
 	int method_name = i->name;
 	switch (obj_type(receiver_ptr)) {
 		case INT_OBJ: {
-			IValue* arg;
-			assert_msg(arity == 1 && obj_type(arg = stack_pop()) == INT_OBJ,
-					"native int function error - %s",
-					arity != 1 ? "not enough arguments!" :
-					"wrong argument type!");
+			assert_msg(arity == 1, "Not enough arguments!\n");
+			IValue* arg = stack_pop();
+			assert_msg(obj_type(arg) == INT_OBJ, "Wrong argument type!");
 			stack_pop();
 			if (method_name == INT_ADD_NAME) {
 				stack_push(from_int_val(int_obj_add(receiver_ptr, arg)));
