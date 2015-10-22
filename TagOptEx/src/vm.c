@@ -1871,14 +1871,14 @@ void error(const char* format, ...){
 	va_end(args);
 }
 
-void errorif (int boolean, const char* msg, ...){
+void _errorif (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(boolean, msg, args);
 	va_end(args);
 }
 
-void assert_msg (int boolean, const char* msg, ...){
+void _assert_msg (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(!boolean, msg, args);
