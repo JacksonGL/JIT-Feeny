@@ -1750,7 +1750,7 @@ IntIValue* int_obj_div (IValue * x, IValue * y) {
   intptr_t yi = (intptr_t)y;
   IntIValue* v = (IntIValue*)((xi / yi) << 3);
 #ifdef DEBUG
-  assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
+  assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx / 0x%lx\n", v, x, y);
 #endif
   return v;
 }
