@@ -1724,7 +1724,7 @@ IntIValue* int_obj_div (IValue * x, IValue * y) {
   assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
-  IntIValue* v = make_int_obj((int)(xi/yi));
+  IntIValue* v = make_int_obj((int)(xi / yi));
 #ifdef DEBUG
   assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx / 0x%lx\n", v, x, y);
 #endif
