@@ -20,21 +20,22 @@
 \caption{Runtime Statistics}
 \label{statistics}
 {\footnotesize
-\begin{tabular}{lllll}
+\begin{tabular}{lllllll}
 \toprule
-test case & interpret\_bc time (ms) & garbage collector time (ms) & \code{halloc} bytes & \code{halloc} integer bytes \\
+test case & interpreter & garbage collector & \code{halloc} & allocated bytes     & GC time             & interpreter time    \\
+          & time (ms)   & time (ms)         & bytes         & reduction (new/old) & reduction (new/old) & reduction (new/old) \\
 \midrule
-bsearch        & 0.244          & 0.000          & 3096           & 2304           \\
-inheritance    & 0.024          & 0.000          & 256            & 64             \\
-cplx           & 0.135          & 0.000          & 1136           & 464            \\
-lists          & 0.256          & 0.000          & 3112           & 736            \\
-vector         & 0.281          & 0.000          & 2160           & 1184           \\
-fibonacci      & 0.627          & 0.000          & 10176          & 8944           \\
-sudoku         & 761.531        & 0.279          & 19728696       & 16085776       \\
-sudoku2        & 149444.242     & 55.781         & 3940616312     & 3213581008     \\
-hanoi\_BM      & 1.155          & 0.000          & 12528          & 4432           \\
-stacks\_BM     & 0.131          & 0.000          & 1840           & 1184           \\
-morehanoi\_BM  & 2.896          & 0.000          & 22192          & 9808           \\
+bsearch        & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+inheritance    & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+cplx           & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+lists          & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+vector         & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+fibonacci      & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+sudoku         & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+sudoku2        & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+hanoi\_BM      & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+stacks\_BM     & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+morehanoi\_BM  & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
 
 \bottomrule
 \end{tabular}
@@ -45,9 +46,10 @@ morehanoi\_BM  & 2.896          & 0.000          & 22192          & 9808        
 	\item
 		See Table~\ref{statistics}. Ben Mehne's implementation of hanoi, stacks, and morehanoi is the tested version.
 	\item
-		TBD
+		The first implementation is preferable since $f(x) = 8x$. Using $f(x \cdot y) = f(x) \cdot f^{-1}(f(y))$ has less chance
+		of integer overflow.
 	\item
-		TBD
+		We can directly apply use the function $g$ on the tagged representation: $g (tagged\_x\ op\ tagged\_y)$, since we know that $c \cdot a\ op\ c \cdot b \equiv a\ op\ b$ where $c \neq 0$.
 \end{enumerate}
 
 \end{document}
