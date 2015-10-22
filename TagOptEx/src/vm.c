@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -223,16 +222,29 @@ void print_frame();
 // assert functions
 void assert_obj_obj (IValue* ptr);
 void assert_not_null (void* ptr);
-// #define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #include <execinfo.h>
 #endif //DEBUG
 
-void debugf(const char * format, ...);
+
+#ifndef DEBUG
+#define debugf(format, ...)((void) 0)
+#define errorif(ignore, format, ...)((void) 0)
+#define assert_msg(ignore, format, ...)((void) 0)
+#define NDEBUG
+#else
+#define debugf(format, ...) _debugf(ignore, format, __VA_ARGS__)
+#define errorif(ignore, format, ...) _errorif(ignore, format, __VA_ARGS__)
+#define assert_msg(ignore, format, ...) _assert_msg(ignore, format, __VA_ARGS__)
+#endif
+#include <assert.h>
+
+void _debugf(const char * format, ...);
 void error(const char* format, ...);
-void errorif(int boolean, const char* format, ...);
-void assert_msg(int boolean, const char* format, ...);
+void _errorif(int boolean, const char* format, ...);
+void _assert_msg(int boolean, const char* format, ...);
 void v_errorif(int boolean, const char* format, va_list va);
 
 // safe conversions
@@ -887,11 +899,9 @@ int exec_built_in_method(CallSlotIns* i){
 	int method_name = i->name;
 	switch (obj_type(receiver_ptr)) {
 		case INT_OBJ: {
-			IValue* arg;
-			assert_msg(arity == 1 && obj_type(arg = stack_pop()) == INT_OBJ,
-					"native int function error - %s",
-					arity != 1 ? "not enough arguments!" :
-					"wrong argument type!");
+			assert_msg(arity == 1, "Not enough arguments!\n");
+			IValue* arg = stack_pop();
+			assert_msg(obj_type(arg) == INT_OBJ, "Wrong argument type!");
 			stack_pop();
 			if (method_name == INT_ADD_NAME) {
 				stack_push(from_int_val(int_obj_add(receiver_ptr, arg)));
@@ -1573,7 +1583,6 @@ void exec_prog (Program * p) {
 	// need to allocate globals
 	init_global_slots(count_of_globals);
 	start_exec(entry);
-
 }
 
 void interpret_bc (Program * p) {
@@ -1861,14 +1870,14 @@ void error(const char* format, ...){
 	va_end(args);
 }
 
-void errorif (int boolean, const char* msg, ...){
+void _errorif (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(boolean, msg, args);
 	va_end(args);
 }
 
-void assert_msg (int boolean, const char* msg, ...){
+void _assert_msg (int boolean, const char* msg, ...){
 	va_list args;
 	va_start(args, msg);
 	v_errorif(!boolean, msg, args);
@@ -1894,11 +1903,9 @@ void v_errorif (int boolean, const char* msg, va_list va){
 	abort();
 }
 
-void debugf(const char * format, ...){
-#ifdef DEBUG
+void _debugf(const char * format, ...){
 	va_list args;
 	va_start(args, format);
 	vprintf(/*stderr,*/ format, args);
 	va_end(args);
-#endif // DEBUG
 }
