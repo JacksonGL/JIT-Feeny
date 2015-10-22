@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include "utils.h"
@@ -220,8 +221,6 @@ void print_stack();
 void print_frame();
 
 // assert functions
-void assert_obj_obj (IValue* ptr);
-void assert_not_null (void* ptr);
 //#define DEBUG
 
 #ifdef DEBUG
@@ -231,18 +230,18 @@ void assert_not_null (void* ptr);
 
 #ifndef DEBUG
 #define debugf(format, ...)((void) 0)
-#define errorif(ignore, format, ...)((void) 0)
-#define assert_msg(ignore, format, ...)((void) 0)
-#define NDEBUG
+#define errorif(ignore, format, ...) assert(!(ignore))
+#define assert_msg(ignore, format, ...) assert(ignore)
+#define error(format, ...) __builtin_unreachable()
 #else
-#define debugf(format, ...) _debugf(ignore, format, __VA_ARGS__)
-#define errorif(ignore, format, ...) _errorif(ignore, format, __VA_ARGS__)
-#define assert_msg(ignore, format, ...) _assert_msg(ignore, format, __VA_ARGS__)
+#define debugf(format, ...) _debugf(format, ##__VA_ARGS__)
+#define errorif(ignore, format, ...) _errorif(ignore, format, ##__VA_ARGS__)
+#define assert_msg(ignore, format, ...) _assert_msg(ignore, format, ##__VA_ARGS__)
+#define error(format, ...) _error(format, ##__VA_ARGS__)
 #endif
-#include <assert.h>
 
 void _debugf(const char * format, ...);
-void error(const char* format, ...);
+void _error(const char* format, ...);
 void _errorif(int boolean, const char* format, ...);
 void _assert_msg(int boolean, const char* format, ...);
 void v_errorif(int boolean, const char* format, va_list va);
@@ -301,7 +300,6 @@ IValue* get_slot_by_idx(ObjectIValue* receiver, int name_idx){
 		slot_idx +=1;
 	}
 	debugf("Receiver's parent has tag %d\n", obj_type(receiver->parent_obj_ptr));
-	assert_obj_obj(receiver->parent_obj_ptr);
 	return get_slot_by_idx(to_obj_val(receiver->parent_obj_ptr), name_idx);
 }
 
@@ -317,7 +315,6 @@ void set_slot_by_idx(ObjectIValue* receiver, int name_idx, IValue* v){
 			slot_idx +=1;
 		}
 	}
-	assert_obj_obj(receiver->parent_obj_ptr);
 	return set_slot_by_idx(to_obj_val(receiver->parent_obj_ptr), name_idx, v);
 }
 
@@ -328,7 +325,6 @@ int find_method_by_name(ObjectIValue* receiver, int name_idx){
 			return cl->slots_and_methods[i].value;
 		}
 	}
-	assert_obj_obj(receiver->parent_obj_ptr);
 	return find_method_by_name(to_obj_val(receiver->parent_obj_ptr), name_idx);
 }
 
@@ -806,7 +802,6 @@ void exec_object_op (ObjectIns * i) {
 // at the variable slot with name given by the String object at index i,
 // and pushes it onto the operand stack.
 void exec_slot_op (SlotIns* i) {
-	assert_obj_obj(stack_peek());
 	stack_push(get_slot_by_idx(to_obj_val(stack_pop()), i->name));
 }
 
@@ -816,7 +811,6 @@ void exec_slot_op (SlotIns* i) {
 // object at index i. x is then pushed onto the operand stack.
 void exec_set_slot_op (SetSlotIns * i) {
 	IValue* val = stack_pop();
-	assert_obj_obj(stack_peek());
 	set_slot_by_idx(to_obj_val(stack_pop()), i->name, val);
 	stack_push(val);
 }
@@ -1143,9 +1137,7 @@ int make_class(ClassValue *ci, Program *p, Vector* class_layouts){
 	cl->num_methods = methods;
 	cl->num_slots = slots;
 	position += class_size;
-	if(position >= CLASS_SIZE){
-		error("Ran out of room to store class layouts!");
-	}
+	errorif(position >= CLASS_SIZE, "Ran out of room to store class layouts!");
 
 	for(int i = 0; i < ci->slots->size; ++i){
 		Value* v = vector_get(p->values, (int) vector_get(ci->slots, i));
@@ -1246,9 +1238,7 @@ int end_code_section=0;
 void * code_alloc(){
 	void* ptr = &code_data[end_code_section];
 	end_code_section++;
-	if(end_code_section >= CODE_SIZE){
-		error("Ran out of code space!");
-	}
+	errorif(end_code_section >= CODE_SIZE, "Ran out of code space!");
 	return ptr;
 }
 
@@ -1276,9 +1266,9 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 				ByteIns* bi = code_alloc();
 				bi->tag = LIT_NULL_OP;
 				return code_index(bi);
-			} else {
-				error("Bad literal value!");
 			}
+
+			error("Bad literal value!");
 		}
 		case PRINTF_OP:{
 			PrintfIns* pi = code_alloc();
@@ -1364,7 +1354,6 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		default:
 			error("Bad ins tag!");
 	}
-	error("What?!");
 	return -1;
 }
 
@@ -1421,9 +1410,7 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 				code_point = p->value;
 			}
 		}
-		if(code_point == -1){
-			error("Unresolved label!");
-		}
+		errorif(code_point == -1, "Unresolved label!");
 		gins->name = code_point;
 	}
 	// free vector stuff
@@ -1596,30 +1583,22 @@ void interpret_bc (Program * p) {
 //================== UTIL FUNCITONS ==========================
 //============================================================
 IntIValue* to_int_val (IValue* val) {
-  if (obj_type(val) != INT_OBJ) {
-    error("Error: to_int_val.\n");
-  }
+  errorif(obj_type(val) != INT_OBJ, "Error: to_int_val.\n");
   return (IntIValue*)val;
 }
 
 NullIValue* to_null_val(IValue* val){
-  if (obj_type(val) != NULL_OBJ) {
-    error("Error: to_null_val.\n");
-  }
+  errorif(obj_type(val) != NULL_OBJ, "Error: to_null_val.\n");
   return (NullIValue*)val;
 }
 
 ObjectIValue* to_obj_val(IValue* val){
-  if (obj_type(val) != OBJ_OBJ) {
-    error("Error: to_obj_val.\n");
-  }
+  errorif(obj_type(val) != OBJ_OBJ, "Error: to_obj_val.\n");
   return (ObjectIValue*)(((uintptr_t)val) & CLEAR_ARRAY_OBJ_MASK);
 }
 
 ArrayIValue* to_array_val(IValue* val){
-  if (obj_type(val) != ARRAY_OBJ) {
-    error("Error: to_array_val.\n");
-  }
+  errorif(obj_type(val) != ARRAY_OBJ, "Error: to_array_val.\n");
   return (ArrayIValue*)(((uintptr_t)val) & CLEAR_ARRAY_OBJ_MASK);
 }
 
@@ -1665,18 +1644,6 @@ intptr_t _get_tag(IValue* v){
 int to_int(IntIValue* val){
 	intptr_t v = (intptr_t)val;
 	return v>>3;
-}
-
-void assert_not_null (void* ptr) {
-  if (ptr == NULL) {
-    error("Error: assert_not_null.\n");
-  }
-}
-
-void assert_obj_obj (IValue* ptr) {
-  if (ptr == NULL || obj_type(ptr) != OBJ_OBJ) {
-    error("Error: assert_obj_obj.\n");
-  }
 }
 
 ObjTag obj_type (IValue * o) {
@@ -1863,7 +1830,7 @@ void print_objectivalue (ObjectIValue* t) {
 	printf("}");
 }
 
-void error(const char* format, ...){
+void _error(const char* format, ...){
 	va_list args;
 	va_start(args, format);
 	v_errorif(1, format, args);
