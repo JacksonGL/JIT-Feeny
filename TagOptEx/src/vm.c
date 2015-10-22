@@ -268,11 +268,11 @@ int ARRAY_LENGTH_NAME = -1;
 int ARRAY_SET_NAME = -1;
 int ARRAY_GET_NAME = -1;
 
+
+
 #define SLOT_ITEM -3
-
-#define CLEAR_ARRAY_OBJ_MASK (((intptr_t)0)-((intptr_t)1)<<3)
-#define ARRAY_OBJ_MASK ((intptr_t)1)
-
+intptr_t CLEAR_ARRAY_OBJ_MASK = (intptr_t)(((intptr_t)-1)<<3);
+intptr_t ARRAY_OBJ_MASK = ((intptr_t)1);
 
 IValue* get_slot_by_idx(ObjectIValue* receiver, int name_idx){
 	ClassLayout* cl = receiver->class_ptr;
