@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -234,11 +233,13 @@ void assert_not_null (void* ptr);
 #define debugf(format, ...)((void) 0)
 #define errorif(ignore, format, ...)((void) 0)
 #define assert_msg(ignore, format, ...)((void) 0)
+#define NDEBUG
 #else
 #define debugf(format, ...) _debugf(ignore, format, __VA_ARGS__)
 #define errorif(ignore, format, ...) _errorif(ignore, format, __VA_ARGS__)
 #define assert_msg(ignore, format, ...) _assert_msg(ignore, format, __VA_ARGS__)
 #endif
+#include <assert.h>
 
 void _debugf(const char * format, ...);
 void error(const char* format, ...);
