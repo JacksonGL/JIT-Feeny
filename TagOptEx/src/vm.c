@@ -202,16 +202,16 @@ NullIValue* array_set (ArrayIValue* a, IntIValue* i, IValue* v);
 
 // built-in methods
 
-IValue* eq(IntIValue* x, IntIValue* y);
-IValue* lt(IntIValue* x, IntIValue* y);
-IValue* le(IntIValue* x, IntIValue* y);
-IValue* gt(IntIValue* x, IntIValue* y);
-IValue* ge(IntIValue* x, IntIValue* y);
-IntIValue* int_obj_add (IntIValue* x, IntIValue* y);
-IntIValue* int_obj_sub (IntIValue* x, IntIValue* y);
-IntIValue* int_obj_mul (IntIValue* x, IntIValue* y);
-IntIValue* int_obj_div (IntIValue* x, IntIValue* y);
-IntIValue* int_obj_mod (IntIValue* x, IntIValue* y);
+IValue* eq(IValue* x, IValue* y);
+IValue* lt(IValue* x, IValue* y);
+IValue* le(IValue* x, IValue* y);
+IValue* gt(IValue* x, IValue* y);
+IValue* ge(IValue* x, IValue* y);
+IntIValue* int_obj_add (IValue* x, IValue* y);
+IntIValue* int_obj_sub (IValue* x, IValue* y);
+IntIValue* int_obj_mul (IValue* x, IValue* y);
+IntIValue* int_obj_div (IValue* x, IValue* y);
+IntIValue* int_obj_mod (IValue* x, IValue* y);
 
 //utils for printing
 void print_ivalue(IValue* t);
@@ -281,7 +281,7 @@ IValue* get_slot_by_idx(ObjectIValue* receiver, int name_idx){
 		if(cl->slots_and_methods[i].value != SLOT_ITEM){
 			continue;
 		}
-		debugf("Reading slot with addr %x\n", receiver->var_slots[slot_idx]);
+		debugf("Reading slot with addr %lx\n", receiver->var_slots[slot_idx]);
 		if(cl->slots_and_methods[i].name == name_idx){
 			return receiver->var_slots[slot_idx];
 		}
@@ -343,14 +343,14 @@ void init_global_slots(int size){
 IValue* stack[STACK_SIZE];
 int stack_top = 0;
 void stack_push (IValue * val) {
-	debugf("Stack push height from %d with addr %x" , stack_top, val);
+	debugf("Stack push height from %d with addr %lx" , stack_top, val);
 	stack[stack_top] = val;
 	stack_top+=1;
 	debugf("to %d with tag %d\n", stack_top, obj_type(val));
 }
 
 IValue* stack_pop () {
-	debugf("Stack popping from %d at %x ", stack_top-1, stack[stack_top-1]);
+	debugf("Stack popping from %d at %lx ", stack_top-1, stack[stack_top-1]);
 	IValue* v = stack[stack_top-1];
 	stack_top-=1;
 	debugf("with tag %d\n", obj_type(v));
@@ -389,12 +389,12 @@ void push_frame(int return_addr, int num_locals, int num_args){
 }
 
 int pop_frame(){
-	debugf("Called pop frame and will return with parent frame = %x\n", current->parent);
+	debugf("Called pop frame and will return with parent frame = %lx\n", current->parent);
 	int ret = current->return_addr;
 
 	int size_of_current_frame = (frames+frame_top)-(char*)current;
 	frame_top -= size_of_current_frame;
-	debugf("Called pop frame and will return with return addr = %d at %x\n", ret, current->parent);
+	debugf("Called pop frame and will return with return addr = %d at %lx\n", ret, current->parent);
 	current = current->parent;
 	return ret;
 }
@@ -434,7 +434,7 @@ void * _halloc(size_t size){
 		// redo the allocation
 		return _halloc(size);
 	}
-	debugf("Allocating %x for size %d\n", ret, size);
+	debugf("Allocating %lx for size %d\n", ret, size);
 	return ret;
 }
 
@@ -445,10 +445,10 @@ void * halloc(size_t size){
 
 void swap_heaps(){
 	char (*heap_tmp)[HEAP_SIZE] = heap_cur;
-	debugf("heap_cur %x, heap_old %x\n", heap_cur, heap_old);
+	debugf("heap_cur %lx, heap_old %lx\n", heap_cur, heap_old);
 	heap_cur = heap_old;
 	heap_old = heap_tmp;
-	debugf("heap_cur %x, heap_old %x\n", heap_cur, heap_old);
+	debugf("heap_cur %lx, heap_old %lx\n", heap_cur, heap_old);
 
 	next_free_old = next_free_cur;
 	next_free_cur = 0; // current heap is empty
@@ -536,7 +536,7 @@ IValue* get_post_gc_ptr(IValue* obj){
 	set_tag(obj, BROKEN_HEART);
 	set_forward_ptr(obj, new_obj);
 
-	debugf("Moving from ptr %x to %x\n", obj, new_obj);
+	debugf("Moving from ptr %lx to %lx\n", obj, new_obj);
 	return new_obj;
 }
 
@@ -544,8 +544,8 @@ void scan_root_set(){
 	char *heap = *heap_old;
 	char *heap_curs = *heap_cur;
 	// scan through global variables
-	debugf("Heap is %x to %x\n", &heap[0], &heap[HEAP_SIZE]);
-	debugf("NEW Heap is %x to %x\n", &heap_curs[0], &heap_curs[HEAP_SIZE]);
+	debugf("Heap is %lx to %lx\n", &heap[0], &heap[HEAP_SIZE]);
+	debugf("NEW Heap is %lx to %lx\n", &heap_curs[0], &heap_curs[HEAP_SIZE]);
 	debugf("Global slots!\n");
 
 	for(int i = 0; i < max_globals; ++i){
@@ -577,12 +577,12 @@ void scan_root_set(){
 void scan_new_heap(){
 	char *heap = *heap_cur;
 	// scan through global variables
-	debugf("Heap is %x to %x\n", &heap[0], &heap[HEAP_SIZE]);
+	debugf("Heap is %lx to %lx\n", &heap[0], &heap[HEAP_SIZE]);
 	debugf("Current Heap Scan!\n");
 	int position = 0;
 	while(position < next_free_cur){
 		IValue* iv = (IValue*) &heap[position];
-		debugf("Working on %x\n", iv);
+		debugf("Working on %lx\n", iv);
 		position += sizeIValue(iv);
 		scan_IValue(iv);
 	}
@@ -597,9 +597,9 @@ void scan_IValue(IValue* t){
 		case ARRAY_OBJ:{
 			ArrayIValue* a = to_array_val(t);
 			for(int i = 0; i < a->length; ++i){
-				debugf("Moving array ptr %x to ", a->slots[i]);
+				debugf("Moving array ptr %lx to ", a->slots[i]);
 				a->slots[i] = get_post_gc_ptr(a->slots[i]);
-				debugf("%x\n", a->slots[i]);
+				debugf("%lx\n", a->slots[i]);
 			}
 			return;
 		}
@@ -608,13 +608,13 @@ void scan_IValue(IValue* t){
 			int num_slots = o->class_ptr->num_slots;
 			for(int i = 0; i < num_slots; ++i){
 				//print_objectivalue(o);
-				debugf("Moving object slot %x to ", o->var_slots[i]);
+				debugf("Moving object slot %lx to ", o->var_slots[i]);
 				o->var_slots[i] = get_post_gc_ptr(o->var_slots[i]);
-				debugf("%x\n", o->var_slots[i]);
+				debugf("%lx\n", o->var_slots[i]);
 			}
-			debugf("Moving parent ptr %x to ", o->parent_obj_ptr);
+			debugf("Moving parent ptr %lx to ", o->parent_obj_ptr);
 			o->parent_obj_ptr = get_post_gc_ptr(o->parent_obj_ptr);
-			debugf("%x\n", o->parent_obj_ptr);
+			debugf("%lx\n", o->parent_obj_ptr);
 			return;
 		}
 		default:
@@ -667,7 +667,7 @@ void exec_get_global_op (GetGlobalIns * i) {
 // object at index i.
 int exec_branch_op (BranchIns * i, int pc) {
   IValue* val = stack_pop();
-  debugf("Received %x from stack bottom: %x\n", val, &stack[0]);
+  debugf("Received %lx from stack bottom: %lx\n", val, &stack[0]);
   if (obj_type(val) != NULL_OBJ) {
     return i->name;
   } else {
@@ -839,7 +839,7 @@ int exec_call_op (CallIns * i, int pc) {
 // storage allocated for it may be reclaimed.
 int exec_return_op () {
 	int ret = pop_frame();
-	debugf("Returning with frame = %x and address = %d\n", current, ret);
+	debugf("Returning with frame = %lx and address = %d\n", current, ret);
 	return ret;
 }
 
@@ -860,7 +860,10 @@ int exec_return_op () {
 // method.
 int exec_call_slot_op (CallSlotIns * i, int pc) {
 	if(exec_built_in_method(i)){
-		debugf("Was a built-in method!\n");
+		debugf("Was the built-in %s method!\n", get_str_constant_by_idx(i->name));
+		#ifdef DEBUG
+		debugf("Result is"); print_ivalue(stack_peek());
+		#endif
 		return pc+1;
 	}
 	ObjectIValue* receiver_ptr = to_obj_val(stack[stack_top-i->arity]);
@@ -890,34 +893,34 @@ int exec_built_in_method(CallSlotIns* i){
 					"wrong argument type!");
 			stack_pop();
 			if (method_name == INT_ADD_NAME) {
-				stack_push(from_int_val(int_obj_add(to_int_val( receiver_ptr), to_int_val(arg))));
+				stack_push(from_int_val(int_obj_add(receiver_ptr, arg)));
 				return 1;
 			} else if (method_name == INT_SUB_NAME) {
-				stack_push(from_int_val(int_obj_sub(to_int_val(receiver_ptr), to_int_val(arg))));
+				stack_push(from_int_val(int_obj_sub(receiver_ptr, arg)));
 				return 1;
 			} else if (method_name == INT_MUL_NAME) {
-				stack_push(from_int_val(int_obj_mul(to_int_val( receiver_ptr), to_int_val(arg))));
+				stack_push(from_int_val(int_obj_mul(receiver_ptr, arg)));
 				return 1;
 			} else if (method_name == INT_DIV_NAME) {
-				stack_push(from_int_val(int_obj_div(to_int_val( receiver_ptr), to_int_val(arg))));
+				stack_push(from_int_val(int_obj_div(receiver_ptr, arg)));
 				return 1;
 			} else if (method_name == INT_MOD_NAME) {
-				stack_push(from_int_val(int_obj_mod(to_int_val( receiver_ptr), to_int_val(arg))));
+				stack_push(from_int_val(int_obj_mod(receiver_ptr, arg)));
 				return 1;
 			} else if (method_name == INT_GT_NAME) {
-				stack_push(gt(to_int_val(receiver_ptr), to_int_val(arg)));
+				stack_push(gt(receiver_ptr, arg));
 				return 1;
 			} else if (method_name == INT_GE_NAME) {
-				stack_push(ge(to_int_val( receiver_ptr), to_int_val(arg)));
+				stack_push(ge( receiver_ptr, arg));
 				return 1;
 			} else if (method_name == INT_LT_NAME) {
-				stack_push(lt(to_int_val(receiver_ptr), to_int_val(arg)));
+				stack_push(lt(receiver_ptr, arg));
 				return 1;
 			} else if (method_name == INT_LE_NAME) {
-				stack_push(le(to_int_val(receiver_ptr), to_int_val(arg)));
+				stack_push(le(receiver_ptr, arg));
 				return 1;
 			} else if (method_name == INT_EQ_NAME) {
-				stack_push(eq(to_int_val(receiver_ptr), to_int_val(arg)));
+				stack_push(eq(receiver_ptr, arg));
 				return 1;
 			}
 			error("unknown native int function %s\n", get_str_constant_by_idx(method_name));
@@ -1068,14 +1071,14 @@ void print_frame(){
 	// if last == cur_frame, then there are no frames, since frames
 	// take up space
 	while(cur_frame != NULL && last != (uintptr_t)cur_frame){
-		printf("Frame %x until %x\n", cur_frame, last);
+		printf("Frame %lx until %lx\n", cur_frame, last);
 		for(int i = 0; (uintptr_t)(cur_frame->slots+i)< last; ++i){
-			printf("Working on %x at %x\n", cur_frame->slots[i], cur_frame->slots+i);
+			printf("Working on %lx at %lx\n", cur_frame->slots[i], cur_frame->slots+i);
 			print_ivalue(cur_frame->slots[i]);
 			printf("\n");
 		}
 		printf("Return addr: %d\n", cur_frame->return_addr);
-		printf("Parent frame: %x\n", cur_frame->parent);
+		printf("Parent frame: %lx\n", cur_frame->parent);
 		last = (uintptr_t)cur_frame;
 		cur_frame = cur_frame->parent;
 	}
@@ -1708,46 +1711,92 @@ IValue* array_get (ArrayIValue* a, IntIValue* i) {
 }
 
 
-IntIValue* int_obj_add (IntIValue * x, IntIValue * y) {
-  return make_int_obj(to_int(x) + to_int(y));
-}
-IntIValue* int_obj_sub (IntIValue * x, IntIValue * y) {
-  return make_int_obj(to_int(x) - to_int(y));
-}
-IntIValue* int_obj_mul (IntIValue * x, IntIValue * y) {
-  return make_int_obj(to_int(x) * to_int(y));
-}
-IntIValue* int_obj_div (IntIValue * x, IntIValue * y) {
-  return make_int_obj(to_int(x) / to_int(y));
-}
-IntIValue* int_obj_mod (IntIValue * x, IntIValue * y) {
-  return make_int_obj(to_int(x) % to_int(y));
+IntIValue* int_obj_add (IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  IntIValue* v = (IntIValue*)(xi + yi);
+#ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x))+ to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx + 0x%lx\n", v, x, y);
+#endif
+  return v;
 }
 
-IValue* eq(IntIValue * x, IntIValue * y) {
-  return to_int(x) == to_int(y) ?
+IntIValue* int_obj_sub (IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  IntIValue* v = (IntIValue*)(xi - yi);
+  #ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x)) - to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx - 0x%lx\n", v, x, y);
+#endif
+  return v;
+}
+
+IntIValue* int_obj_mul (IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  IntIValue* v =  (IntIValue*)(xi * to_int(to_int_val(y)));
+
+    #ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
+#endif
+  return v;
+}
+
+IntIValue* int_obj_div (IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  return make_int_obj(to_int(to_int_val(x)) / to_int(to_int_val(y)));
+}
+
+IntIValue* int_obj_mod (IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  IntIValue * v = (IntIValue*)(xi % yi);
+  #ifdef DEBUG
+  assert_msg(to_int(v) == to_int(to_int_val(x)) % to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx %% 0x%lx\n", v, x, y);
+#endif
+  return v;
+}
+
+IValue* eq(IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  return x == y ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
-IValue* lt(IntIValue * x, IntIValue * y) {
-  return to_int(x) < to_int(y) ?
+IValue* lt(IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  return xi < yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
-IValue* le(IntIValue * x, IntIValue * y) {
-  return to_int(x) <= to_int(y) ?
+IValue* le(IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  return xi <= yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
-IValue* gt(IntIValue * x, IntIValue * y) {
-  return to_int(x) > to_int(y) ?
+IValue* gt(IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  return xi > yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
-IValue* ge(IntIValue * x, IntIValue * y) {
-  return to_int(x) >= to_int(y) ?
+IValue* ge(IValue * x, IValue * y) {
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  intptr_t xi = (intptr_t)x;
+  intptr_t yi = (intptr_t)y;
+  return xi >= yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
 
 void print_ivalue(IValue* t){
 #ifdef DEBUG
-	printf("[0x%x]", t);
+	printf("[0x%lx]", t);
 #endif
 	switch(obj_type(t)){
 		case INT_OBJ:
@@ -1769,7 +1818,7 @@ void print_ivalue(IValue* t){
 			return;
 		}
 		case BROKEN_HEART:{
-			printf("BROKEN_HEART to %x", get_forward_ptr(t));
+			printf("BROKEN_HEART to %lx", get_forward_ptr(t));
 			return;
 		}
 		default:
