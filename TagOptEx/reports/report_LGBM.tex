@@ -25,17 +25,17 @@
 test case & interpreter & garbage collector & \code{halloc} & allocated bytes     & GC time             & interpreter time    \\
           & time (ms)   & time (ms)         & bytes         & reduction (new/old) & reduction (new/old) & reduction (new/old) \\
 \midrule
-bsearch        & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-inheritance    & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-cplx           & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-lists          & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-vector         & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-fibonacci      & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-sudoku         & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-sudoku2        & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-hanoi\_BM      & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-stacks\_BM     & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
-morehanoi\_BM  & TBD          & TBD          & TBD           & TBD          & TBD           & TBD           \\
+bsearch        & 0.093          & 0.000          & 96             & 0.031		& no reduction		& 0.381 \\
+inheritance    & 0.036          & 0.000          & 16             & 0.0625		& no reduction		& 1.500 \\
+cplx           & 0.045          & 0.000          & 32             & 0.0282		& no reduction		& 0.333 \\
+lists          & 0.097          & 0.000          & 32             & 0.010		& no reduction		& 0.379 \\
+vector         & 0.052          & 0.000          & 80             & 0.026		& no reduction		& 0.185 \\
+fibonacci      & 0.063          & 0.000          & 0              & 0		& no reduction		& 0.100 \\
+sudoku         & 97.070         & 0.000          & 24             & 0.000		& 0		& 0.127 \\
+sudoku2        & 11867.004      & 0.000          & 24             & 0.000		& 0		& 0.079 \\
+hanoi\_BM      & 0.087          & 0.000          & 0              & 0		& no reduction		& 0.075 \\
+stacks\_BM     & 0.043          & 0.000          & 32             & 0.017		& no reduction	& 0.328	\\
+morehanoi\_BM  & 0.263          & 0.000          & 32             & 0.001		& no reduction		& 0.091 \\
 
 \bottomrule
 \end{tabular}
