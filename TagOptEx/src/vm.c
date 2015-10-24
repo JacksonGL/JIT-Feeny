@@ -246,6 +246,19 @@ void _errorif(int boolean, const char* format, ...);
 void _assert_msg(int boolean, const char* format, ...);
 void v_errorif(int boolean, const char* format, va_list va);
 
+//profiling stuff
+
+#ifndef PRE_SUBMIT
+#define start_timer(a, b) ((void)0)
+#define end_timer(a, b) ((void)0)
+
+#define add_double(a, b) ((void)0)
+#define get_double(a, b) ((void)0)
+
+#define add_int(a, b) ((void)0)
+#define get_int(a, b) ((void)0)
+#endif
+
 // safe conversions
 IntIValue* to_int_val (IValue* val);
 NullIValue* to_null_val(IValue* val);
@@ -448,6 +461,7 @@ void * _halloc(size_t size){
 }
 
 void * halloc(size_t size){
+	add_int("halloc_bytes", size);
 	//garbage_collector();
 	return _halloc(size);
 }
@@ -463,10 +477,8 @@ void swap_heaps(){
 	next_free_cur = 0; // current heap is empty
 }
 
-double gc_time=0.0;
 void* garbage_collector(){
-  struct timeval total_start,start, end;
-		gettimeofday(&start, NULL);
+	start_timer("garbage_collector_time");
 	if(is_currently_collecting){
 		error("Can't collect while already collecting!\n");
 	}
@@ -478,14 +490,13 @@ void* garbage_collector(){
 	debugf("Finished garbage collecting!\n");
 	debugf("Finished checking garbage collector!\n");
 	is_currently_collecting = 0;
-		gettimeofday(&end, NULL);
-		gc_time+= (end.tv_sec * 1000.0 + end.tv_usec/1000.0) - (start.tv_sec * 1000.0 + start.tv_usec/1000.0);
 #ifdef DEBUG
 	printf("\n-----------\n");
 	print_frame();
 	print_stack();
 	printf("\n-----------\n");
 #endif
+	end_timer("garbage_collector_time");
 }
 
 size_t sizeIValue(IValue * t){
@@ -1875,4 +1886,122 @@ void _debugf(const char * format, ...){
 	va_start(args, format);
 	vprintf(/*stderr,*/ format, args);
 	va_end(args);
+}
+
+Vector* timer_names = NULL;
+Vector* timer_vals = NULL;
+void _start_timer(const char * name){
+	if(timer_names == NULL){
+		timer_names = make_vector();
+		timer_vals = make_vector();
+	}
+
+	for(int i = 0; i < timer_names->size; ++i){
+		if(!strcmp((char*)vector_get(timer_names, i), name)){
+			struct timeval* start = vector_get(timer_vals, i);
+			gettimeofday(start, NULL);
+			return;
+		}
+	}
+
+	vector_add(timer_names, name);
+	struct timeval* start = malloc(sizeof(struct timeval));
+	gettimeofday(start, NULL);
+	vector_add(timer_vals, start);
+}
+
+void _end_timer(const char * name){
+	if(timer_names == NULL){
+		timer_names = make_vector();
+		timer_vals = make_vector();
+	}
+
+	for(int i = 0; i < timer_names->size; ++i){
+		if(!strcmp((char*)vector_get(timer_names, i), name)){
+			struct timeval* start = vector_get(timer_vals, i);
+			struct timeval end;
+			gettimeofday(&end, NULL);
+
+			add_double(name,
+					(end.tv_sec * 1000.0 + end.tv_usec/1000.0) - (start->tv_sec * 1000.0 + start->tv_usec/1000.0));
+			return;
+		}
+	}
+
+	printf("Incorrect call of end_timer!\n");
+	exit(-1);
+}
+
+Vector* double_names = NULL;
+Vector* double_vals = NULL;
+void _add_double(const char * name, double val){
+	if(double_names == NULL){
+		double_names = make_vector();
+		double_vals = make_vector();
+	}
+
+	for(double i = 0; i < double_names->size; ++i){
+		if(!strcmp((char*)vector_get(double_names, i), name)){
+			double* v = malloc(sizeof(double));
+			*v = val;
+			vector_set(double_vals, i, v);
+			return;
+		}
+	}
+	vector_add(double_names, name);
+	double* v = malloc(sizeof(double));
+	*v = val;
+	vector_add(double_vals, v);
+}
+
+double _get_double(const char * name){
+	if(double_names == NULL){
+		double_names = make_vector();
+		double_vals = make_vector();
+	}
+
+	for(double i = 0; i < double_names->size; ++i){
+		if(!strcmp((char*)vector_get(double_names, i), name)){
+			return *(double*) vector_get(double_vals, i);
+		}
+	}
+
+	return 0;
+}
+
+Vector* int_names = NULL;
+Vector* int_vals = NULL;
+void _add_int(const char * name, intptr_t val){
+	if(int_names == NULL){
+		int_names = make_vector();
+		int_vals = make_vector();
+	}
+
+	for(int i = 0; i < int_names->size; ++i){
+		if(!strcmp((char*)vector_get(int_names, i), name)){
+			intptr_t* v = malloc(sizeof(intptr_t));
+			*v = val;
+			vector_set(int_vals, i, v);
+			return;
+		}
+	}
+	vector_add(int_names, name);
+	intptr_t* v = malloc(sizeof(intptr_t));
+	*v = val;
+	vector_add(int_vals, v);
+}
+
+intptr_t _get_int(const char * name){
+	if(int_names == NULL){
+		int_names = make_vector();
+		int_vals = make_vector();
+	}
+
+	for(int i = 0; i < int_names->size; ++i){
+		if(!strcmp((char*)vector_get(int_names, i), name)){
+			return *(intptr_t*) vector_get(int_vals, i);
+		}
+	}
+
+	return 0;
 }

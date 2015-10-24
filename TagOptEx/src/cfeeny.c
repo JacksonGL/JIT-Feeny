@@ -25,22 +25,23 @@ int main (int argc, char** argvs) {
   //Compile to bytecode
   Program* program = compile(stmt);
 
-  FILE* stat = NULL;
 	if(argc == 3){
-		stat = fopen(argvs[2], "w");
-		gettimeofday(&start, NULL);
+		start_timer("interpret_time");
 	}
 
   //Interpret bytecode
   interpret_bc(program);
 	if(argc == 3){
-		gettimeofday(&end, NULL);
-		fprintf(stat, "interpret: %f\n", (end.tv_sec * 1000.0 + end.tv_usec/1000.0) - (start.tv_sec * 1000.0 + start.tv_usec/1000.0));
+		FILE* stat = fopen(argvs[2], "w");
+		end_timer("interpret_time");
+		fprintf(stat, "interpret: %f\n",
+				get_double("interpret_time"));
 
-		fprintf(stat, "gabage_collector time: %f\n", gc_time);
-		//fprintf(stat, "halloc bytes: %zu\n", halloc_bytes);
-		//fprintf(stat, "halloc integer object bytes: %zu\n", halloc_int_bytes);
+		fprintf(stat, "gabage_collector time: %f\n",
+				get_double("garbage_collector_time"));
+		fprintf(stat, "halloc bytes: %zu\n",
+				get_int("halloc_bytes"));
+		fclose(stat);
 	}
-	fclose(stat);
   return 0;
 }
