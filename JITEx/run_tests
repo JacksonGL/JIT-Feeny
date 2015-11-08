@@ -1,0 +1,46 @@
+# Compile
+gcc -O3 -std=c99 src/cfeeny.c src/utils.c src/ast.c src/bytecode.c src/$1 src/$2 -o cfeeny -Wno-int-to-void-pointer-cast
+
+# Clean output folder
+rm output/*.out
+rm output/*.ast
+rm output/*.bc
+rm output/*.bc.std
+rm output/*
+
+# Run output
+function test {
+	./print_bc.sh $1
+	if [ "$(uname)" == "Darwin" ]; then
+	    # Do something under Mac OS X platform
+		./parser_osx -i tests/$1.feeny -oast output/$1.ast
+	elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+	    # Do something under Linux platform
+		./parser -i tests/$1.feeny -oast output/$1.ast
+	elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
+	    # Do something under Windows NT platform
+		echo 'OS not supported. Abort.'
+	fi
+   
+   ./cfeeny output/$1.ast > output/$1.out
+}
+test sudoku
+test test2
+test test
+test hello
+test hello2
+test hello3
+test hello4
+test hello5
+test hello6
+test hello7
+test hello8
+test hello9
+test cplx
+test bsearch
+test fibonacci
+test inheritance
+test lists
+test vector
+test sudoku
+test sudoku2

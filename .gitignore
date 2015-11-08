@@ -39,6 +39,8 @@ GCEx/output/*
 GCEx/fail/*
 TagOptEx/output/*
 TagOptEx/fail/*
+JITEx/output/*
+JITEx/fail/*
 *.aux
 *.bbl
 *.blg
@@ -58,3 +60,5 @@ GCEx/cfeeny.dSYM*
 GCEx/bc_printer
 TagOptEx/cfeeny
 TagOptEx/cfeeny.dSYM*
+JITEx/cfeeny
+JITEx/cfeeny.dSYM*
