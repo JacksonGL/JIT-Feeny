@@ -1,4 +1,4 @@
-	.globl	_exec_goto_op
+	.globl	exec_goto_op
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -10,8 +10,8 @@
 ##   int name;
 ## } GotoIns;
 ##
-_exec_goto_op:
+exec_goto_op:
 	movl	4(%rdi), %eax
 	ret
-_exec_goto_op_end:
+exec_goto_op_end:
 
