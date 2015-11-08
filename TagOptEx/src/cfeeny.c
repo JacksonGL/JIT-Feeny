@@ -6,7 +6,7 @@
 #include "ast.h"
 #include "compiler.h"
 #include "vm.h"
-// #define PRE_SUBMIT
+#define PRE_SUBMIT
 
 int main (int argc, char** argvs) {
   struct timeval total_start,start, end;
