@@ -273,8 +273,8 @@ void v_errorif(int boolean, const char* format, va_list va);
 //profiling stuff
 
 #ifndef PRE_SUBMIT
-#define start_timer(a, b) ((void)0)
-#define end_timer(a, b) ((void)0)
+#define start_timer(a) ((void)0)
+#define end_timer(a) ((void)0)
 
 #define add_double(a, b) ((void)0)
 #define get_double(a, b) ((void)0)
