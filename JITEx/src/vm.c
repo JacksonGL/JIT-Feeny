@@ -699,9 +699,11 @@ int exec_branch_op (BranchIns * i, int pc) {
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
 // the String object at index i.
+/*
 int exec_goto_op (GotoIns * i) {
 	return i->name;
 }
+*/
 
 // Pops and discards the top value from
 // the operand stack.
