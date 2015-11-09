@@ -687,6 +687,7 @@ void exec_get_global_op (GetGlobalIns * i) {
 // the instruction address associated
 // with the name given by the String
 // object at index i.
+/*
 int exec_branch_op (BranchIns * i, int pc) {
   IValue* val = stack_pop();
   debugf("Received %lx from stack bottom: %lx\n", val, &stack[0]);
@@ -696,7 +697,7 @@ int exec_branch_op (BranchIns * i, int pc) {
     return pc+1;
   }
 }
-
+*/
 
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
