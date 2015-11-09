@@ -371,6 +371,7 @@ void stack_push (IValue * val) {
 	debugf("to %d with tag %d\n", stack_top, obj_type(val));
 }
 
+/*
 IValue* stack_pop () {
 	debugf("Stack popping from %d at %lx ", stack_top-1, stack[stack_top-1]);
 	IValue* v = stack[stack_top-1];
@@ -378,6 +379,7 @@ IValue* stack_pop () {
 	debugf("with tag %d\n", obj_type(v));
 	return v;
 }
+*/
 
 IValue* stack_peek () {
   return stack[stack_top-1];
