@@ -1651,10 +1651,12 @@ void set_tag(IValue* v, ObjTag o){
 	tv->_tag = o;
 }
 
+/*
 intptr_t _get_tag(IValue* v){
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	return tv->_tag;
 }
+*/
 
 int to_int(IntIValue* val){
 	intptr_t v = (intptr_t)val;

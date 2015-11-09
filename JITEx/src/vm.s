@@ -1,5 +1,6 @@
 	.globl	exec_goto_op
 	.globl	stack_pop
+	.globl	_get_tag
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -28,3 +29,11 @@ stack_pop:
 	movq	(%rax,%rdx,8), %rax
 	ret
 stack_pop_end:
+
+_get_tag:
+##   IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
+	andq	CLEAR_ARRAY_OBJ_MASK(%rip), %rdi
+##   return tv->_tag;
+	movq	(%rdi), %rax
+	ret
+_get_tag_end:
