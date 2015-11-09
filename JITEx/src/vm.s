@@ -1,5 +1,6 @@
 	.globl	exec_goto_op
 #	.globl	stack_pop
+#	.globl	stack_push
 # 	.globl	_get_tag
 #	.globl	obj_type
 	.globl	exec_branch_op
@@ -19,14 +20,21 @@ exec_goto_op:
 	ret
 exec_goto_op_end:
 
+stack_push:
+	movq	stack@GOTPCREL(%rip), %rax
+	movslq	stack_top(%rip), %rdx
+	movq	%rdi, (%rax,%rdx,8)
+	incl	stack_top(%rip)
+	ret
+stack_push_end:
 
 stack_pop:
 	movq	stack@GOTPCREL(%rip), %rax
 	## stack_top -= 1
-	movl	stack_top(%rip), %ecx
-	subl	$1, %ecx
-	movl	%ecx, stack_top(%rip)
-	movslq	%ecx, %rdx
+##	movl	stack_top(%rip), %ecx
+	subl	$1, stack_top(%rip)
+##	movl	%ecx, stack_top(%rip)
+	movslq	stack_top(%rip), %rdx
 	## IValue* v = stack[stack_top-1];
 	movq	(%rax,%rdx,8), %rax
 	ret
@@ -80,10 +88,11 @@ exec_branch_op:
 ## stack pop
         movq    stack@GOTPCREL(%rip), %rax
         ## stack_top -= 1
-        movl    stack_top(%rip), %ecx
-        subl    $1, %ecx
-        movl    %ecx, stack_top(%rip)
-        movslq  %ecx, %rdx
+	subl	$1, stack_top(%rip)
+#       movl    stack_top(%rip), %ecx
+#        subl    $1, %ecx
+#       movl    %ecx, stack_top(%rip)
+        movslq  stack_top(%rip), %rdx
         ## IValue* v = stack[stack_top-1];
         movq    (%rax,%rdx,8), %rax
 ## stack pop end
@@ -99,18 +108,16 @@ V_NEQ_2:
 ## v%2
         andq    $1, %rax
         jz      RET_NOT_NULL
-	pushq	%r12
 ## if (v%2 == 1)
 ## get tag start
 ## IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
         andq    $0xFFFFFFFFFFFFFFF8, %rax
 ## return tv->_tag;
-        movq    (%rax), %r12
-        movq    %r12, %rax
+        movq    (%rax), %rdx
+        movq    %rdx, %rax
 ## get tag end
 ## compare OBJ_OBJ and tag
         cmpq    $4, %rax
-	popq	%r12
         jbe     RET
 ## if (tag > OBJ_OBJ)
 ## return pc+1;

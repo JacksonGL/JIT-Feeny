@@ -364,6 +364,7 @@ void init_global_slots(int size){
 #define STACK_SIZE 1000
 IValue* stack[STACK_SIZE];
 int stack_top = 0;
+
 void stack_push (IValue * val) {
 	debugf("Stack push height from %d with addr %lx" , stack_top, val);
 	stack[stack_top] = val;
@@ -379,7 +380,6 @@ IValue* stack_pop () {
 	debugf("with tag %d\n", obj_type(v));
 	return v;
 }
-
 
 IValue* stack_peek () {
   return stack[stack_top-1];
