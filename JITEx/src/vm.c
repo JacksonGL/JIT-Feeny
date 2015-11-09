@@ -371,7 +371,7 @@ void stack_push (IValue * val) {
 	debugf("to %d with tag %d\n", stack_top, obj_type(val));
 }
 
-/*
+
 IValue* stack_pop () {
 	debugf("Stack popping from %d at %lx ", stack_top-1, stack[stack_top-1]);
 	IValue* v = stack[stack_top-1];
@@ -379,7 +379,7 @@ IValue* stack_pop () {
 	debugf("with tag %d\n", obj_type(v));
 	return v;
 }
-*/
+
 
 IValue* stack_peek () {
   return stack[stack_top-1];
@@ -702,11 +702,13 @@ int exec_branch_op (BranchIns * i, int pc) {
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
 // the String object at index i.
+
 /*
 int exec_goto_op (GotoIns * i) {
 	return i->name;
 }
 */
+
 
 // Pops and discards the top value from
 // the operand stack.
@@ -1652,18 +1654,19 @@ void set_tag(IValue* v, ObjTag o){
 	tv->_tag = o;
 }
 
-/*
+
 intptr_t _get_tag(IValue* v){
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	return tv->_tag;
 }
-*/
+
 
 int to_int(IntIValue* val){
 	intptr_t v = (intptr_t)val;
 	return v>>3;
 }
-/*
+
+
 ObjTag obj_type (IValue * o) {
 	intptr_t v = (intptr_t)o;
 	if(v == 2){
@@ -1675,7 +1678,8 @@ ObjTag obj_type (IValue * o) {
 		return INT_OBJ;
 	}
 }
-*/
+
+
 
 NullIValue* make_null_obj () {
 	return (NullIValue*)((intptr_t)2);
