@@ -381,6 +381,7 @@ IValue* stack_pop () {
 	return v;
 }
 
+
 IValue* stack_peek () {
   return stack[stack_top-1];
 }
@@ -653,9 +654,11 @@ void scan_IValue(IValue* t){
 // Sets the i’th slot in the current
 // local frame to the top value in
 // the operand stack.
+/*
 void exec_set_local_op (SetLocalIns * i) {
 	set_local(i->idx, stack_peek());
 }
+*/
 
 // Retrieves the i’th slot in the
 // current local frame and pushes

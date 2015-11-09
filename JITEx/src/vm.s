@@ -1,4 +1,5 @@
 	.globl	exec_goto_op
+#	.globl	stack_peek
 #	.globl	stack_pop
 #	.globl	stack_push
 # 	.globl	_get_tag
@@ -6,6 +7,7 @@
 	.globl	exec_branch_op
 	.globl	exec_lit_op
 	.globl	exec_lit_null_op
+	.globl	exec_set_local_op
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -57,6 +59,26 @@ exec_lit_null_op_1:
         movl    %eax, stack_top(%rip)
         ret
 exec_lit_null_op_end_1:
+
+exec_set_local_op:
+        movq    stack_top(%rip), %rax
+        subq    $1, %rax
+        movq    stack(,%rax,8), %rcx
+        ## store i->idx into %rdx
+        movslq  4(%rdi), %rdx
+        ## get the current frame
+        movq    current(%rip), %rax
+        ## current->slots[idx] = v;
+        movq    %rcx, 16(%rax,%rdx,8)
+        ret
+exec_set_local_op_end:
+
+stack_peek:
+        movq    stack_top(%rip), %rax
+        subq    $1, %rax
+        movq    stack(,%rax,8), %rax
+        ret
+stack_peek_end:
 
 stack_push:
 	movq	stack@GOTPCREL(%rip), %rax
