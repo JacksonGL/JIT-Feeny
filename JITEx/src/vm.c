@@ -1662,7 +1662,7 @@ int to_int(IntIValue* val){
 	intptr_t v = (intptr_t)val;
 	return v>>3;
 }
-
+/*
 ObjTag obj_type (IValue * o) {
 	intptr_t v = (intptr_t)o;
 	if(v == 2){
@@ -1674,6 +1674,7 @@ ObjTag obj_type (IValue * o) {
 		return INT_OBJ;
 	}
 }
+*/
 
 NullIValue* make_null_obj () {
 	return (NullIValue*)((intptr_t)2);
