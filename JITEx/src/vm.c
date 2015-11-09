@@ -716,9 +716,12 @@ void exec_drop_op () {
   stack_pop();
 }
 
+/*
 void exec_lit_op (LitIns * i) { // changed the semantics
 	stack_push(from_int_val(make_int_obj(i->idx)));
 }
+*/
+
 
 void exec_lit_null_op (ByteIns * i) {
 	stack_push(from_null_val(make_null_obj()));
