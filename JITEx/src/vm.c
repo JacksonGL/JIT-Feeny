@@ -722,10 +722,11 @@ void exec_lit_op (LitIns * i) { // changed the semantics
 }
 */
 
-
+/*
 void exec_lit_null_op (ByteIns * i) {
 	stack_push(from_null_val(make_null_obj()));
 }
+*/
 
 // First pops the initializing value from
 // the operand stack, and then pops the

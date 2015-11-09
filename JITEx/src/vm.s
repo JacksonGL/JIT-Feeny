@@ -5,6 +5,7 @@
 #	.globl	obj_type
 	.globl	exec_branch_op
 	.globl	exec_lit_op
+	.globl	exec_lit_null_op
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -21,14 +22,41 @@ exec_goto_op:
 	ret
 exec_goto_op_end:
 
-exec_lit_op:
+exec_lit_op_1:
 	movslq	4(%rdi), %rcx
 	shlq	$3, %rcx
 	movslq	stack_top(%rip), %rax
 	movq	%rcx, stack(,%rax,8)
 	incl	stack_top(%rip)
 	ret
+exec_lit_op_end_1:
+
+exec_lit_op:
+        movslq  4(%rdi), %rcx
+        movl    stack_top(%rip), %eax
+        movslq  %eax, %rdx
+        addl    $1, %eax
+	    salq    $3, %rcx
+        movl    %eax, stack_top(%rip)
+        movq    %rcx, stack(,%rdx,8)
+        ret
 exec_lit_op_end:
+
+exec_lit_null_op:
+        movslq  stack_top(%rip), %rdx
+        movq    $2, stack(,%rdx,8)
+        addl    $1, stack_top(%rip)
+        ret
+exec_lit_null_op_end:
+
+exec_lit_null_op_1:
+        movl    stack_top(%rip), %eax
+        movslq  %eax, %rdx
+        addl    $1, %eax
+        movq    $2, stack(,%rdx,8)
+        movl    %eax, stack_top(%rip)
+        ret
+exec_lit_null_op_end_1:
 
 stack_push:
 	movq	stack@GOTPCREL(%rip), %rax
