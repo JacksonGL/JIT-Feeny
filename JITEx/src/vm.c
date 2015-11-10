@@ -663,9 +663,11 @@ void exec_set_local_op (SetLocalIns * i) {
 // Retrieves the i’th slot in the
 // current local frame and pushes
 // it onto the operand stack.
+/*
 void exec_get_local_op (GetLocalIns * i) {
 	stack_push(get_local(i->idx));
 }
+*/
 
 
 // Sets the global variable with name

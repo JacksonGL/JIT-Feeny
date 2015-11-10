@@ -8,6 +8,7 @@
 	.globl	exec_lit_op
 	.globl	exec_lit_null_op
 	.globl	exec_set_local_op
+	.globl	exec_get_local_op
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -72,6 +73,20 @@ exec_set_local_op:
         movq    %rcx, 16(%rax,%rdx,8)
         ret
 exec_set_local_op_end:
+
+exec_get_local_op:
+	## i->idx
+	movslq  4(%rdi), %rdx
+        movq    current(%rip), %rax
+        ## current->slots[idx]
+        movq    16(%rax,%rdx,8), %rcx
+        ## stack push
+        movq    stack_top(%rip), %rax
+        movq    %rcx, stack(,%rax,8)
+        incq    %rax
+        movq    %rax, stack_top(%rip)
+        ret
+exec_get_local_op_end:
 
 stack_peek:
         movq    stack_top(%rip), %rax
