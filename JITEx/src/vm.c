@@ -673,18 +673,22 @@ void exec_get_local_op (GetLocalIns * i) {
 // Sets the global variable with name
 // specified by the String object at index
 // i to the top value in the operand stack.
+/*
 void exec_set_global_op (SetGlobalIns * i) {
 	set_global_slot_by_idx(i->name, stack_peek());
 }
+*/
 
 
 // Retrieves the value of the
 // global variable with name specified
 // by the String object at index i, and
 // pushes it onto the operand stack.
+/*
 void exec_get_global_op (GetGlobalIns * i) {
 	stack_push(get_global_slot_by_idx(i->name));
 }
+*/
 
 // Pops a value from the operand
 // stack. If this value is not Null,
@@ -717,9 +721,11 @@ int exec_goto_op (GotoIns * i) {
 
 // Pops and discards the top value from
 // the operand stack.
+/*
 void exec_drop_op () {
   stack_pop();
 }
+*/
 
 /*
 void exec_lit_op (LitIns * i) { // changed the semantics
@@ -871,11 +877,13 @@ int exec_call_op (CallIns * i, int pc) {
 // local frame. The local frame is no longer
 // used after a Return instruction, and any
 // storage allocated for it may be reclaimed.
+/*
 int exec_return_op () {
 	int ret = pop_frame();
 	debugf("Returning with frame = %lx and address = %d\n", current, ret);
 	return ret;
 }
+*/
 
 // Pops n values from the
 // operand stack for the arguments to the call. Then pops the receiver

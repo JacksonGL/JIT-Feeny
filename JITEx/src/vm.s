@@ -9,6 +9,10 @@
 	.globl	exec_lit_null_op
 	.globl	exec_set_local_op
 	.globl	exec_get_local_op
+	.globl	exec_set_global_op
+	.globl	exec_get_global_op
+	.globl	exec_drop_op
+	.globl	exec_return_op
 
 ## Sets the instruction pointer to the instruction
 ## address associated with the name given by
@@ -83,10 +87,51 @@ exec_get_local_op:
         ## stack push
         movq    stack_top(%rip), %rax
         movq    %rcx, stack(,%rax,8)
-        incq    %rax
-        movq    %rax, stack_top(%rip)
+        addq    $1, stack_top(%rip)
         ret
 exec_get_local_op_end:
+
+exec_set_global_op:
+        movq    stack_top(%rip), %rcx
+        movslq  4(%rdi), %rax
+        leaq    -1(%rcx), %rdx
+        movq    stack(,%rdx,8), %rdx
+        movq    %rdx, globals(,%rax,8)
+        ret
+exec_set_global_op_end:
+
+exec_get_global_op:
+        movslq  4(%rdi), %rcx
+        movq    stack_top(%rip), %rax
+        movq    globals(,%rcx,8), %rcx
+        addq    $1, stack_top(%rip)
+        movq    %rcx, stack(,%rax,8)
+        ret
+exec_get_global_op_end:
+
+exec_drop_op:
+        subl    $1, stack_top(%rip)
+        ret
+exec_drop_op_end:
+
+exec_return_op:
+		## frames + frame_top
+        movq    frame_top(%rip), %rsi
+        movq  	%rsi, %rcx
+	leaq	frames(%rip), %rdx
+        addq    %rdx, %rcx
+        ## size_of_current_frame = (frames + frame_top) - current
+        movq    current(%rip), %rdx
+        movl    8(%rdx), %eax  ## current->return_addr is stored as return value
+        subq    %rdx, %rcx
+        ## frame_top -= size_of_current_frame
+        subl    %ecx, %esi
+        movl    %esi, frame_top(%rip)
+        ## *current = current->parent
+        movq    (%rdx), %rdx
+        movq    %rdx, current(%rip)
+        ret
+exec_return_op_end:
 
 stack_peek:
         movq    stack_top(%rip), %rax
