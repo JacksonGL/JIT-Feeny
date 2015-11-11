@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 
 #include <sys/timeb.h>
 #include <sys/time.h>
 #include <stdio.h>
@@ -56,6 +57,7 @@ typedef union {
 typedef struct {
 	AllIns i;
 	int locals;
+	void * code_ptr;
 } AllInsData;
 
 //============================================================
@@ -124,6 +126,16 @@ struct Frame {
 	IValue* slots[0];
 };
 
+
+// jit stuff
+int hole_len = 8;
+int64_t hole_str_v = 0xcafebabecafebabe;
+char* hole_str = &hole_str_v;
+uintptr_t _instruction_slot = 0;
+uintptr_t* instruction_pointer = &_instruction_slot;
+void * code_point(int i);
+void drive (int pc);
+int call_feeny(intptr_t t);
 
 
 // operand stack operations
@@ -363,33 +375,34 @@ void init_global_slots(int size){
 
 #define STACK_SIZE 1000
 IValue* stack[STACK_SIZE];
-int stack_top = 0;
+IValue** stack_pointer = &stack[0];
 
 void stack_push (IValue * val) {
-	debugf("Stack push height from %d with addr %lx" , stack_top, val);
-	stack[stack_top] = val;
-	stack_top+=1;
-	debugf("to %d with tag %d\n", stack_top, obj_type(val));
+	debugf("Stack push addr %lx", val);
+	*stack_pointer = val;
+	stack_pointer++;
+	debugf("with tag %d\n", obj_type(val));
 }
 
 
 IValue* stack_pop () {
 	debugf("Stack popping from %d at %lx ", stack_top-1, stack[stack_top-1]);
-	IValue* v = stack[stack_top-1];
-	stack_top-=1;
+	stack_pointer-=1;
+	IValue* v = *stack_pointer;
 	debugf("with tag %d\n", obj_type(v));
 	return v;
 }
 
 
 IValue* stack_peek () {
-  return stack[stack_top-1];
+  return *(stack_pointer-1);
 }
 
 
 #define FRAME_SIZE 1024*1024
 char frames[FRAME_SIZE];
-Frame* current = NULL;
+//TODO: this may not be the desirable format. 
+Frame* frame_pointer = NULL;
 int frame_top = 0;
 Frame* frame_alloc(int slots){
 	size_t frame_size = sizeof(Frame)+slots*sizeof(IValue*);
@@ -403,8 +416,8 @@ void push_frame(int return_addr, int num_locals, int num_args){
 	debugf("Called push frame with return address = %d!\n", return_addr);
 	Frame* next = frame_alloc(num_locals+num_args);
 	next->return_addr = return_addr;
-	next->parent = current;
-	current = next;
+	next->parent = frame_pointer;
+	frame_pointer = next;
 	for(int i = 0; i < (num_locals+num_args); ++i){
 		set_local(i, NULL); // to prevent a very confused GC
 	}
@@ -414,24 +427,24 @@ void push_frame(int return_addr, int num_locals, int num_args){
 }
 
 int pop_frame(){
-	debugf("Called pop frame and will return with parent frame = %lx\n", current->parent);
-	int ret = current->return_addr;
+	debugf("Called pop frame and will return with parent frame = %lx\n", frame_pointer->parent);
+	int ret = frame_pointer->return_addr;
 
-	int size_of_current_frame = (frames+frame_top)-(char*)current;
+	int size_of_current_frame = (frames+frame_top)-(char*)frame_pointer;
 	frame_top -= size_of_current_frame;
-	debugf("Called pop frame and will return with return addr = %d at %lx\n", ret, current->parent);
-	current = current->parent;
+	debugf("Called pop frame and will return with return addr = %d at %lx\n", ret, frame_pointer->parent);
+	frame_pointer = frame_pointer->parent;
 	return ret;
 }
 
 IValue* get_local(int idx){
-	debugf("Getting slot %d from frame to item with tag %d\n", idx, obj_type(current->slots[idx]));
-	return current->slots[idx];
+	debugf("Getting slot %d from frame to item with tag %d\n", idx, obj_type(frame_pointer->slots[idx]));
+	return frame_pointer->slots[idx];
 }
 
 void set_local(int idx, IValue* v){
 	debugf("Setting slot %d in frame to item with tag %d\n", idx, v?obj_type(v):-1);
-	current->slots[idx] = v;
+	frame_pointer->slots[idx] = v;
 }
 
 //============================================================
@@ -446,6 +459,9 @@ char (*heap_old)[HEAP_SIZE] = &heap2;
 int next_free_cur = 0;
 int next_free_old = 0;
 int is_currently_collecting = 0;
+// TODO: FIXME
+void* heap_pointer = NULL;
+void* top_of_heap = NULL;
 
 void * _halloc(size_t size){
 	char* heap = *heap_cur;
@@ -578,12 +594,12 @@ void scan_root_set(){
 
 	// scan through operand stack
 	debugf("Operand Stack!\n");
-	for(int i = 0; i < stack_top; ++i){
-		stack[i] = get_post_gc_ptr(stack[i]);
+	for(IValue** i = stack+0; i < stack_pointer; ++i){
+		*i = get_post_gc_ptr(*i);
 	}
 
 	debugf("Frames!\n");
-	Frame* cur_frame = current;
+	Frame* cur_frame = frame_pointer;
 	uintptr_t last = (uintptr_t) &frames[frame_top];
 	while(cur_frame != NULL){
 		for(int i = 0; (uintptr_t)(cur_frame->slots+i)< last; ++i){
@@ -654,41 +670,33 @@ void scan_IValue(IValue* t){
 // Sets the i’th slot in the current
 // local frame to the top value in
 // the operand stack.
-/*
 void exec_set_local_op (SetLocalIns * i) {
 	set_local(i->idx, stack_peek());
 }
-*/
 
 // Retrieves the i’th slot in the
 // current local frame and pushes
 // it onto the operand stack.
-/*
 void exec_get_local_op (GetLocalIns * i) {
 	stack_push(get_local(i->idx));
 }
-*/
 
 
 // Sets the global variable with name
 // specified by the String object at index
 // i to the top value in the operand stack.
-/*
 void exec_set_global_op (SetGlobalIns * i) {
 	set_global_slot_by_idx(i->name, stack_peek());
 }
-*/
 
 
 // Retrieves the value of the
 // global variable with name specified
 // by the String object at index i, and
 // pushes it onto the operand stack.
-/*
 void exec_get_global_op (GetGlobalIns * i) {
 	stack_push(get_global_slot_by_idx(i->name));
 }
-*/
 
 // Pops a value from the operand
 // stack. If this value is not Null,
@@ -696,7 +704,6 @@ void exec_get_global_op (GetGlobalIns * i) {
 // the instruction address associated
 // with the name given by the String
 // object at index i.
-/*
 int exec_branch_op (BranchIns * i, int pc) {
   IValue* val = stack_pop();
   debugf("Received %lx from stack bottom: %lx\n", val, &stack[0]);
@@ -706,38 +713,29 @@ int exec_branch_op (BranchIns * i, int pc) {
     return pc+1;
   }
 }
-*/
 
 // Sets the instruction pointer to the instruction
 // address associated with the name given by
 // the String object at index i.
 
-/*
 int exec_goto_op (GotoIns * i) {
 	return i->name;
 }
-*/
 
 
 // Pops and discards the top value from
 // the operand stack.
-/*
 void exec_drop_op () {
   stack_pop();
 }
-*/
 
-/*
 void exec_lit_op (LitIns * i) { // changed the semantics
 	stack_push(from_int_val(make_int_obj(i->idx)));
 }
-*/
 
-/*
 void exec_lit_null_op (ByteIns * i) {
 	stack_push(from_null_val(make_null_obj()));
 }
-*/
 
 // First pops the initializing value from
 // the operand stack, and then pops the
@@ -780,13 +778,13 @@ void exec_printf_op (PrintfIns * i) {
 	char* start_for_print = format_str;
 
 	// this is a little dirty
-	int from_stack = stack_top - arity;
+	IValue** from_stack = stack_pointer - arity;
 	int str_len = strlen(format_str);
 	for(int i = 0; i< str_len; ++i){
 		if(format_str[i] == replace){
 			format_str[i] = '\0';
 			printf("%s", start_for_print);
-			print_ivalue(stack[from_stack++]);
+			print_ivalue(*from_stack++);
 			start_for_print = format_str+i+1;
 			format_str[i]= replace;
 		}
@@ -877,13 +875,11 @@ int exec_call_op (CallIns * i, int pc) {
 // local frame. The local frame is no longer
 // used after a Return instruction, and any
 // storage allocated for it may be reclaimed.
-/*
 int exec_return_op () {
 	int ret = pop_frame();
 	debugf("Returning with frame = %lx and address = %d\n", current, ret);
 	return ret;
 }
-*/
 
 // Pops n values from the
 // operand stack for the arguments to the call. Then pops the receiver
@@ -908,7 +904,7 @@ int exec_call_slot_op (CallSlotIns * i, int pc) {
 		#endif
 		return pc+1;
 	}
-	ObjectIValue* receiver_ptr = to_obj_val(stack[stack_top-i->arity]);
+	ObjectIValue* receiver_ptr = to_obj_val(*(stack_pointer-i->arity));
 
 	int method_idx = find_method_by_name(receiver_ptr, i->name);
 	AllInsData* aid = (AllInsData*) get_ins(method_idx);
@@ -922,7 +918,7 @@ int exec_call_slot_op (CallSlotIns * i, int pc) {
 
 int exec_built_in_method(CallSlotIns* i){
 	debugf("stack_top:%d arity:%d\n", stack_top, i->arity);
-	IValue* receiver_ptr = stack[stack_top - i->arity];
+	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	debugf("Working with type:%d\n", obj_type(receiver_ptr));
 	int arity = (i->arity-1>0)? i->arity-1:0;
 	int method_name = i->name;
@@ -1077,7 +1073,7 @@ int exec_ins (int pc) {
     error("Unknown instruction with tag: %u\n", ins->tag);
   }
   }
-  return pc +1;
+  return pc+1;
 }
 
 void start_exec(int pc) {
@@ -1096,16 +1092,37 @@ void start_exec(int pc) {
 	}
 }
 
+void drive (int pc) {
+	CallIns ci = {CALL_OP, pc, 0};
+	pc = exec_call_op(&ci, -2); // return address is incremented so -2 + 1 == -1
+
+	//printf("Calling %lx\n", instruction_pointer);
+	//printf("Calling %lx\n", *instruction_pointer);
+	while(pc != -1){
+		*instruction_pointer = code_point(pc);
+		//printf("Calling %lx for pc = %d\n", *instruction_pointer,pc);
+		pc = call_feeny(instruction_pointer);
+
+		if(pc != -1){
+			pc = exec_ins(pc);
+		} else {
+			break;
+		}
+		// TODO: switch case for other handling here, like gc
+		//printf("Calling %lx\n", instruction_pointer);
+	}
+}
+
 void print_stack(){
 	printf("\nOperand stack:\nTOP\n");
-	for(int i = stack_top-1; i >=0; --i){
-		print_ivalue(stack[i]); printf("\n");
+	for(IValue** i = stack_pointer-1; i >=stack; --i){
+		print_ivalue(*i); printf("\n");
 	}
 }
 
 void print_frame(){
 	printf("Frames!\n");
-	const Frame* cur_frame = current;
+	const Frame* cur_frame = frame_pointer;
 	uintptr_t last = (uintptr_t) &frames[frame_top];
 
 	// if last == cur_frame, then there are no frames, since frames
@@ -1281,6 +1298,39 @@ ByteIns * get_ins(int i){
 	return (ByteIns*) &code_data[i];
 }
 
+AllInsData* get_ins_data(int i){
+	return &code_data[i];
+}
+
+void * code_point(int i){
+	//printf("Got code_ptr:%lx\n", get_ins_data(i)->code_ptr);
+	return get_ins_data(i)->code_ptr;
+}
+
+void set_code_point(int i, void * a){
+	//printf("Set code_ptr:%lx\n", a);
+	get_ins_data(i)->code_ptr = a;
+}
+
+char * code = NULL;
+
+extern char c_trap[];
+extern char after_c_trap[];
+void * make_trap(int val_to_return){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, c_trap, after_c_trap - c_trap);
+	code[0] = '\0';
+
+	// replace values
+	char* to_replace = memmem(ret, after_c_trap-c_trap, hole_str, hole_len);
+	int64_t val64 = val_to_return;
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	return ret;
+}
+
 int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
 	debugf("In make code ins\n");
 	Vector* cp = p->values;
@@ -1296,13 +1346,14 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 				LitIns* bi = code_alloc();
 				bi->tag = LIT_OP;
 				bi->idx = iv->value;
+				set_code_point(code_index(bi), make_trap(code_index(bi)));
 				return code_index(bi);
 			} else if(v->tag == NULL_VAL){
 				ByteIns* bi = code_alloc();
 				bi->tag = LIT_NULL_OP;
+				set_code_point(code_index(bi), make_trap(code_index(bi)));
 				return code_index(bi);
 			}
-
 			error("Bad literal value!");
 		}
 		case PRINTF_OP:{
@@ -1311,6 +1362,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			pi->format =  get_str_constant_value((StringValue*) vector_get(cp, opi->format));
 			pi->arity = ((PrintfIns*)ins)->arity;
 			pi->tag = PRINTF_OP;
+			set_code_point(code_index(pi), make_trap(code_index(pi)));
 			return code_index(pi);
 		}
 		case ARRAY_OP:
@@ -1318,6 +1370,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		case RETURN_OP:{
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
+			set_code_point(code_index(ii), make_trap(code_index(ii)));
 			return code_index(ii);
 		}
 		case OBJECT_OP:{
@@ -1325,6 +1378,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ObjectIns* ooi = (ObjectIns*) ins;
 			oi->class = get_class_constant_value((ClassValue*) vector_get(cp, ooi->class), p, class_layouts);
 			oi->tag = ooi->tag;
+			set_code_point(code_index(oi), make_trap(code_index(oi)));
 			return code_index(oi);
 		}
 		case SET_SLOT_OP: // these happen to be the same
@@ -1334,6 +1388,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			SlotIns* osi = (SlotIns*) ins;
 			si->tag = osi->tag;
 			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
+			set_code_point(code_index(si), make_trap(code_index(si)));
 			return code_index(si);
 		}
 		case CALL_SLOT_OP:{
@@ -1342,6 +1397,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			si->tag = osi->tag;
 			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
 			si->arity = osi->arity;
+			set_code_point(code_index(si), make_trap(code_index(si)));
 			return code_index(si);
 		}
 		case CALL_OP: {
@@ -1352,6 +1408,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ci->name = oci->name;
 			// needs to be fixed
 			vector_add(call_ins, ci);
+			set_code_point(code_index(ci), make_trap(code_index(ci)));
 			return code_index(ci);
 		}// *LOCAL_OP do not change
 		case GET_LOCAL_OP:
@@ -1361,6 +1418,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
 			gi->idx = ogi->idx;
+			set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		case GET_GLOBAL_OP:
@@ -1370,6 +1428,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			GetGlobalIns* ogi= (GetGlobalIns*) ins;
 			gi->tag = ogi->tag;
 			gi->name = get_global_var_by_idx(ogi->name, p);
+			set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		// GLOBAL_OP's the slots need to be resolved to an index
@@ -1382,10 +1441,10 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
+			set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		// DROP and RETURN are done above
-
 		default:
 			error("Bad ins tag!");
 	}
@@ -1528,7 +1587,7 @@ int quicken(Program * p){
 		ci->name = name;
 	}
 
-	// go through call slots and redo their destinations
+	// go through class layouts and redo their destinations
 	for(int i= 0; i < class_layouts->size; ++i){
 		debugf("Class %d!\n", i);
 		ClassLayout* cl = vector_get(class_layouts, i);
@@ -1604,7 +1663,8 @@ void exec_prog (Program * p) {
 	}
 	// need to allocate globals
 	init_global_slots(count_of_globals);
-	start_exec(entry);
+	//start_exec(entry);
+	drive(entry);
 }
 
 void interpret_bc (Program * p) {
