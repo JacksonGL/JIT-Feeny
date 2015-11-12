@@ -1384,6 +1384,25 @@ void * make_trap(int val_to_return){
 	return ret;
 }
 
+extern char goto_op[];
+extern char goto_op_end[];
+void * make_goto(){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, goto_op, goto_op_end - goto_op);
+	code[0] = '\0';
+
+	return ret;
+}
+
+void update_goto(void* location, int64_t point){
+	// replace values
+	char* to_replace = memmem(location, goto_op_end-goto_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &point, hole_len);
+}
+
 int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
 	debugf("In make code ins\n");
 	Vector* cp = p->values;
@@ -1486,8 +1505,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		}
 		// GLOBAL_OP's the slots need to be resolved to an index
 		// BRANCH & GOTO are just copied
-		case BRANCH_OP:
-		case GOTO_OP:{
+		case BRANCH_OP:{
 			assert(sizeof(GotoIns) == sizeof(BranchIns));
 			GotoIns* gi = code_alloc();
 			GotoIns* ogi = (GotoIns*) ins;
@@ -1495,6 +1513,16 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
 			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			return code_index(gi);
+		}
+		case GOTO_OP:{
+			assert(sizeof(GotoIns) == sizeof(BranchIns));
+			GotoIns* gi = code_alloc();
+			GotoIns* ogi = (GotoIns*) ins;
+			gi->tag = ogi->tag;
+			gi->name = ogi->name;
+			vector_add(goto_branch, gi);
+			set_code_point(code_index(gi), make_goto());
 			return code_index(gi);
 		}
 		// DROP and RETURN are done above
@@ -1550,15 +1578,18 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 		assert(sizeof(GotoIns) == sizeof(BranchIns));
 
 		GotoIns* gins = (GotoIns*) ins;
-		int code_point = -1;
+		int code_point_i = -1;
 		for(int i = 0; i < constant_idx_to_label_idx->size; ++i){
 			IntPair* p = vector_get(constant_idx_to_label_idx, i);
 			if(p->name == gins->name){
-				code_point = p->value;
+				code_point_i = p->value;
 			}
 		}
-		errorif(code_point == -1, "Unresolved label!");
-		gins->name = code_point;
+		errorif(code_point_i == -1, "Unresolved label!");
+		gins->name = code_point_i;
+		if(gins->tag == GOTO_OP){
+			update_goto(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
+		}
 	}
 	// free vector stuff
 	return first_entry;
