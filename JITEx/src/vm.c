@@ -1367,6 +1367,57 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+extern char set_global_op[];
+extern char set_global_op_end[];
+void * make_set_global(int index){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, set_global_op, set_global_op_end - set_global_op);
+	code[0] = '\0';
+
+	// replace values
+	char* to_replace = memmem(ret, set_global_op_end-set_global_op, hole_str, hole_len);
+	int64_t val64 = index;
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	return ret;
+}
+
+extern char get_global_op[];
+extern char get_global_op_end[];
+void * make_get_global(int index){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, get_global_op, get_global_op_end - get_global_op);
+	code[0] = '\0';
+
+	// replace values
+	char* to_replace = memmem(ret, get_global_op_end-get_global_op, hole_str, hole_len);
+	int64_t val64 = index;
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	return ret;
+}
+
+extern char get_local_op[];
+extern char get_local_op_end[];
+void * make_get_local(int index){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, get_local_op, get_local_op_end - get_local_op);
+	code[0] = '\0';
+
+	// replace values
+	char* to_replace = memmem(ret, get_local_op_end-get_local_op, hole_str, hole_len);
+	int64_t val64 = index;
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	return ret;
+}
+
 extern char set_local_op[];
 extern char set_local_op_end[];
 void * make_set_local(int index){
@@ -1525,7 +1576,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
 			gi->idx = ogi->idx;
-			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			set_code_point(code_index(gi), make_get_local(gi->idx));
 			return code_index(gi);
 		}
 		case SET_LOCAL_OP:{
@@ -1537,14 +1588,22 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			set_code_point(code_index(gi), make_set_local(gi->idx));
 			return code_index(gi);
 		}
-		case GET_GLOBAL_OP:
+		case GET_GLOBAL_OP:{
+			assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
+			GetGlobalIns* gi = code_alloc();
+			GetGlobalIns* ogi= (GetGlobalIns*) ins;
+			gi->tag = ogi->tag;
+			gi->name = get_global_var_by_idx(ogi->name, p);
+			set_code_point(code_index(gi), make_get_global(gi->name));
+			return code_index(gi);
+		}
 		case SET_GLOBAL_OP:{
 			assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
 			GetGlobalIns* gi = code_alloc();
 			GetGlobalIns* ogi= (GetGlobalIns*) ins;
 			gi->tag = ogi->tag;
 			gi->name = get_global_var_by_idx(ogi->name, p);
-			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			set_code_point(code_index(gi), make_set_global(gi->name));
 			return code_index(gi);
 		}
 		// GLOBAL_OP's the slots need to be resolved to an index
