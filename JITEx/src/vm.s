@@ -92,3 +92,20 @@ RET_NOT_NULL:
         movl    4(%rdi), %eax  ## replace 4(%rdi) for a hole for i->name
         ret
 exec_branch_op_end_1:
+
+.globl exec_set_local_op_1
+.globl exec_set_local_op_end_1
+
+exec_set_local_op_1:
+		## stack peek
+        movq    stack_pointer(%rip), %rax	## comment
+##      movq    $0xcafebabecafebabe, %r11	## uncomment, replace hole with i->idx
+		movq    %rdi, %r11					## comment
+        movslq  4(%r11), %r10				
+## get the top of the value from the stack
+        movq    -8(%rax), %r11				
+        movq    frame_pointer(%rip), %rcx	## comment
+        movq    %r11, 16(%rcx,%r10,8)
+##		movq 	$0xcafebabecafebabe, %r11   ## uncomment, replace hole with next pc
+        ret
+exec_set_local_op_1_end:
