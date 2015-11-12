@@ -99,3 +99,10 @@ get_global_op:
 	movq %r10, 0(%rdx)
 	addq $8, %rdx # 8 = size of pointer
 get_global_op_end:
+
+.globl exec_drop_op
+.globl exec_drop_op_end
+
+exec_drop_op_1:
+        subq    $8, rdx
+exec_drop_op_end_1
