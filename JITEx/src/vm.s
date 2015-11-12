@@ -106,3 +106,11 @@ get_global_op_end:
 drop_op:
 	subq $8, %rdx # 8 = size of pointer
 drop_op_end:
+
+.globl return_op
+.globl return_op_end
+
+return_op:
+        movl    8(%rcx), %eax
+        movq    (%rcx), %rcx
+return_op_end:
