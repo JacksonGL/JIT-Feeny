@@ -345,10 +345,16 @@ void set_slot_by_idx(ObjectIValue* receiver, int name_idx, IValue* v){
 
 int find_method_by_name(ObjectIValue* receiver, int name_idx){
 	ClassLayout* cl = receiver->class_ptr;
+	debugf("Looking for %d in layout %lx in object = ", name_idx, cl);
+	#ifdef DEBUG
+	debug_objectivalue(receiver);debugf("\n");
+	#endif
+
 	for(int i = 0; i< cl->num_methods+cl->num_slots; ++i){
 		if(cl->slots_and_methods[i].name == name_idx){
 			return cl->slots_and_methods[i].value;
 		}
+		debugf("passing over item with name = %d\n", cl->slots_and_methods[i].name);
 	}
 	return find_method_by_name(to_obj_val(receiver->parent_obj_ptr), name_idx);
 }
@@ -373,7 +379,7 @@ void init_global_slots(int size){
 }
 
 
-#define STACK_SIZE 1000
+#define STACK_SIZE 1024
 IValue* stack[STACK_SIZE];
 IValue** stack_pointer = &stack[0];
 
@@ -381,15 +387,15 @@ void stack_push (IValue * val) {
 	debugf("Stack push addr %lx", val);
 	*stack_pointer = val;
 	stack_pointer++;
-	debugf("with tag %d\n", obj_type(val));
+	debugf(" with tag %d\n", obj_type(val));
 }
 
 
 IValue* stack_pop () {
-	debugf("Stack popping from %d at %lx ", stack_top-1, stack[stack_top-1]);
+	debugf("Stack popping at %lx ", stack_pointer-1);
 	stack_pointer-=1;
 	IValue* v = *stack_pointer;
-	debugf("with tag %d\n", obj_type(v));
+	debugf(" with tag %d\n", obj_type(v));
 	return v;
 }
 
@@ -400,20 +406,27 @@ IValue* stack_peek () {
 
 
 #define FRAME_SIZE 1024*1024
+
+//DESIRED FORMAT:
+// high index
+// old frame
+// new frame
+// low index
+
+// frame_pointer - 1 is free
+// frame_pointer + 1 is used
 char frames[FRAME_SIZE];
-//TODO: this may not be the desirable format. 
-Frame* frame_pointer = NULL;
-int frame_top = 0;
+Frame* frame_pointer = (Frame*)&frames[FRAME_SIZE];
+
 Frame* frame_alloc(int slots){
 	size_t frame_size = sizeof(Frame)+slots*sizeof(IValue*);
-	Frame* t = &frames[frame_top];
-	frame_top+=frame_size;
-	errorif(frame_top >= FRAME_SIZE, "Ran out of frame space!");
+	Frame* t = ((char*) frame_pointer)-frame_size;
+	errorif(frame_pointer <= (Frame*)&frames[0], "Ran out of frame space!");
 	return t;
 }
 
 void push_frame(int return_addr, int num_locals, int num_args){
-	debugf("Called push frame with return address = %d!\n", return_addr);
+	debugf("Called push frame with return address = %d and arglocs = %d!\n", return_addr, num_args+num_locals);
 	Frame* next = frame_alloc(num_locals+num_args);
 	next->return_addr = return_addr;
 	next->parent = frame_pointer;
@@ -430,8 +443,6 @@ int pop_frame(){
 	debugf("Called pop frame and will return with parent frame = %lx\n", frame_pointer->parent);
 	int ret = frame_pointer->return_addr;
 
-	int size_of_current_frame = (frames+frame_top)-(char*)frame_pointer;
-	frame_top -= size_of_current_frame;
 	debugf("Called pop frame and will return with return addr = %d at %lx\n", ret, frame_pointer->parent);
 	frame_pointer = frame_pointer->parent;
 	return ret;
@@ -454,20 +465,22 @@ void set_local(int idx, IValue* v){
 #define HEAP_SIZE 1024*1024
 char heap1[HEAP_SIZE];
 char heap2[HEAP_SIZE];
-char (*heap_cur)[HEAP_SIZE] = &heap1;
-char (*heap_old)[HEAP_SIZE] = &heap2;
-int next_free_cur = 0;
-int next_free_old = 0;
-int is_currently_collecting = 0;
+
 // TODO: FIXME
-void* heap_pointer = NULL;
-void* top_of_heap = NULL;
+char* heap_pointer = &heap1[0];
+char* top_of_heap = &heap1[HEAP_SIZE];
+char* heap_start = &heap1[0];
+
+char* old_heap_pointer = &heap2[0];
+char* old_top_of_heap = &heap2[HEAP_SIZE];
+char* old_heap_start = &heap2[0];
+
+int is_currently_collecting = 0;
 
 void * _halloc(size_t size){
-	char* heap = *heap_cur;
-	void * ret = &heap[next_free_cur];
-	next_free_cur += size;
-	if(next_free_cur >= HEAP_SIZE){
+	void * ret = heap_pointer;
+	heap_pointer += size;
+	if(heap_pointer >= top_of_heap){
 		if(is_currently_collecting){
 			error("Ran out of heap while collecting garbage!\n");
 		}
@@ -481,22 +494,35 @@ void * _halloc(size_t size){
 
 void * halloc(size_t size){
 	add_int("halloc_bytes", size);
-	//garbage_collector();
+	garbage_collector();
 	return _halloc(size);
 }
 
 void swap_heaps(){
-	char (*heap_tmp)[HEAP_SIZE] = heap_cur;
-	debugf("heap_cur %lx, heap_old %lx\n", heap_cur, heap_old);
-	heap_cur = heap_old;
-	heap_old = heap_tmp;
-	debugf("heap_cur %lx, heap_old %lx\n", heap_cur, heap_old);
+	char* t = heap_pointer;
+	heap_pointer = old_heap_pointer;
+	old_heap_pointer = t;
 
-	next_free_old = next_free_cur;
-	next_free_cur = 0; // current heap is empty
+	t = top_of_heap;
+	top_of_heap = old_top_of_heap;
+	old_top_of_heap = t;
+
+	t = heap_start;
+	heap_start = old_heap_start;
+	old_heap_start = t;
+
+	heap_pointer = heap_start;
 }
 
 void* garbage_collector(){
+#ifdef DEBUG
+	debugf("\n------GC start-----\n");
+	debug_frame();
+	debug_stack();
+	debug_globals();
+	debug_heap();
+	debugf("\n-----------\n");
+#endif
 	start_timer("garbage_collector_time");
 	if(is_currently_collecting){
 		error("Can't collect while already collecting!\n");
@@ -510,10 +536,12 @@ void* garbage_collector(){
 	debugf("Finished checking garbage collector!\n");
 	is_currently_collecting = 0;
 #ifdef DEBUG
-	printf("\n-----------\n");
-	print_frame();
-	print_stack();
-	printf("\n-----------\n");
+	debugf("\n-----------\n");
+	debug_frame();
+	debug_globals();
+	debug_stack();
+	debug_heap();
+	debugf("\n-----GC------\n");
 #endif
 	end_timer("garbage_collector_time");
 }
@@ -521,9 +549,8 @@ void* garbage_collector(){
 size_t sizeIValue(IValue * t){
 	switch(obj_type(t)){
 		case INT_OBJ:
-			return sizeof(IntIValue);
 		case NULL_OBJ:
-			return sizeof(NullIValue);
+			error("Int and Null items have no on-heap size.\n");
 		case ARRAY_OBJ:{
 			ArrayIValue* a = to_array_val(t);
 			return sizeof(ArrayIValue) + a->length*sizeof(IValue*);
@@ -547,24 +574,18 @@ IValue * copyIValue(IValue* from){
 }
 
 IValue* get_post_gc_ptr(IValue* obj){
-	if(!obj){
-		debugf("Cannot transfer NULL PTR\n");
-		return NULL;
-	}
-
 	// Due to tagging, we do not need to transfer these
 	if(obj_type(obj) == NULL_OBJ || obj_type(obj) == INT_OBJ){
 		return obj;
 	}
 
-	char* old_heap = *heap_old;
-	if((uintptr_t)obj >= (uintptr_t)&old_heap[HEAP_SIZE] || (uintptr_t)obj < (uintptr_t)&old_heap[0]){
+	/*if((uintptr_t)obj >= (uintptr_t)&old_top_of_heap || (uintptr_t)obj < (uintptr_t)&old_heap_start){
+		debugf("Doing post gc ptr twice for %lx!\n", obj);
 		//TODO: fix this - the reason we cannot fail here is becase
 		// we intermix constants and globals (so when we fix a global
 		// we may later hit it as a constant)
 		return obj;
-	}
-
+	}*/
 
 	if(obj_type(obj) == BROKEN_HEART){
 		return get_forward_ptr(obj);
@@ -580,11 +601,9 @@ IValue* get_post_gc_ptr(IValue* obj){
 }
 
 void scan_root_set(){
-	char *heap = *heap_old;
-	char *heap_curs = *heap_cur;
 	// scan through global variables
-	debugf("Heap is %lx to %lx\n", &heap[0], &heap[HEAP_SIZE]);
-	debugf("NEW Heap is %lx to %lx\n", &heap_curs[0], &heap_curs[HEAP_SIZE]);
+	debugf("Heap is %lx to %lx\n", old_heap_start, old_top_of_heap);
+	debugf("NEW Heap is %lx to %lx\n", heap_start, top_of_heap);
 	debugf("Global slots!\n");
 
 	for(int i = 0; i < max_globals; ++i){
@@ -600,29 +619,30 @@ void scan_root_set(){
 
 	debugf("Frames!\n");
 	Frame* cur_frame = frame_pointer;
-	uintptr_t last = (uintptr_t) &frames[frame_top];
-	while(cur_frame != NULL){
-		for(int i = 0; (uintptr_t)(cur_frame->slots+i)< last; ++i){
-			//print_ivalue(cur_frame->slots[i]); printf(" = before\n");
+	while(cur_frame != (Frame*)&frames[FRAME_SIZE]){
+		for(int i = 0; (uintptr_t)(cur_frame->slots+i) < (uintptr_t)cur_frame->parent; ++i){
+			#ifdef DEBUG
+			debug_ivalue(cur_frame->slots[i]); debugf(" = before\n");
+			#endif
 			cur_frame->slots[i] = get_post_gc_ptr(cur_frame->slots[i]);
-			//print_ivalue(cur_frame->slots[i]); printf(" = after\n");
+			#ifdef DEBUG
+			debug_ivalue(cur_frame->slots[i]); debugf(" = after\n");
+			#endif
 		}
-		last = (uintptr_t)cur_frame;
 		cur_frame = cur_frame->parent;
 	}
 }
 
 
 void scan_new_heap(){
-	char *heap = *heap_cur;
 	// scan through global variables
-	debugf("Heap is %lx to %lx\n", &heap[0], &heap[HEAP_SIZE]);
+	debugf("Heap is %lx to %lx with heap_pointer=%lx\n", heap_start, top_of_heap, heap_pointer);
 	debugf("Current Heap Scan!\n");
-	int position = 0;
-	while(position < next_free_cur){
-		IValue* iv = (IValue*) &heap[position];
+	char* heap_ptr = heap_start;
+	while(heap_ptr < heap_pointer){
+		IValue* iv = (IValue*)(heap_ptr+1);
 		debugf("Working on %lx\n", iv);
-		position += sizeIValue(iv);
+		heap_ptr += sizeIValue(iv);
 		scan_IValue(iv);
 	}
 }
@@ -631,7 +651,7 @@ void scan_IValue(IValue* t){
 	switch(obj_type(t)){
 		case INT_OBJ:
 		case NULL_OBJ:
-			debugf("Either null or int!\n");
+			error("Either null or int!\n");
 			return; // no child items
 		case ARRAY_OBJ:{
 			ArrayIValue* a = to_array_val(t);
@@ -816,7 +836,7 @@ void exec_object_op (ObjectIns * i) {
 	ClassLayout * cl = get_class_by_idx(i->class);
 
 	// init new object value
-	debugf("Making object\n");
+	debugf("Making object with layout=%lx\n", cl);
 	ObjectIValue* obj = halloc(sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots);
 
 	debugf("Num slots expected: %d\n", cl->num_slots);
@@ -856,7 +876,6 @@ void exec_set_slot_op (SetSlotIns * i) {
 // pointer as the return address. Execution proceeds by registering the
 // newly created frame as the current frame, and setting the instruction
 // pointer to the address of the body of the function.
-// TODO: finish
 int exec_call_op (CallIns * i, int pc) {
 	AllInsData* aid = (AllInsData*) get_ins(i->name);
 	push_frame(pc+1, aid->locals, i->arity);
@@ -877,7 +896,7 @@ int exec_call_op (CallIns * i, int pc) {
 // storage allocated for it may be reclaimed.
 int exec_return_op () {
 	int ret = pop_frame();
-	debugf("Returning with frame = %lx and address = %d\n", current, ret);
+	debugf("Returning with frame = %lx and address = %d\n", frame_pointer, ret);
 	return ret;
 }
 
@@ -899,13 +918,17 @@ int exec_return_op () {
 int exec_call_slot_op (CallSlotIns * i, int pc) {
 	if(exec_built_in_method(i)){
 		debugf("Was the built-in %s method!\n", get_str_constant_by_idx(i->name));
+		debugf("Result is");
 		#ifdef DEBUG
-		debugf("Result is"); print_ivalue(stack_peek());
+		debug_ivalue(stack_peek());
 		#endif
 		return pc+1;
 	}
-	ObjectIValue* receiver_ptr = to_obj_val(*(stack_pointer-i->arity));
 
+	ObjectIValue* receiver_ptr = to_obj_val(*(stack_pointer - i->arity));
+	#ifdef DEBUG
+		debug_ivalue(*(stack_pointer - i->arity)); debugf("\n");
+	#endif
 	int method_idx = find_method_by_name(receiver_ptr, i->name);
 	AllInsData* aid = (AllInsData*) get_ins(method_idx);
 	push_frame(pc+1, aid->locals, i->arity);
@@ -917,7 +940,7 @@ int exec_call_slot_op (CallSlotIns * i, int pc) {
 }
 
 int exec_built_in_method(CallSlotIns* i){
-	debugf("stack_top:%d arity:%d\n", stack_top, i->arity);
+	debugf("stack_top:%lx arity:%d\n", stack_pointer-1, i->arity);
 	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	debugf("Working with type:%d\n", obj_type(receiver_ptr));
 	int arity = (i->arity-1>0)? i->arity-1:0;
@@ -1082,12 +1105,16 @@ void start_exec(int pc) {
 	while(pc != -1){
 		pc = exec_ins(pc);
 #ifdef DEBUG
-		printf("\n\n");
-		print_code(pc);
-		print_stack();
-		printf("\n\n");
-		print_frame();
-		printf("\n");
+		debugf("\n\n");
+		debug_code(pc);
+		debug_stack();
+		debugf("\n\n");
+		debug_globals();
+		debugf("\n\n");
+		debug_heap();
+		debugf("\n\n");
+		debug_frame();
+		debugf("\n");
 #endif
 	}
 }
@@ -1095,12 +1122,20 @@ void start_exec(int pc) {
 void drive (int pc) {
 	CallIns ci = {CALL_OP, pc, 0};
 	pc = exec_call_op(&ci, -2); // return address is incremented so -2 + 1 == -1
-
-	//printf("Calling %lx\n", instruction_pointer);
-	//printf("Calling %lx\n", *instruction_pointer);
 	while(pc != -1){
+#ifdef DEBUG
+		debugf("\n\n");
+		debug_code(pc);
+		debug_stack();
+		debugf("\n\n");
+		debug_globals();
+		debugf("\n\n");
+		debug_heap();
+		debugf("\n\n");
+		debug_frame();
+		debugf("\n");
+#endif
 		*instruction_pointer = code_point(pc);
-		//printf("Calling %lx for pc = %d\n", *instruction_pointer,pc);
 		pc = call_feeny(instruction_pointer);
 
 		if(pc != -1){
@@ -1109,34 +1144,52 @@ void drive (int pc) {
 			break;
 		}
 		// TODO: switch case for other handling here, like gc
-		//printf("Calling %lx\n", instruction_pointer);
 	}
 }
 
-void print_stack(){
-	printf("\nOperand stack:\nTOP\n");
+void debug_globals(){
+	debugf("\nGlobals:\n");
+	for(int i = 0; i < max_globals; ++i){
+		debug_ivalue(get_global_slot_by_idx(i));debugf("\n");
+	}
+	debugf("End Globals\n");
+}
+
+void debug_stack(){
+	debugf("\nOperand stack:\nTOP\n");
 	for(IValue** i = stack_pointer-1; i >=stack; --i){
-		print_ivalue(*i); printf("\n");
+		debug_ivalue(*i); debugf("\n");
 	}
 }
 
-void print_frame(){
-	printf("Frames!\n");
+void debug_heap(){
+	// scan through global variables
+	debugf("Heap is %lx to %lx with heap_pointer=%lx\n", heap_start, top_of_heap, heap_pointer);
+	debugf("Current Heap!\n");
+	char* heap_ptr = heap_start;
+	while(heap_ptr < heap_pointer){
+		IValue* iv = (IValue*) (heap_ptr+1);
+		heap_ptr += sizeIValue(iv);
+		debug_ivalue(iv);debugf("\n");
+	}
+	debugf("End Heap!\n");
+}
+
+void debug_frame(){
+	debugf("Frames!\n");
 	const Frame* cur_frame = frame_pointer;
-	uintptr_t last = (uintptr_t) &frames[frame_top];
 
 	// if last == cur_frame, then there are no frames, since frames
 	// take up space
-	while(cur_frame != NULL && last != (uintptr_t)cur_frame){
-		printf("Frame %lx until %lx\n", cur_frame, last);
-		for(int i = 0; (uintptr_t)(cur_frame->slots+i)< last; ++i){
-			printf("Working on %lx at %lx\n", cur_frame->slots[i], cur_frame->slots+i);
-			print_ivalue(cur_frame->slots[i]);
-			printf("\n");
+	while(cur_frame != (Frame*)&frames[FRAME_SIZE]){
+		debugf("Frame %lx until %lx\n", cur_frame, cur_frame->parent);
+		for(int i = 0; (uintptr_t)(cur_frame->slots+i)< (uintptr_t)cur_frame->parent; ++i){
+			debugf("Working on %lx at %lx\n", cur_frame->slots[i], cur_frame->slots+i);
+			debug_ivalue(cur_frame->slots[i]);
+			debugf("\n");
 		}
-		printf("Return addr: %d\n", cur_frame->return_addr);
-		printf("Parent frame: %lx\n", cur_frame->parent);
-		last = (uintptr_t)cur_frame;
+		debugf("Return addr: %d\n", cur_frame->return_addr);
+		debugf("Parent frame: %lx\n", cur_frame->parent);
 		cur_frame = cur_frame->parent;
 	}
 }
@@ -1331,6 +1384,25 @@ void * make_trap(int val_to_return){
 	return ret;
 }
 
+extern char goto_op[];
+extern char goto_op_end[];
+void * make_goto(){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, goto_op, goto_op_end - goto_op);
+	code[0] = '\0';
+
+	return ret;
+}
+
+void update_goto(void* location, int64_t point){
+	// replace values
+	char* to_replace = memmem(location, goto_op_end-goto_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &point, hole_len);
+}
+
 int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
 	debugf("In make code ins\n");
 	Vector* cp = p->values;
@@ -1433,8 +1505,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		}
 		// GLOBAL_OP's the slots need to be resolved to an index
 		// BRANCH & GOTO are just copied
-		case BRANCH_OP:
-		case GOTO_OP:{
+		case BRANCH_OP:{
 			assert(sizeof(GotoIns) == sizeof(BranchIns));
 			GotoIns* gi = code_alloc();
 			GotoIns* ogi = (GotoIns*) ins;
@@ -1442,6 +1513,16 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
 			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			return code_index(gi);
+		}
+		case GOTO_OP:{
+			assert(sizeof(GotoIns) == sizeof(BranchIns));
+			GotoIns* gi = code_alloc();
+			GotoIns* ogi = (GotoIns*) ins;
+			gi->tag = ogi->tag;
+			gi->name = ogi->name;
+			vector_add(goto_branch, gi);
+			set_code_point(code_index(gi), make_goto());
 			return code_index(gi);
 		}
 		// DROP and RETURN are done above
@@ -1497,15 +1578,18 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 		assert(sizeof(GotoIns) == sizeof(BranchIns));
 
 		GotoIns* gins = (GotoIns*) ins;
-		int code_point = -1;
+		int code_point_i = -1;
 		for(int i = 0; i < constant_idx_to_label_idx->size; ++i){
 			IntPair* p = vector_get(constant_idx_to_label_idx, i);
 			if(p->name == gins->name){
-				code_point = p->value;
+				code_point_i = p->value;
 			}
 		}
-		errorif(code_point == -1, "Unresolved label!");
-		gins->name = code_point;
+		errorif(code_point_i == -1, "Unresolved label!");
+		gins->name = code_point_i;
+		if(gins->tag == GOTO_OP){
+			update_goto(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
+		}
 	}
 	// free vector stuff
 	return first_entry;
@@ -1614,15 +1698,15 @@ int quicken(Program * p){
 	}
 
 #ifdef DEBUG
-	printf("Printing classes (total=%d)\n", class_layouts->size);
+	debugf("Printing classes (total=%d)\n", class_layouts->size);
 	for(int i = 0; i < class_layouts->size; ++i){
 		ClassLayout* cl = vector_get(class_layouts, i);
-		printf("Working on class\n");
-		for(int j = 0; j < cl->num_slots; ++j){
+		debugf("Working on class at layout=%lx\n", cl);
+		for(int j = 0; j < cl->num_slots+cl->num_methods; ++j){
 			if(cl->slots_and_methods[j].value == SLOT_ITEM){
-				printf("Has slot with name %s at %d\n", get_str_constant_by_idx(cl->slots_and_methods[j].name), cl->slots_and_methods[j].name);
+				debugf("Has slot with name %s at %d\n", get_str_constant_by_idx(cl->slots_and_methods[j].name), cl->slots_and_methods[j].name);
 			} else {
-				printf("Has method with name %s at %d with entry location %d\n", get_str_constant_by_idx(cl->slots_and_methods[j].name), cl->slots_and_methods[j].name, cl->slots_and_methods[j].value);
+				debugf("Has method with name %s at %d with entry location %d\n", get_str_constant_by_idx(cl->slots_and_methods[j].name), cl->slots_and_methods[j].name, cl->slots_and_methods[j].value);
 			}
 		}
 	}
@@ -1630,27 +1714,115 @@ int quicken(Program * p){
 	return entry_point;
 }
 
-void print_code (int pc) {
+void debug_ins (ByteIns* ins) {
+  switch(ins->tag){
+  case LABEL_OP:{
+    LabelIns* i = (LabelIns*)ins;
+    debugf("label #%d", i->name);
+    break;
+  }
+  case LIT_OP:{
+    LitIns* i = (LitIns*)ins;
+    debugf("   lit #%d", i->idx);
+    break;
+  }
+  case PRINTF_OP:{
+    PrintfIns* i = (PrintfIns*)ins;
+    debugf("   printf #%d %d", i->format, i->arity);
+    break;
+  }
+  case ARRAY_OP:{
+    debugf("   array");
+    break;
+  }
+  case OBJECT_OP:{
+    ObjectIns* i = (ObjectIns*)ins;
+    debugf("   object #%d", i->class);
+    break;
+  }
+  case SLOT_OP:{
+    SlotIns* i = (SlotIns*)ins;
+    debugf("   slot #%d", i->name);
+    break;
+  }
+  case SET_SLOT_OP:{
+    SetSlotIns* i = (SetSlotIns*)ins;
+    debugf("   set-slot #%d", i->name);
+    break;
+  }
+  case CALL_SLOT_OP:{
+    CallSlotIns* i = (CallSlotIns*)ins;
+    debugf("   call-slot #%d %d", i->name, i->arity);
+    break;
+  }
+  case CALL_OP:{
+    CallIns* i = (CallIns*)ins;
+    debugf("   call #%d %d", i->name, i->arity);
+    break;
+  }
+  case SET_LOCAL_OP:{
+    SetLocalIns* i = (SetLocalIns*)ins;
+    debugf("   set local %d", i->idx);
+    break;
+  }
+  case GET_LOCAL_OP:{
+    GetLocalIns* i = (GetLocalIns*)ins;
+    debugf("   get local %d", i->idx);
+    break;
+  }
+  case SET_GLOBAL_OP:{
+    SetGlobalIns* i = (SetGlobalIns*)ins;
+    debugf("   set global #%d", i->name);
+    break;
+  }
+  case GET_GLOBAL_OP:{
+    GetGlobalIns* i = (GetGlobalIns*)ins;
+    debugf("   get global #%d", i->name);
+    break;
+  }
+  case BRANCH_OP:{
+    BranchIns* i = (BranchIns*)ins;
+    debugf("   branch #%d", i->name);
+    break;
+  }
+  case GOTO_OP:{
+    GotoIns* i = (GotoIns*)ins;
+    debugf("   goto #%d", i->name);
+    break;
+  }
+  case RETURN_OP:{
+    debugf("   return");
+    break;
+  }
+  case DROP_OP:{
+    debugf("   drop");
+    break;
+  }
+  default:{
+    debugf("Unknown instruction with tag: %u\n", ins->tag);
+    exit(-1);
+  }
+  }
+}
+
+void debug_code (int pc) {
+	debugf("pc=%d\n", pc);
 	for(int j = 0; j < end_code_section; ++j){
-		printf("%s | %5d |", (pc == j)?"pc->":"    ", j);
+		debugf("%s | %5d |", (pc == j)?"pc->":"    ", j);
 		ByteIns* i = get_ins(j);
 		if(i->tag == LIT_NULL_OP){
-			printf("   lit_null");
+			debugf("   lit_null");
 		} else {
-			print_ins(i);
+			debug_ins(i);
 		}
-		printf("\n");
+		debugf("\n");
 	}
 }
 
 void exec_prog (Program * p) {
-#ifdef DEBUG
-	print_prog(p);
-	printf("\n\n");
-#endif
 	int entry = quicken(p);
 #ifdef DEBUG
-	print_code(entry);
+	debug_code(entry);
 #endif
 	int count_of_globals =0;
 	for(int i = 0; i < p->slots->size; ++i){
@@ -1714,13 +1886,13 @@ IValue* from_null_val(NullIValue* val){
 }
 
 void set_forward_ptr(IValue* v, IValue* c){
-	assert_msg(obj_type(v) == ARRAY_OBJ || obj_type(v) == OBJ_OBJ, "Cannot get forward ptr for some types!");
+	assert_msg(obj_type(v) == BROKEN_HEART, "Cannot set forward ptr for some types %d!\n", obj_type(v));
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	tv->_forward_space = c;
 }
 
 IValue* get_forward_ptr(IValue* v){
-	assert_msg(obj_type(v) == ARRAY_OBJ || obj_type(v) == OBJ_OBJ, "Cannot get forward ptr for some types!");
+	assert_msg(obj_type(v) == BROKEN_HEART, "Cannot get forward ptr for some types %d!\n", obj_type(v));
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	return tv->_forward_space;
 }
@@ -1877,9 +2049,6 @@ IValue* ge(IValue * x, IValue * y) {
 }
 
 void print_ivalue(IValue* t){
-#ifdef DEBUG
-	printf("[0x%lx]", t);
-#endif
 	switch(obj_type(t)){
 		case INT_OBJ:
 			printf("%d", to_int(to_int_val(t)));
@@ -1892,15 +2061,37 @@ void print_ivalue(IValue* t){
 			return;
 		}
 		case OBJ_OBJ:{
-#ifdef DEBUG
-			print_objectivalue(to_obj_val(t));
-#else
 			printf("[OBJECT]");
-#endif
 			return;
 		}
 		case BROKEN_HEART:{
 			printf("BROKEN_HEART to %lx", get_forward_ptr(t));
+			return;
+		}
+		default:
+			error("Unexpected IValue type to iterate through with tag %d!\n", obj_type(t));
+	}
+}
+
+void debug_ivalue(IValue* t){
+	debugf("[0x%lx]", t);
+	switch(obj_type(t)){
+		case INT_OBJ:
+			debugf("%d", to_int(to_int_val(t)));
+			return;
+		case NULL_OBJ:
+			debugf("Null");
+			return;
+		case ARRAY_OBJ:{
+			debug_arrayivalue(to_array_val(t));
+			return;
+		}
+		case OBJ_OBJ:{
+			debug_objectivalue(to_obj_val(t));
+			return;
+		}
+		case BROKEN_HEART:{
+			debugf("BROKEN_HEART to %lx", get_forward_ptr(t));
 			return;
 		}
 		default:
@@ -1919,15 +2110,32 @@ void print_arrayivalue(ArrayIValue* t){
 	printf("]");
 }
 
-void print_objectivalue (ObjectIValue* t) {
-	printf("{");
-	for(int i = 0; i < t->class_ptr->num_slots; ++i){
+void debug_arrayivalue(ArrayIValue* t){
+	debugf("[");
+	for(int i = 0; i < t->length; ++i){
 		if(i){
-			printf(",");
+			debugf(",");
 		}
-		print_ivalue(t->var_slots[i]);
+		debug_ivalue(t->slots[i]);
 	}
-	printf("}");
+	debugf("]");
+}
+
+void debug_objectivalue (ObjectIValue* t) {
+	debugf("{");
+	ClassLayout* cl = t->class_ptr;
+	int slot_idx = 0;
+	debugf("Layout(%lx), Parent(%lx, type=%d)", cl, t->parent_obj_ptr, obj_type(t->parent_obj_ptr));
+	for(int i = 0; i < cl->num_slots+cl->num_methods; ++i){
+		debugf(",");
+		if(cl->slots_and_methods[i].value != SLOT_ITEM){
+			debugf("Method(name=%d, pc=%d)", cl->slots_and_methods[i].name, cl->slots_and_methods[i].value);
+		} else {
+			debug_ivalue(t->var_slots[i]);
+			slot_idx+=1;
+		}
+	}
+	debugf("}");
 }
 
 void _error(const char* format, ...){
@@ -1973,7 +2181,7 @@ void v_errorif (int boolean, const char* msg, va_list va){
 void _debugf(const char * format, ...){
 	va_list args;
 	va_start(args, format);
-	vprintf(/*stderr,*/ format, args);
+	vfprintf(stderr, format, args);
 	va_end(args);
 }
 

@@ -30,14 +30,13 @@ c_trap:
 	ret
 after_c_trap:
 
-.globl exec_goto_op_1
-.globl exec_goto_op_end_1
+.globl goto_op
+.globl goto_op_end
 
-exec_goto_op_1:
-	movl    4(%rdi), %eax
-##      movq    $0xcafebabecafebabe, %rax
-        ret
-exec_goto_op_end_1:
+goto_op:
+	movq $0xcafebabecafebabe, %rax
+	jmp %rax
+goto_op_end:
 
 .globl exec_branch_op_1
 .globl exec_branch_op_end_1
