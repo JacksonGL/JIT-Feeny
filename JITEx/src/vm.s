@@ -55,22 +55,17 @@ branch_op:
 	jmp *%rax
 branch_op_end:
 
-.globl exec_set_local_op_1
-.globl exec_set_local_op_end_1
+.globl set_local_op
+.globl set_local_op_end
 
-exec_set_local_op_1:
-## stack peek
-        movq    stack_pointer(%rip), %rdx	## comment
-##      movq    $0xcafebabecafebabe, %r11	## uncomment, replace hole with i, where i is a SetLocalIns pointer
-		movq    %rdi, %r11		## comment
-        movslq  4(%r11), %r10				
-## get the top of the value from the stack
-        movq    -8(%rdx), %r11				
-        movq    frame_pointer(%rip), %rcx	## comment
-        movq    %r11, 16(%rcx,%r10,8)
-##	movq 	$0xcafebabecafebabe, %rax   ## uncomment, replace hole with next pc
-        ret
-exec_set_local_op_1_end:
+set_local_op:
+## get local index
+	movq    $0xcafebabecafebabe, %rax	
+## get the top of the value from the stack at -8($sp)
+## move to destination value = $fp + (index+2)*8
+	movq -8(%rdx), %r10
+ 	movq  %r10, 16(%rcx,%rax,8)
+set_local_op_end:
 
 .globl exec_get_local_op_1
 .globl exec_get_local_op_end_1

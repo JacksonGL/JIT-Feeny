@@ -121,9 +121,9 @@ typedef struct { // must go on heap
 
 typedef struct Frame Frame; //forward declaration
 struct Frame {
-	Frame* parent;
-	int return_addr;
-	IValue* slots[0];
+	Frame* parent; // 0$fp
+	int return_addr; // 8$fp
+	IValue* slots[0];// 16$fp +i*8
 };
 
 
@@ -1367,6 +1367,23 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+extern char set_local_op[];
+extern char set_local_op_end[];
+void * make_set_local(int index){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, set_local_op, set_local_op_end - set_local_op);
+	code[0] = '\0';
+
+	// replace values
+	char* to_replace = memmem(ret, set_local_op_end-set_local_op, hole_str, hole_len);
+	int64_t val64 = index;
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	return ret;
+}
+
 extern char c_trap[];
 extern char after_c_trap[];
 void * make_trap(int val_to_return){
@@ -1502,14 +1519,22 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			set_code_point(code_index(ci), make_trap(code_index(ci)));
 			return code_index(ci);
 		}// *LOCAL_OP do not change
-		case GET_LOCAL_OP:
-		case SET_LOCAL_OP:{
+		case GET_LOCAL_OP:{
 			assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
 			GetLocalIns* gi = code_alloc();
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
 			gi->idx = ogi->idx;
 			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			return code_index(gi);
+		}
+		case SET_LOCAL_OP:{
+			assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
+			GetLocalIns* gi = code_alloc();
+			GetLocalIns* ogi= (GetLocalIns*) ins;
+			gi->tag = ogi->tag;
+			gi->idx = ogi->idx;
+			set_code_point(code_index(gi), make_set_local(gi->idx));
 			return code_index(gi);
 		}
 		case GET_GLOBAL_OP:
