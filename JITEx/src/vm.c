@@ -1367,6 +1367,18 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+extern char drop_op[];
+extern char drop_op_end[];
+void * make_drop(){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, drop_op, drop_op_end - drop_op);
+	code[0] = '\0';
+	return ret;
+}
+
 extern char set_global_op[];
 extern char set_global_op_end[];
 void * make_set_global(int index){
@@ -1524,8 +1536,13 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			set_code_point(code_index(pi), make_trap(code_index(pi)));
 			return code_index(pi);
 		}
+		case DROP_OP:{
+			ByteIns* ii = code_alloc();
+			ii->tag = ins->tag;
+			set_code_point(code_index(ii), make_drop());
+			return code_index(ii);
+		}
 		case ARRAY_OP:
-		case DROP_OP:
 		case RETURN_OP:{
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
