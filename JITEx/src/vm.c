@@ -1403,6 +1403,25 @@ void update_goto(void* location, int64_t point){
 	char* next_search = mempcpy(to_replace, &point, hole_len);
 }
 
+extern char branch_op[];
+extern char branch_op_end[];
+void * make_branch(){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, branch_op, branch_op_end - branch_op);
+	code[0] = '\0';
+
+	return ret;
+}
+
+void update_branch(void* location, int64_t point){
+	// replace values
+	char* to_replace = memmem(location, branch_op_end-branch_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &point, hole_len);
+}
+
 int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
 	debugf("In make code ins\n");
 	Vector* cp = p->values;
@@ -1512,7 +1531,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
-			set_code_point(code_index(gi), make_trap(code_index(gi)));
+			set_code_point(code_index(gi), make_branch());
 			return code_index(gi);
 		}
 		case GOTO_OP:{
@@ -1589,6 +1608,8 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 		gins->name = code_point_i;
 		if(gins->tag == GOTO_OP){
 			update_goto(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
+		} else if(gins->tag == BRANCH_OP){
+			update_branch(code_point(code_index(gins)), (int64_t)code_point(code_point_i));	
 		}
 	}
 	// free vector stuff
