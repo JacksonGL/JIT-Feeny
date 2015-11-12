@@ -122,7 +122,7 @@ typedef struct { // must go on heap
 typedef struct Frame Frame; //forward declaration
 struct Frame {
 	Frame* parent; // 0$fp
-	int return_addr; // 8$fp
+	void* return_addr_ptr; // 8$fp
 	IValue* slots[0];// 16$fp +i*8
 };
 
@@ -134,6 +134,7 @@ char* hole_str = &hole_str_v;
 uintptr_t _instruction_slot = 0;
 uintptr_t* instruction_pointer = &_instruction_slot;
 void * code_point(int i);
+int index_point(void* a);
 void drive (int pc);
 int call_feeny(intptr_t t);
 
@@ -308,6 +309,7 @@ int ARRAY_GET_NAME = -1;
 
 
 #define SLOT_ITEM -3
+#define FINISHED -1
 intptr_t CLEAR_ARRAY_OBJ_MASK = (intptr_t)(((intptr_t)-1)<<3);
 intptr_t ARRAY_OBJ_MASK = ((intptr_t)1);
 
@@ -428,7 +430,7 @@ Frame* frame_alloc(int slots){
 void push_frame(int return_addr, int num_locals, int num_args){
 	debugf("Called push frame with return address = %d and arglocs = %d!\n", return_addr, num_args+num_locals);
 	Frame* next = frame_alloc(num_locals+num_args);
-	next->return_addr = return_addr;
+	next->return_addr_ptr = code_point(return_addr);
 	next->parent = frame_pointer;
 	frame_pointer = next;
 	for(int i = 0; i < (num_locals+num_args); ++i){
@@ -441,7 +443,7 @@ void push_frame(int return_addr, int num_locals, int num_args){
 
 int pop_frame(){
 	debugf("Called pop frame and will return with parent frame = %lx\n", frame_pointer->parent);
-	int ret = frame_pointer->return_addr;
+	int ret = index_point(frame_pointer->return_addr_ptr);
 
 	debugf("Called pop frame and will return with return addr = %d at %lx\n", ret, frame_pointer->parent);
 	frame_pointer = frame_pointer->parent;
@@ -1101,8 +1103,8 @@ int exec_ins (int pc) {
 
 void start_exec(int pc) {
 	CallIns ci = {CALL_OP, pc, 0};
-	pc = exec_call_op(&ci, -2); // return address is incremented so -2 + 1 == -1
-	while(pc != -1){
+	pc = exec_call_op(&ci, FINISHED-1); // return address is incremented so -2 + 1 == -1
+	while(pc != FINISHED){
 		pc = exec_ins(pc);
 #ifdef DEBUG
 		debugf("\n\n");
@@ -1121,8 +1123,8 @@ void start_exec(int pc) {
 
 void drive (int pc) {
 	CallIns ci = {CALL_OP, pc, 0};
-	pc = exec_call_op(&ci, -2); // return address is incremented so -2 + 1 == -1
-	while(pc != -1){
+	pc = exec_call_op(&ci, FINISHED-1); // return address is incremented so -2 + 1 == -1
+	while(pc != FINISHED){
 #ifdef DEBUG
 		debugf("\n\n");
 		debug_code(pc);
@@ -1138,7 +1140,7 @@ void drive (int pc) {
 		*instruction_pointer = code_point(pc);
 		pc = call_feeny(instruction_pointer);
 
-		if(pc != -1){
+		if(pc != FINISHED){
 			pc = exec_ins(pc);
 		} else {
 			break;
@@ -1188,7 +1190,7 @@ void debug_frame(){
 			debug_ivalue(cur_frame->slots[i]);
 			debugf("\n");
 		}
-		debugf("Return addr: %d\n", cur_frame->return_addr);
+		debugf("Return addr: %d\n", index_point(cur_frame->return_addr));
 		debugf("Parent frame: %lx\n", cur_frame->parent);
 		cur_frame = cur_frame->parent;
 	}
@@ -1354,10 +1356,32 @@ ByteIns * get_ins(int i){
 AllInsData* get_ins_data(int i){
 	return &code_data[i];
 }
-
+void* make_trap(int);
+static void* finished_trap = NULL;
 void * code_point(int i){
+	if(i == FINISHED){
+		if(!finished_trap){
+			finished_trap = make_trap(FINISHED);
+		}
+		return finished_trap;
+	}
 	//printf("Got code_ptr:%lx\n", get_ins_data(i)->code_ptr);
 	return get_ins_data(i)->code_ptr;
+}
+
+// inverse of code_point
+// ultra slow
+int index_point(void* ptr){
+	if(ptr == finished_trap){
+		return FINISHED;
+	}
+	int i =0;
+	while (1){
+		if(ptr == code_point(i)){
+			return i;
+		}
+		i++;
+	}
 }
 
 void set_code_point(int i, void * a){
@@ -1366,6 +1390,18 @@ void set_code_point(int i, void * a){
 }
 
 char * code = NULL;
+
+extern char return_op[];
+extern char return_op_end[];
+void * make_return(){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, return_op, return_op_end - return_op);
+	code[0] = '\0';
+	return ret;
+}
 
 extern char drop_op[];
 extern char drop_op_end[];
@@ -1542,11 +1578,17 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			set_code_point(code_index(ii), make_drop());
 			return code_index(ii);
 		}
-		case ARRAY_OP:
-		case RETURN_OP:{
+		case ARRAY_OP:{
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
 			set_code_point(code_index(ii), make_trap(code_index(ii)));
+			return code_index(ii);
+		}
+		case RETURN_OP:{
+			ByteIns* ii = code_alloc();
+			ii->tag = ins->tag;
+			set_code_point(code_index(ii), make_return());
+			//set_code_point(code_index(ii), make_trap(code_index(ii)));
 			return code_index(ii);
 		}
 		case OBJECT_OP:{
