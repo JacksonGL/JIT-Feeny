@@ -100,9 +100,9 @@ get_global_op:
 	addq $8, %rdx # 8 = size of pointer
 get_global_op_end:
 
-.globl exec_drop_op
-.globl exec_drop_op_end
+.globl drop_op
+.globl drop_op_end
 
-exec_drop_op_1:
-        subq    $8, rdx
-exec_drop_op_end_1
+drop_op:
+	subq $8, %rdx # 8 = size of pointer
+drop_op_end:
