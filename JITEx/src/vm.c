@@ -1436,6 +1436,29 @@ void * make_object(int index) {
         return ret;
 }
 
+extern char array_op[];
+extern char array_op_end[];
+void * make_array() {
+        if(!code){
+                code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+        }
+        char * ret = code;
+        code = mempcpy(code, array_op, array_op_end - array_op);
+        code[0] = '\0';
+
+        // replace values
+        char* to_replace = memmem(ret, array_op_end-array_op, hole_str, hole_len);
+        int64_t val64 = &instruction_pointer;
+        mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, array_op_end-array_op, hole_str, hole_len);
+       	val64 = ARRAY_OBJ_MASK;
+        mempcpy(to_replace, &val64, hole_len);
+
+        return ret;
+}
+
+
 extern char return_op[];
 extern char return_op_end[];
 void * make_return(){
@@ -1626,7 +1649,8 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		case ARRAY_OP:{
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
-			set_code_point(code_index(ii), make_trap(code_index(ii)));
+			// set_code_point(code_index(ii), make_trap(code_index(ii)));
+			set_code_point(code_index(ii), make_array());
 			return code_index(ii);
 		}
 		case RETURN_OP:{
@@ -2060,7 +2084,7 @@ void interpret_bc (Program * p) {
 //================== UTIL FUNCITONS ==========================
 //============================================================
 IntIValue* to_int_val (IValue* val) {
-  errorif(obj_type(val) != INT_OBJ, "Error: to_int_val.\n");
+  // errorif(obj_type(val) != INT_OBJ, "Error: to_int_val.\n");
   return (IntIValue*)val;
 }
 

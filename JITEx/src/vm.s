@@ -187,20 +187,18 @@ END_LOOP:
 object_op_end:
 
 
-.globl exec_array_op_1
-.globl exec_array_op_end_1
+.globl array_op
+.globl array_op_end
 
-exec_array_op_1:
-        movq top_of_heap(%rip),%rdi
-        movq heap_pointer(%rip), %rsi
-        movq stack_pointer(%rip), %rdx
-        movq frame_pointer(%rip), %rcx
+array_op:
+	pushq	%r12
         subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r8                    ## %r8 holds the *init_value ptr
+        movq    0(%rdx), %r8            ## %r8 holds the *init_value ptr
         subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r9                   ## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq    0(%rdx), %r9            ## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq 	%r9, %r12				## %r12 keeps the original value of *lengthi
         movq    %r9, %r11
-        sarq    $3, %r11                                ## shrift arithmetic right to get the int length, %r11 holds length
+        sarq    $3, %r11                ## shrift arithmetic right to get the int length, %r11 holds length
 ## stack push init_value
         movq    %r11, 0(%rdx)
         addq    $8, %rdx
@@ -215,9 +213,39 @@ exec_array_op_1:
         addq    %r9, %rsi       ## rsi holds the value of heap_pointer
 ## check if heap_pointer >= top_of_heap
         cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
-        jle   	ARR_ASSIGN_SLOTS
-## TBD
+        jle     ARR_ASSIGN_SLOTS
+ARR_TRAP_2_C:
+## restore the stack
+	subq    $8, %rdx                ## stack_pointer--
+	movq    %r12, 0(%rdx)			## push *lengthi into the stack
+	addq    $8, %rdx                ## stack_pointer++
+	movq    %r8, 0(%rdx)			## push *init_value into the stack
+	addq    $8, %rdx                ## stack_pointer++
+## heap_pointer += size;
+        subq    %r9, %rsi
+        leaq    ARR_AFTER_TRAP(%rip), %rax
+        movq    $0xcafebabecafebabe, %r8
+        movq    %rax, (%r8)
+        movq    $-2, %rax
+        popq	%r12
         ret
+ARR_AFTER_TRAP:
+	subq    $8, %rdx                ## stack_pointer--
+        movq    0(%rdx), %r8            ## %r8 holds the *init_value ptr
+        subq    $8, %rdx                ## stack_pointer--
+        movq    0(%rdx), %r9            ## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq    %r9, %r11
+        sarq    $3, %r11                ## shrift arithmetic right to get the int length, %r11 holds length
+## stack push init_value
+        movq    %r11, 0(%rdx)
+        addq    $8, %rdx
+##      size = sizeof(ArrayIValue)+sizeof(IValue*)*length
+##  from now on, size is in %r9
+        leal    16(,%r11,8), %eax
+        movslq  %eax, %r9
+## call halloc
+## ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    ## obj = heap_pointer
 ARR_ASSIGN_SLOTS:
 ##      t->tag = ARRAY_OBJ;
         movq    $2, (%r10)
@@ -238,13 +266,10 @@ ARR_START_LOOP:
         jmp     ARR_START_LOOP
 ARR_END_LOOP:
 ##  from_array_val(t)
-        orq     ARRAY_OBJ_MASK(%rip), %r10
+        mov     $0xcafebabecafebabe, %rax
+	orq	%rax, %r10
 ##  stack push
         movq    %r10, (%rdx)
         addq    $8, %rdx
-## end
-        movq %rsi, heap_pointer (%rip)
-        movq %rdx, stack_pointer (%rip)
-        movq %rcx, frame_pointer (%rip)
-        ret
-exec_array_op_end_1:
+        popq	%r12
+array_op_end:
