@@ -123,23 +123,41 @@ return_op_end:
 object_op:
 ## ClassLayout * cl = get_class_by_idx(i->class);
         movq    $0xcafebabecafebabe, %r8  ## %r8 has i->class
-        movq    $0xcafebabecafebabe, %rax 
-	addq	%rax, %r8	## ci is in %r8
+        movq    $0xcafebabecafebabe, %rax
+        addq    %rax, %r8       ## ci is in %r8
 ## int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
         movslq  4(%r8), %rax            ## cl->num_slots
         leal    16(,%rax,8), %eax
         movslq  %eax, %r9               ## size is in %r9
 ## ObjectIValue* obj = halloc(size);
-    movq  %rsi, %r10    ## obj = heap_pointer
+        movq    %rsi, %r10    ## obj = heap_pointer
 ## heap_pointer += size;
         addq    %r9, %rsi       ## rsi holds the value of heap_pointer
 ## check if heap_pointer >= top_of_heap
         cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
-        jle   ASSIGN_SLOTS
+   	jle   ASSIGN_SLOTS
 TRAP_2_C:
-## from now on %rax is i
-## todo: trap to C
+## heap_pointer -= size;
+        subq    %r9, %rsi
+        leaq    OBJ_AFTER_TRAP(%rip), %rax
+        movq    $0xcafebabecafebabe, %r8
+        movq    %rax, (%r8)
+        movq    $-2, %rax
         ret
+OBJ_AFTER_TRAP:
+## ClassLayout * cl = get_class_by_idx(i->class);
+        movq    $0xcafebabecafebabe, %r8  ## %r8 has i->class
+        movq    $0xcafebabecafebabe, %rax
+        addq    %rax, %r8       ## ci is in %r8
+## int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
+        movslq  4(%r8), %rax            ## cl->num_slots
+        leal    16(,%rax,8), %eax
+        movslq  %eax, %r9               ## size is in %r9
+## ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    ## obj = heap_pointer
+## heap_pointer += size;
+        addq    %r9, %rsi       ## rsi holds the value of heap_pointer
+## from now on %rax is i
 ## assuming that *obj is in %r10
 ASSIGN_SLOTS:
         movslq  4(%r8), %rax        ## cl is in %r8, so %eax has cl->num_slots
@@ -161,8 +179,8 @@ END_LOOP:
 ## obj->class_ptr = cl;
         movq    %r8, (%r10)
 ## from_obj_val ==> (IValue*)(((uintptr_t)val) | ARRAY_OBJ_MASK);
-        movq    $0xcafebabecafebabe, %rax      
-	orq	%rax, %r10	## %r10 has from_obj_val(obj)
+        movq    $0xcafebabecafebabe, %rax
+        orq     %rax, %r10      ## %r10 has from_obj_val(obj)
 ## push stack
         movq    %r10, 0(%rdx)
         addq    $8, %rdx

@@ -310,6 +310,7 @@ int ARRAY_GET_NAME = -1;
 
 #define SLOT_ITEM -3
 #define FINISHED -1
+#define GC -2
 intptr_t CLEAR_ARRAY_OBJ_MASK = (intptr_t)(((intptr_t)-1)<<3);
 intptr_t ARRAY_OBJ_MASK = ((intptr_t)1);
 
@@ -384,6 +385,7 @@ void init_global_slots(int size){
 #define STACK_SIZE 1024
 IValue* stack[STACK_SIZE];
 IValue** stack_pointer = &stack[0];
+
 
 void stack_push (IValue * val) {
 	debugf("Stack push addr %lx", val);
@@ -1137,10 +1139,14 @@ void drive (int pc) {
 		debug_frame();
 		debugf("\n");
 #endif
-		*instruction_pointer = code_point(pc);
+		if (pc != GC) {
+			*instruction_pointer = code_point(pc);
+		}
 		pc = call_feeny(instruction_pointer);
-
-		if(pc != FINISHED){
+		
+		if(pc == GC) {
+			garbage_collector();
+		} else if(pc != FINISHED){
 			pc = exec_ins(pc);
 		} else {
 			break;
@@ -1391,6 +1397,45 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+
+extern char object_op[];
+extern char object_op_end[];
+void * make_object(int index) {
+	if(!code){
+                code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+        }
+        char * ret = code;
+        code = mempcpy(code, object_op, object_op_end - object_op);
+        code[0] = '\0';
+
+        // replace values
+        char* to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        int64_t val64 = index;
+        mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        val64 = &class_objs;
+       	mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        val64 = &instruction_pointer;
+        mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        val64 = index;
+        mempcpy(to_replace, &val64, hole_len);
+
+        to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        val64 = &class_objs;
+        mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+        val64 = ARRAY_OBJ_MASK;
+        mempcpy(to_replace, &val64, hole_len);
+
+        return ret;
+}
+
 extern char return_op[];
 extern char return_op_end[];
 void * make_return(){
@@ -1596,7 +1641,8 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ObjectIns* ooi = (ObjectIns*) ins;
 			oi->class = get_class_constant_value((ClassValue*) vector_get(cp, ooi->class), p, class_layouts);
 			oi->tag = ooi->tag;
-			set_code_point(code_index(oi), make_trap(code_index(oi)));
+			// set_code_point(code_index(oi), make_trap(code_index(oi)));
+			set_code_point(code_index(oi), make_object(oi->class));
 			return code_index(oi);
 		}
 		case SET_SLOT_OP: // these happen to be the same
