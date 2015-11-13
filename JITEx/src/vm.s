@@ -116,61 +116,55 @@ return_op:
 	jmp *%rax
 return_op_end:
 
-.globl exec_object_op_1
-.globl exec_object_op_end_1
 
+.globl object_op
+.globl object_op_end
 
-exec_object_op_1:
-        movq %rdi, %rax
-        movq top_of_heap(%rip),%rdi
-        movq heap_pointer(%rip), %rsi
-        movq stack_pointer(%rip), %rdx
-        movq frame_pointer(%rip), %rcx
+object_op:
 ## ClassLayout * cl = get_class_by_idx(i->class);
-        movslq  4(%rax), %r8            ## %r8 has i->class
-        addq    $class_objs, %r8        ## cl is in %r8
+        movq    $0xcafebabecafebabe, %r8  ## %r8 has i->class
+        movq    $0xcafebabecafebabe, %rax 
+	addq	%rax, %r8	## ci is in %r8
 ## int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
-        movslq  4(%r8), %rax			## cl->num_slots
+        movslq  4(%r8), %rax            ## cl->num_slots
         leal    16(,%rax,8), %eax
-        movslq  %eax, %r9       		## size is in %r9
+        movslq  %eax, %r9               ## size is in %r9
 ## ObjectIValue* obj = halloc(size);
-		movq 	%rsi, %r10		## obj = heap_pointer
+    movq  %rsi, %r10    ## obj = heap_pointer
 ## heap_pointer += size;
         addq    %r9, %rsi       ## rsi holds the value of heap_pointer
 ## check if heap_pointer >= top_of_heap
         cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
-        jle		ASSIGN_SLOTS
+        jle   ASSIGN_SLOTS
 TRAP_2_C:
 ## from now on %rax is i
 ## todo: trap to C
         ret
 ## assuming that *obj is in %r10
 ASSIGN_SLOTS:
-        movslq  4(%r8), %rax    		## cl is in %r8, so %eax has cl->num_slots
+        movslq  4(%r8), %rax        ## cl is in %r8, so %eax has cl->num_slots
 START_LOOP:
         subq    $1, %rax                ## eax has cl->num_slots-1 (i.e., i), i--
         cmpq    $-1, %rax               ## check if i >= 0
         je      END_LOOP
 ## stack_pop
         subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r11    		## %r11 has *stack_pointer
+        movq    0(%rdx), %r11       ## %r11 has *stack_pointer
 ## obj->var_slots[i] = *stack_pointer;
         movq    %r11, 16(%r10,%rax,8)   ## %r10 has object
         jmp     START_LOOP
 END_LOOP:
         subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r11   		## %r11 has *stack_pointer
+        movq    0(%rdx), %r11       ## %r11 has *stack_pointer
 ## obj->parent_obj_ptr = *stack_pointer;
         movq    %r11, 8(%r10)
 ## obj->class_ptr = cl;
         movq    %r8, (%r10)
 ## from_obj_val ==> (IValue*)(((uintptr_t)val) | ARRAY_OBJ_MASK);
-        orq     ARRAY_OBJ_MASK(%rip), %r10      ## %r10 has from_obj_val(obj)
+        movq    $0xcafebabecafebabe, %rax      
+	orq	%rax, %r10	## %r10 has from_obj_val(obj)
 ## push stack
         movq    %r10, 0(%rdx)
         addq    $8, %rdx
-        movq    %rsi, heap_pointer (%rip)
-        movq    %rdx, stack_pointer (%rip)
-        movq    %rcx, frame_pointer (%rip)
-        ret
-exec_object_op_end_1:
+object_op_end:
+
