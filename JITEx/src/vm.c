@@ -1190,7 +1190,7 @@ void debug_frame(){
 			debug_ivalue(cur_frame->slots[i]);
 			debugf("\n");
 		}
-		debugf("Return addr: %d\n", index_point(cur_frame->return_addr));
+		debugf("Return addr: %d\n", index_point(cur_frame->return_addr_ptr));
 		debugf("Parent frame: %lx\n", cur_frame->parent);
 		cur_frame = cur_frame->parent;
 	}
@@ -1390,6 +1390,46 @@ void set_code_point(int i, void * a){
 }
 
 char * code = NULL;
+
+extern char call_op_pre[];
+extern char call_op_pre_end[];
+extern char call_op_push_body[];
+extern char call_op_push_body_end[];
+extern char call_op_post[];
+extern char call_op_post_end[];
+
+void* make_call(int arity){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, call_op_pre, call_op_pre_end - call_op_pre);
+
+	for(int i = 0; i < arity; ++i){
+		code = mempcpy(code, call_op_push_body, call_op_push_body_end - call_op_push_body);
+	}
+
+	code = mempcpy(code, call_op_post, call_op_post_end - call_op_post);
+
+	code[0] = '\0';
+
+	return ret;
+}
+
+void update_call(char* location, int locals, int arity, int64_t point){
+	// replace values
+		// replace values
+	char* to_replace = memmem(location, call_op_pre_end-call_op_pre, hole_str, hole_len);
+	assert(to_replace);
+	int64_t val64 = locals*8; // duh - these are pointers
+	char* next_search = mempcpy(to_replace, &val64, hole_len);
+
+	// if my math is correct, this should be the location of the 'code' before the last mempcpy call in make_call
+	char* real_location = location+ (call_op_pre_end - call_op_pre) + arity*(call_op_push_body_end - call_op_push_body);
+	to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
+	assert(to_replace);
+	next_search = mempcpy(to_replace, &point, hole_len);
+}
 
 extern char return_op[];
 extern char return_op_end[];
@@ -1626,7 +1666,8 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ci->name = oci->name;
 			// needs to be fixed
 			vector_add(call_ins, ci);
-			set_code_point(code_index(ci), make_trap(code_index(ci)));
+			//set_code_point(code_index(ci), make_trap(code_index(ci)));
+			set_code_point(code_index(ci), make_call(ci->arity));
 			return code_index(ci);
 		}// *LOCAL_OP do not change
 		case GET_LOCAL_OP:{
@@ -1833,6 +1874,8 @@ int quicken(Program * p){
 		}
 		errorif(name == -1, "Could not find method!\n");
 		ci->name = name;
+		int locals = ((AllInsData*) get_ins(ci->name))->locals;
+		update_call(code_point(code_index(ci)), locals, ci->arity, (int64_t)code_point(name));
 	}
 
 	// go through class layouts and redo their destinations
@@ -1979,7 +2022,7 @@ void debug_code (int pc) {
 		} else {
 			debug_ins(i);
 		}
-		debugf("\n");
+		debugf(" | %lx\n", code_point(j));
 	}
 }
 
