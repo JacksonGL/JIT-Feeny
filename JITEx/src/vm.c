@@ -1391,6 +1391,23 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+extern char lit_op[];
+extern char lit_op_end[];
+void * make_lit(int64_t value){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, lit_op, lit_op_end - lit_op);
+	code[0] = '\0';
+	
+	// replace values
+	char* to_replace = memmem(ret, lit_op_end-lit_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &value, hole_len);
+
+	return ret;
+}
+
 extern char call_op_pre[];
 extern char call_op_pre_end[];
 extern char call_op_push_body[];
@@ -1593,12 +1610,12 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 				LitIns* bi = code_alloc();
 				bi->tag = LIT_OP;
 				bi->idx = iv->value;
-				set_code_point(code_index(bi), make_trap(code_index(bi)));
+				set_code_point(code_index(bi), make_lit( (int64_t) make_int_obj(bi->idx)));
 				return code_index(bi);
 			} else if(v->tag == NULL_VAL){
 				ByteIns* bi = code_alloc();
 				bi->tag = LIT_NULL_OP;
-				set_code_point(code_index(bi), make_trap(code_index(bi)));
+				set_code_point(code_index(bi), make_lit( (int64_t) make_null_obj() ));
 				return code_index(bi);
 			}
 			error("Bad literal value!");

@@ -116,8 +116,14 @@ return_op:
 	jmp *%rax
 return_op_end:
 
-#TODO: lit ops
+.globl lit_op
+.globl lit_op_end
 
+lit_op:
+	movq $0xcafebabecafebabe, %r10
+	movq %r10, 0(%rdx)
+	addq $8, %rdx
+lit_op_end:
 
 .globl call_op_pre
 .globl call_op_pre_end
