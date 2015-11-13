@@ -74,6 +74,12 @@ typedef struct {
 	int value;
 } IntPair;
 
+typedef struct {
+	int name;
+	int value;
+	void* ptr;
+} IntPtrPair;
+
 typedef struct{
 	int num_methods;
 	int num_slots;
@@ -497,7 +503,7 @@ void * _halloc(size_t size){
 
 void * halloc(size_t size){
 	add_int("halloc_bytes", size);
-	garbage_collector();
+	//garbage_collector();
 	return _halloc(size);
 }
 
@@ -1138,6 +1144,7 @@ void drive (int pc) {
 		debug_frame();
 		debugf("\n");
 #endif
+		//garbage_collector();
 		if (pc != GC) {
 			*instruction_pointer = code_point(pc);
 		}
@@ -1362,6 +1369,7 @@ AllInsData* get_ins_data(int i){
 	return &code_data[i];
 }
 void* make_trap(int);
+
 static void* finished_trap = NULL;
 void * code_point(int i){
 	if(i == FINISHED){
@@ -1473,6 +1481,30 @@ void * make_lit(int64_t value){
 	char* next_search = mempcpy(to_replace, &value, hole_len);
 
 	return ret;
+}
+
+extern char method_prelude[];
+extern char method_prelude_end[];
+void * make_method_prelude(int args, int locals){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+
+	char * ret_true = code;
+	for(int i = 0; i < locals; ++i){
+		int64_t v = i+args;
+		char* ret = code;
+		if(!ret_true){
+			ret_true = ret;
+		}
+		code = mempcpy(code, method_prelude, method_prelude_end - method_prelude);
+
+		// replace values
+		char* to_replace = memmem(ret, method_prelude_end-method_prelude, hole_str, hole_len);
+		char* next_search = mempcpy(to_replace, &v, hole_len);
+	}
+	code[0] = '\0';
+	return ret_true;
 }
 
 extern char call_op_pre[];
@@ -1705,7 +1737,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 		case ARRAY_OP:{
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
-			// set_code_point(code_index(ii), make_trap(code_index(ii)));
+			//set_code_point(code_index(ii), make_trap(code_index(ii)));
 			set_code_point(code_index(ii), make_array());
 			return code_index(ii);
 		}
@@ -1721,7 +1753,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ObjectIns* ooi = (ObjectIns*) ins;
 			oi->class = get_class_constant_value((ClassValue*) vector_get(cp, ooi->class), p, class_layouts);
 			oi->tag = ooi->tag;
-			// set_code_point(code_index(oi), make_trap(code_index(oi)));
+			//set_code_point(code_index(oi), make_trap(code_index(oi)));
 			set_code_point(code_index(oi), make_object(oi->class));
 			return code_index(oi);
 		}
@@ -1763,6 +1795,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->idx = ogi->idx;
 			set_code_point(code_index(gi), make_get_local(gi->idx));
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		case SET_LOCAL_OP:{
@@ -1772,6 +1805,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->idx = ogi->idx;
 			set_code_point(code_index(gi), make_set_local(gi->idx));
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		case GET_GLOBAL_OP:{
@@ -1781,6 +1815,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->name = get_global_var_by_idx(ogi->name, p);
 			set_code_point(code_index(gi), make_get_global(gi->name));
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		case SET_GLOBAL_OP:{
@@ -1790,6 +1825,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->tag = ogi->tag;
 			gi->name = get_global_var_by_idx(ogi->name, p);
 			set_code_point(code_index(gi), make_set_global(gi->name));
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		// GLOBAL_OP's the slots need to be resolved to an index
@@ -1802,6 +1838,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
 			set_code_point(code_index(gi), make_branch());
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		case GOTO_OP:{
@@ -1812,6 +1849,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			gi->name = ogi->name;
 			vector_add(goto_branch, gi);
 			set_code_point(code_index(gi), make_goto());
+			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
 		}
 		// DROP and RETURN are done above
@@ -1824,7 +1862,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 
 // we need two passes
 // once to get label strings to label code points
-int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layouts){
+PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layouts){
 	debugf("In make code\n");
 	Vector* constant_idx_to_label_idx = make_vector();
 	Vector* goto_or_branch_todo = make_vector();
@@ -1832,6 +1870,8 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 	int label_index = -1;
 	int first_entry = -1;
 	int t = -1;
+	PtrPair v;
+	v.ptr = make_method_prelude(mv->nargs, mv->nlocals);
 	for(int i = 0; i < mv->code->size; ++i){
 		ByteIns* ins = vector_get(mv->code, i);
 
@@ -1883,7 +1923,9 @@ int make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layo
 		}
 	}
 	// free vector stuff
-	return first_entry;
+	v.idx = first_entry;
+
+	return v;
 }
 
 int quicken(Program * p){
@@ -1909,19 +1951,20 @@ int quicken(Program * p){
 				break;
 			case METHOD_VAL:{
 				MethodValue* mv = (MethodValue*) v;
-				int entry = make_code(mv, p, call_instr_to_redo, class_layouts);
+				PtrPair entry = make_code(mv, p, call_instr_to_redo, class_layouts);
 
 				// so we can get the frame
-				AllInsData* aid = (AllInsData*)get_ins(entry);
+				AllInsData* aid = (AllInsData*)get_ins(entry.idx);
 				aid->locals = mv->nlocals;
 
 				debugf("entry:%d\n", entry);
-				IntPair* pp = malloc(sizeof(IntPair));
-				pp->value = entry;
+				IntPtrPair* pp = malloc(sizeof(IntPtrPair));
+				pp->value = entry.idx;
 				pp->name = i;
+				pp->ptr = entry.ptr;
 				vector_add(constant_idx_to_method, pp);
 				if(i == p->entry){
-					entry_point = entry;
+					entry_point = entry.idx; // we handle the temps setup in drive
 				}
 				break;
 			}
@@ -1949,19 +1992,21 @@ int quicken(Program * p){
 				break;
 			}
 		}
+		void * dest = NULL;
 		for(int j = 0; j < constant_idx_to_method->size; ++j){
-			IntPair* p = vector_get(constant_idx_to_method, j);
+			IntPtrPair* p = vector_get(constant_idx_to_method, j);
 			debugf("Method name index is %d\n", p->name);
 			if(p->name == ci->name){
 				debugf("Method index is %d\n", p->value);
 				name = p->value;
+				dest = p->ptr;
 				break;
 			}
 		}
 		errorif(name == -1, "Could not find method!\n");
 		ci->name = name;
 		int locals = ((AllInsData*) get_ins(ci->name))->locals;
-		update_call(code_point(code_index(ci)), locals, ci->arity, (int64_t)code_point(name));
+		update_call(code_point(code_index(ci)), locals, ci->arity, (int64_t)dest);
 	}
 
 	// go through class layouts and redo their destinations
@@ -1975,7 +2020,7 @@ int quicken(Program * p){
 			int code_point = -1;
 			debugf("Working on class %d's %d method\n", i, j);
 			for(int k = 0; k < constant_idx_to_method->size; ++k){
-				IntPair* p = vector_get(constant_idx_to_method, k);
+				IntPtrPair* p = vector_get(constant_idx_to_method, k);
 				debugf("Checking method %d with name %d for %d\n", k,
 						p->name, cl->slots_and_methods[j].name);
 				if(p->name == cl->slots_and_methods[j].name){

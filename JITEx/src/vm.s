@@ -152,6 +152,14 @@ call_op_post:
 	jmp *%rax # call
 call_op_post_end:
 
+.globl method_prelude
+.globl method_prelude_end
+
+method_prelude: # sets locals to null
+    movq  $0xcafebabecafebabe, %rax # local index
+    movq  $2, 16(%rcx,%rax,8) #null value = 2
+method_prelude_end:
+
 .globl object_op
 .globl object_op_end
 
