@@ -132,10 +132,10 @@ object_op:
 ## ObjectIValue* obj = halloc(size);
         movq    %rsi, %r10    ## obj = heap_pointer
 ## heap_pointer += size;
-        addq    %r9, %rsi       ## rsi holds the value of heap_pointer
+        addq    %r9, %rsi       # rsi holds the value of heap_pointer
 ## check if heap_pointer >= top_of_heap
         cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
-   	jle   ASSIGN_SLOTS
+   	jle     ASSIGN_SLOTS
 TRAP_2_C:
 ## heap_pointer -= size;
         subq    %r9, %rsi
@@ -186,3 +186,65 @@ END_LOOP:
         addq    $8, %rdx
 object_op_end:
 
+
+.globl exec_array_op_1
+.globl exec_array_op_end_1
+
+exec_array_op_1:
+        movq top_of_heap(%rip),%rdi
+        movq heap_pointer(%rip), %rsi
+        movq stack_pointer(%rip), %rdx
+        movq frame_pointer(%rip), %rcx
+        subq    $8, %rdx                ## stack_pointer--
+        movq    0(%rdx), %r8                    ## %r8 holds the *init_value ptr
+        subq    $8, %rdx                ## stack_pointer--
+        movq    0(%rdx), %r9                   ## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq    %r9, %r11
+        sarq    $3, %r11                                ## shrift arithmetic right to get the int length, %r11 holds length
+## stack push init_value
+        movq    %r11, 0(%rdx)
+        addq    $8, %rdx
+##      size = sizeof(ArrayIValue)+sizeof(IValue*)*length
+##  from now on, size is in %r9
+        leal    16(,%r11,8), %eax
+        movslq  %eax, %r9
+## call halloc
+## ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    ## obj = heap_pointer
+## heap_pointer += size;
+        addq    %r9, %rsi       ## rsi holds the value of heap_pointer
+## check if heap_pointer >= top_of_heap
+        cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
+        jle   	ARR_ASSIGN_SLOTS
+## TBD
+        ret
+ARR_ASSIGN_SLOTS:
+##      t->tag = ARRAY_OBJ;
+        movq    $2, (%r10)
+##  t->length = length;
+        movq    %r11, 8(%r10)
+##  init_value = stack_pop(); // for safety
+        subq    $8, %rdx                ## stack_pointer--
+        movq    0(%rdx), %r8                    ## %r8 holds the *init_value ptr
+## start loop
+        movq    $0, %rax
+ARR_START_LOOP:
+        cmpq    %rax, %r11  ## compare i and length
+##  if i < length
+        jge     ARR_END_LOOP
+##  t->slots[i] = init_value;
+        movq    %r8, 16(%r10,%rax,8)
+        incq    %rax            ## i++
+        jmp     ARR_START_LOOP
+ARR_END_LOOP:
+##  from_array_val(t)
+        orq     ARRAY_OBJ_MASK(%rip), %r10
+##  stack push
+        movq    %r10, (%rdx)
+        addq    $8, %rdx
+## end
+        movq %rsi, heap_pointer (%rip)
+        movq %rdx, stack_pointer (%rip)
+        movq %rcx, frame_pointer (%rip)
+        ret
+exec_array_op_end_1:
