@@ -1,4 +1,4 @@
-#define _GNU_SOURCE 
+#define _GNU_SOURCE
 #include <sys/timeb.h>
 #include <sys/time.h>
 #include <stdio.h>
@@ -502,7 +502,6 @@ void * _halloc(size_t size){
 }
 
 void * halloc(size_t size){
-	add_int("halloc_bytes", size);
 	//garbage_collector();
 	return _halloc(size);
 }
@@ -532,7 +531,6 @@ void* garbage_collector(){
 	debug_heap();
 	debugf("\n-----------\n");
 #endif
-	start_timer("garbage_collector_time");
 	if(is_currently_collecting){
 		error("Can't collect while already collecting!\n");
 	}
@@ -552,7 +550,6 @@ void* garbage_collector(){
 	debug_heap();
 	debugf("\n-----GC------\n");
 #endif
-	end_timer("garbage_collector_time");
 }
 
 size_t sizeIValue(IValue * t){
@@ -1149,7 +1146,7 @@ void drive (int pc) {
 			*instruction_pointer = code_point(pc);
 		}
 		pc = call_feeny(instruction_pointer);
-		
+
 		if(pc == GC) {
 			garbage_collector();
 		} else if(pc != FINISHED){
@@ -1408,6 +1405,7 @@ char * code = NULL;
 extern char object_op[];
 extern char object_op_end[];
 void * make_object(int index) {
+	start_timer("jit_time");
 	if(!code){
                 code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
         }
@@ -1440,12 +1438,14 @@ void * make_object(int index) {
         val64 = ARRAY_OBJ_MASK;
         mempcpy(to_replace, &val64, hole_len);
 
+	end_timer("jit_time");
         return ret;
 }
 
 extern char array_op[];
 extern char array_op_end[];
 void * make_array() {
+	start_timer("jit_time");
         if(!code){
                 code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
         }
@@ -1462,6 +1462,7 @@ void * make_array() {
        	val64 = ARRAY_OBJ_MASK;
         mempcpy(to_replace, &val64, hole_len);
 
+	end_timer("jit_time");
         return ret;
 }
 
@@ -1469,23 +1470,26 @@ void * make_array() {
 extern char lit_op[];
 extern char lit_op_end[];
 void * make_lit(int64_t value){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
 	char * ret = code;
 	code = mempcpy(code, lit_op, lit_op_end - lit_op);
 	code[0] = '\0';
-	
+
 	// replace values
 	char* to_replace = memmem(ret, lit_op_end-lit_op, hole_str, hole_len);
 	char* next_search = mempcpy(to_replace, &value, hole_len);
 
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char method_prelude[];
 extern char method_prelude_end[];
 void * make_method_prelude(int args, int locals){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1504,6 +1508,7 @@ void * make_method_prelude(int args, int locals){
 		char* next_search = mempcpy(to_replace, &v, hole_len);
 	}
 	code[0] = '\0';
+	end_timer("jit_time");
 	return ret_true;
 }
 
@@ -1515,6 +1520,7 @@ extern char call_op_post[];
 extern char call_op_post_end[];
 
 void* make_call(int arity){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1529,10 +1535,12 @@ void* make_call(int arity){
 
 	code[0] = '\0';
 
+	end_timer("jit_time");
 	return ret;
 }
 
 void update_call(char* location, int locals, int arity, int64_t point){
+	start_timer("jit_time");
 	// replace values
 		// replace values
 	char* to_replace = memmem(location, call_op_pre_end-call_op_pre, hole_str, hole_len);
@@ -1545,35 +1553,41 @@ void update_call(char* location, int locals, int arity, int64_t point){
 	to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
 	assert(to_replace);
 	next_search = mempcpy(to_replace, &point, hole_len);
+	end_timer("jit_time");
 }
 
 extern char return_op[];
 extern char return_op_end[];
 void * make_return(){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
 	char * ret = code;
 	code = mempcpy(code, return_op, return_op_end - return_op);
 	code[0] = '\0';
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char drop_op[];
 extern char drop_op_end[];
 void * make_drop(){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
 	char * ret = code;
 	code = mempcpy(code, drop_op, drop_op_end - drop_op);
 	code[0] = '\0';
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char set_global_op[];
 extern char set_global_op_end[];
 void * make_set_global(int index){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1585,12 +1599,14 @@ void * make_set_global(int index){
 	char* to_replace = memmem(ret, set_global_op_end-set_global_op, hole_str, hole_len);
 	int64_t val64 = index;
 	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char get_global_op[];
 extern char get_global_op_end[];
 void * make_get_global(int index){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1602,12 +1618,14 @@ void * make_get_global(int index){
 	char* to_replace = memmem(ret, get_global_op_end-get_global_op, hole_str, hole_len);
 	int64_t val64 = index;
 	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char get_local_op[];
 extern char get_local_op_end[];
 void * make_get_local(int index){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1619,12 +1637,14 @@ void * make_get_local(int index){
 	char* to_replace = memmem(ret, get_local_op_end-get_local_op, hole_str, hole_len);
 	int64_t val64 = index;
 	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char set_local_op[];
 extern char set_local_op_end[];
 void * make_set_local(int index){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1636,12 +1656,14 @@ void * make_set_local(int index){
 	char* to_replace = memmem(ret, set_local_op_end-set_local_op, hole_str, hole_len);
 	int64_t val64 = index;
 	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char c_trap[];
 extern char after_c_trap[];
 void * make_trap(int val_to_return){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1653,12 +1675,14 @@ void * make_trap(int val_to_return){
 	char* to_replace = memmem(ret, after_c_trap-c_trap, hole_str, hole_len);
 	int64_t val64 = val_to_return;
 	char* next_search = mempcpy(to_replace, &val64, hole_len);
+	end_timer("jit_time");
 	return ret;
 }
 
 extern char goto_op[];
 extern char goto_op_end[];
 void * make_goto(){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1666,18 +1690,22 @@ void * make_goto(){
 	code = mempcpy(code, goto_op, goto_op_end - goto_op);
 	code[0] = '\0';
 
+	end_timer("jit_time");
 	return ret;
 }
 
 void update_goto(void* location, int64_t point){
+	start_timer("jit_time");
 	// replace values
 	char* to_replace = memmem(location, goto_op_end-goto_op, hole_str, hole_len);
 	char* next_search = mempcpy(to_replace, &point, hole_len);
+	end_timer("jit_time");
 }
 
 extern char branch_op[];
 extern char branch_op_end[];
 void * make_branch(){
+	start_timer("jit_time");
 	if(!code){
 		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
 	}
@@ -1685,13 +1713,16 @@ void * make_branch(){
 	code = mempcpy(code, branch_op, branch_op_end - branch_op);
 	code[0] = '\0';
 
+	end_timer("jit_time");
 	return ret;
 }
 
 void update_branch(void* location, int64_t point){
+	start_timer("jit_time");
 	// replace values
 	char* to_replace = memmem(location, branch_op_end-branch_op, hole_str, hole_len);
 	char* next_search = mempcpy(to_replace, &point, hole_len);
+	end_timer("jit_time");
 }
 
 int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
@@ -1919,7 +1950,7 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 		if(gins->tag == GOTO_OP){
 			update_goto(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
 		} else if(gins->tag == BRANCH_OP){
-			update_branch(code_point(code_index(gins)), (int64_t)code_point(code_point_i));	
+			update_branch(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
 		}
 	}
 	// free vector stuff
@@ -1929,6 +1960,7 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 }
 
 int quicken(Program * p){
+	start_timer("quicken_time");
 	debugf("In quicken\n");
 	int entry_point = -1;
 	// classes need string_idx to method_entry table
@@ -2049,6 +2081,7 @@ int quicken(Program * p){
 		}
 	}
 #endif
+	end_timer("quicken_time");
 	return entry_point;
 }
 

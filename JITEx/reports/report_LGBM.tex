@@ -20,36 +20,37 @@
 \caption{Runtime Statistics}
 \label{statistics}
 {\footnotesize
-\begin{tabular}{lllllll}
+\begin{tabular}{lllll}
 \toprule
-test case & interpreter & garbage collector & \code{halloc} & allocated bytes     & GC time             & interpreter time    \\
-          & time (ms)   & time (ms)         & bytes         & reduction (new/old) & reduction (new/old) & reduction (new/old) \\
+test case & interpreter & Quicken/JIT           & Percent spent in  & interpreter time    \\
+			 & time (ms)   & generation time (ms)  & Quicken/JIT(\%)   & reduction (new/old) \\
 \midrule
-bsearch        & 0.093          & 0.000          & 96             & 0.031		& no reduction		& 0.381 \\
-inheritance    & 0.036          & 0.000          & 16             & 0.0625		& no reduction		& 1.500 \\
-cplx           & 0.045          & 0.000          & 32             & 0.0282		& no reduction		& 0.333 \\
-lists          & 0.097          & 0.000          & 32             & 0.010		& no reduction		& 0.379 \\
-vector         & 0.052          & 0.000          & 80             & 0.026		& no reduction		& 0.185 \\
-fibonacci      & 0.063          & 0.000          & 0              & 0		& no reduction		& 0.100 \\
-sudoku         & 97.070         & 0.000          & 24             & 0.000		& 0		& 0.127 \\
-sudoku2        & 11867.004      & 0.000          & 24             & 0.000		& 0		& 0.079 \\
-hanoi\_BM      & 0.087          & 0.000          & 0              & 0		& no reduction		& 0.075 \\
-stacks\_BM     & 0.043          & 0.000          & 32             & 0.017		& no reduction	& 0.328	\\
-morehanoi\_BM  & 0.263          & 0.000          & 32             & 0.001		& no reduction		& 0.091 \\
-
+bsearch        & 0.083          & 0.052          & 62.647     & 0.892    \\
+inheritance    & 0.070          & 0.032          & 47.038     & 1.944    \\
+cplx           & 0.135          & 0.070          & 51.526     & 3.000    \\
+lists          & 0.105          & 0.062          & 59.447     & 1.082    \\
+vector         & 0.317          & 0.215          & 67.665     & 6.096    \\
+fibonacci      & 0.173          & 0.073          & 42.736     & 2.746    \\
+sudoku         & 39.077         & 0.304          & 0.780      & 0.402    \\
+sudoku2        & 6446.072       & 0.638          & 0.009      & 0.543    \\
+hanoi\_BM      & 0.114          & 0.037          & 32.271     & 1.310    \\
+stacks\_BM     & 0.174          & 0.101          & 58.064     & 4.046    \\
+morehanoi\_BM  & 0.247          & 0.083          & 33.992     & 0.939    \\
 \bottomrule
 \end{tabular}
 }
 \end{table}
 
 \begin{enumerate}
-	\item
+	\item [Report 11.1a-d]
 		See Table~\ref{statistics}. Ben Mehne's implementation of hanoi, stacks, and morehanoi is the tested version.
-	\item
-		The first implementation is preferable since $f(x) = 8x$. Using $f(x \cdot y) = f(x) \cdot f^{-1}(f(y))$ has less chance
-		of integer overflow.
-	\item
-		We can directly apply use the function $g$ on the tagged representation: $g (tagged\_x\ op\ tagged\_y)$, since we know that $c \cdot a\ op\ c \cdot b \equiv a\ op\ b$ where $c \neq 0$.
+	\item [Exercise 3.1.1]
+		The change in \texttt{jit1.c} changed the return value from 42 to 63.
+	\item [Exercise 4.1.1]
+		\verbatiminput{../assembly/exer4.1_dir/exer4.1.gl.s}
+	\item [Exercise 4.1.2]
+		\verbatiminput{../assembly/exer4.2_dir/exer4.2.gl.s}
+
 \end{enumerate}
 
 \end{document}
