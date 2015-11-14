@@ -164,67 +164,67 @@ method_prelude_end:
 .globl object_op_end
 
 object_op:
-## ClassLayout * cl = get_class_by_idx(i->class);
-        movq    $0xcafebabecafebabe, %r8  ## %r8 has i->class
+##  ClassLayout * cl = get_class_by_idx(i->class);
+        movq    $0xcafebabecafebabe, %r8  	## %r8 has i->class
         movq    $0xcafebabecafebabe, %rax
-        addq    %rax, %r8       ## ci is in %r8
-## int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
-        movslq  4(%r8), %rax            ## cl->num_slots
+        addq    %rax, %r8       		## ci is in %r8
+##  int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
+        movslq  4(%r8), %rax            	## cl->num_slots
         leal    16(,%rax,8), %eax
-        movslq  %eax, %r9               ## size is in %r9
-## ObjectIValue* obj = halloc(size);
-        movq    %rsi, %r10    ## obj = heap_pointer
-## heap_pointer += size;
-        addq    %r9, %rsi       # rsi holds the value of heap_pointer
-## check if heap_pointer >= top_of_heap
-        cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
+        movslq  %eax, %r9               	## size is in %r9
+##  ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    			## obj = heap_pointer
+##  heap_pointer += size;
+        addq    %r9, %rsi       		## rsi holds the value of heap_pointer
+##  check if heap_pointer >= top_of_heap
+        cmpq    %rdi, %rsi      		## top_of_heap is in %rdi, heap_pointer is in %rsi
    	jle     ASSIGN_SLOTS
 TRAP_2_C:
-## heap_pointer -= size;
+##  heap_pointer -= size;
         subq    %r9, %rsi
         leaq    OBJ_AFTER_TRAP(%rip), %rax
         movq    $0xcafebabecafebabe, %r8
         movq    %rax, (%r8)
-        movq    $-2, %rax
+        movq    $-2, %rax			## -2 tells the C code to do GC
         ret
 OBJ_AFTER_TRAP:
-## ClassLayout * cl = get_class_by_idx(i->class);
-        movq    $0xcafebabecafebabe, %r8  ## %r8 has i->class
+##  ClassLayout * cl = get_class_by_idx(i->class);
+        movq    $0xcafebabecafebabe, %r8  	## %r8 has i->class
         movq    $0xcafebabecafebabe, %rax
-        addq    %rax, %r8       ## ci is in %r8
-## int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
-        movslq  4(%r8), %rax            ## cl->num_slots
+        addq    %rax, %r8       		## ci is in %r8
+##  int size = sizeof(ObjectIValue)+sizeof(IValue*)*cl->num_slots;
+        movslq  4(%r8), %rax            	## cl->num_slots
         leal    16(,%rax,8), %eax
-        movslq  %eax, %r9               ## size is in %r9
-## ObjectIValue* obj = halloc(size);
-        movq    %rsi, %r10    ## obj = heap_pointer
-## heap_pointer += size;
-        addq    %r9, %rsi       ## rsi holds the value of heap_pointer
-## from now on %rax is i
-## assuming that *obj is in %r10
+        movslq  %eax, %r9               	## size is in %r9
+##  ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    			## obj = heap_pointer
+##  heap_pointer += size;
+        addq    %r9, %rsi       		## rsi holds the value of heap_pointer
+##  from now on %rax is i
+##  assuming that *obj is in %r10
 ASSIGN_SLOTS:
-        movslq  4(%r8), %rax        ## cl is in %r8, so %eax has cl->num_slots
+        movslq  4(%r8), %rax        		## cl is in %r8, so %eax has cl->num_slots
 START_LOOP:
-        subq    $1, %rax                ## eax has cl->num_slots-1 (i.e., i), i--
-        cmpq    $-1, %rax               ## check if i >= 0
+        subq    $1, %rax                	## eax has cl->num_slots-1 (i.e., i), i--
+        cmpq    $-1, %rax               	## check if i >= 0
         je      END_LOOP
-## stack_pop
-        subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r11       ## %r11 has *stack_pointer
-## obj->var_slots[i] = *stack_pointer;
-        movq    %r11, 16(%r10,%rax,8)   ## %r10 has object
+##  stack_pop
+        subq    $8, %rdx                	## stack_pointer--
+        movq    0(%rdx), %r11       		## %r11 has *stack_pointer
+##  obj->var_slots[i] = *stack_pointer;
+        movq    %r11, 16(%r10,%rax,8)   	## %r10 has object
         jmp     START_LOOP
 END_LOOP:
-        subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r11       ## %r11 has *stack_pointer
-## obj->parent_obj_ptr = *stack_pointer;
+        subq    $8, %rdx                	## stack_pointer--
+        movq    0(%rdx), %r11       		## %r11 has *stack_pointer
+##  obj->parent_obj_ptr = *stack_pointer;
         movq    %r11, 8(%r10)
-## obj->class_ptr = cl;
+##  obj->class_ptr = cl;
         movq    %r8, (%r10)
-## from_obj_val ==> (IValue*)(((uintptr_t)val) | ARRAY_OBJ_MASK);
+##  from_obj_val ==> (IValue*)(((uintptr_t)val) | ARRAY_OBJ_MASK);
         movq    $0xcafebabecafebabe, %rax
-        orq     %rax, %r10      ## %r10 has from_obj_val(obj)
-## push stack
+        orq     %rax, %r10      		## %r10 has from_obj_val(obj)
+##  push stack
         movq    %r10, 0(%rdx)
         addq    $8, %rdx
 object_op_end:
@@ -237,75 +237,69 @@ array_op:
 	pushq	%r12
         subq    $8, %rdx                ## stack_pointer--
         movq    0(%rdx), %r8            ## %r8 holds the *init_value ptr
-        subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r9            ## %r9 holds the *lengthi ptr, it also holds *len ptr
-        movq 	%r9, %r12				## %r12 keeps the original value of *lengthi
+        movq    -8(%rdx), %r9		## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq 	%r9, %r12		## %r12 keeps the original value of *lengthi
         movq    %r9, %r11
         sarq    $3, %r11                ## shrift arithmetic right to get the int length, %r11 holds length
-## stack push init_value
-        movq    %r11, 0(%rdx)
-        addq    $8, %rdx
-##      size = sizeof(ArrayIValue)+sizeof(IValue*)*length
+##  stack push init_value
+        movq    %r11, -8(%rdx)
+##  size = sizeof(ArrayIValue)+sizeof(IValue*)*length
 ##  from now on, size is in %r9
         leal    16(,%r11,8), %eax
         movslq  %eax, %r9
-## call halloc
-## ObjectIValue* obj = halloc(size);
-        movq    %rsi, %r10    ## obj = heap_pointer
-## heap_pointer += size;
-        addq    %r9, %rsi       ## rsi holds the value of heap_pointer
-## check if heap_pointer >= top_of_heap
-        cmpq    %rdi, %rsi      ## top_of_heap is in %rdi, heap_pointer is in %rsi
+##  call halloc
+##  ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10    		## obj = heap_pointer
+##  heap_pointer += size;
+        addq    %r9, %rsi       	## rsi holds the value of heap_pointer
+##  check if heap_pointer >= top_of_heap
+        cmpq    %rdi, %rsi      	## top_of_heap is in %rdi, heap_pointer is in %rsi
         jle     ARR_ASSIGN_SLOTS
 ARR_TRAP_2_C:
-## restore the stack
-	subq    $8, %rdx                ## stack_pointer--
-	movq    %r12, 0(%rdx)			## push *lengthi into the stack
+##  restore the stack
+	movq    %r12, -8(%rdx)		## push *lengthi into the stack
+	movq    %r8, 0(%rdx)		## push *init_value into the stack
 	addq    $8, %rdx                ## stack_pointer++
-	movq    %r8, 0(%rdx)			## push *init_value into the stack
-	addq    $8, %rdx                ## stack_pointer++
-## heap_pointer += size;
+##  heap_pointer += size;
         subq    %r9, %rsi
         leaq    ARR_AFTER_TRAP(%rip), %rax
         movq    $0xcafebabecafebabe, %r8
         movq    %rax, (%r8)
-        movq    $-2, %rax
+        movq    $-2, %rax		## -2 tells the C to do GC
         popq	%r12
         ret
 ARR_AFTER_TRAP:
 	subq    $8, %rdx                ## stack_pointer--
         movq    0(%rdx), %r8            ## %r8 holds the *init_value ptr
-        subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r9            ## %r9 holds the *lengthi ptr, it also holds *len ptr
+        movq    -8(%rdx), %r9           ## %r9 holds the *lengthi ptr, it also holds *len ptr
         movq    %r9, %r11
         sarq    $3, %r11                ## shrift arithmetic right to get the int length, %r11 holds length
-## stack push init_value
+##  stack push init_value
         movq    %r11, 0(%rdx)
-        addq    $8, %rdx
-##      size = sizeof(ArrayIValue)+sizeof(IValue*)*length
+##  size = sizeof(ArrayIValue)+sizeof(IValue*)*length
 ##  from now on, size is in %r9
         leal    16(,%r11,8), %eax
         movslq  %eax, %r9
-## call halloc
-## ObjectIValue* obj = halloc(size);
-        movq    %rsi, %r10    ## obj = heap_pointer
+##  call halloc
+##  ObjectIValue* obj = halloc(size);
+        movq    %rsi, %r10   		## obj = heap_pointer
 ARR_ASSIGN_SLOTS:
-##      t->tag = ARRAY_OBJ;
+##  t->tag = ARRAY_OBJ;
         movq    $2, (%r10)
 ##  t->length = length;
         movq    %r11, 8(%r10)
 ##  init_value = stack_pop(); // for safety
         subq    $8, %rdx                ## stack_pointer--
-        movq    0(%rdx), %r8                    ## %r8 holds the *init_value ptr
-## start loop
+        movq    0(%rdx), %r8            ## %r8 holds the *init_value ptr
+##  start loop
         movq    $0, %rax
 ARR_START_LOOP:
-        cmpq    %rax, %r11  ## compare i and length
+        cmpq    %rax, %r11  		## compare i and length
 ##  if i < length
         jge     ARR_END_LOOP
 ##  t->slots[i] = init_value;
         movq    %r8, 16(%r10,%rax,8)
-        incq    %rax            ## i++
+        incq    %rax            	## i++
         jmp     ARR_START_LOOP
 ARR_END_LOOP:
 ##  from_array_val(t)
