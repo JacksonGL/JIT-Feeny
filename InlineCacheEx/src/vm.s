@@ -501,7 +501,7 @@ CASE_LE:
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
   cmpq  0(%rdx), %r10
-  setg %al                    ## if greater, %al holds $0, otherwise $1
+  setg %al                     ## if greater, %al holds $0, otherwise $1
   addq  %rax, %rax             ## if greater, %rax holds $0, otherwise $2, which is null_obj
 ## push into stack
   movq  %rax, -8(%rdx)
@@ -516,7 +516,7 @@ CASE_GE:
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
   cmpq  0(%rdx), %r10
-  setl %al                    ## if less, %al holds $0, otherwise $1
+  setl %al                     ## if less, %al holds $0, otherwise $1
   addq  %rax, %rax             ## if less, %rax holds $0, otherwise $2, which is null_obj
 ## push into stack
   movq  %rax, -8(%rdx)
@@ -538,6 +538,21 @@ CASE_GT:
 
 BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
+## start comparing method name
+CASE_LENGTH:
+  movslq ARRAY_LENGTH_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_ARR_SET
+## body of add
+	andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+  movslq  8(%r10), %rax
+  salq  $3, %rax
+## push into stack
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp  END_BUILT_BODY
+CASE_ARR_SET:
 
 	movq	$0, %r13
 END_BUILT_BODY:
