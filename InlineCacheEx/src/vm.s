@@ -313,24 +313,12 @@ ARR_END_LOOP:
         popq	%r12
 array_op_end:
 
-
-int_obj_mul_op:
-	movq	%r9, %rax
-  sarq  $3, %rax
-  movq  %r8, %r10
-  movslq  %eax, %rax
-  imulq %rax, %r10
-int_obj_mul_op_end:
-
 int_obj_div_op:
-	pushq	%rax
   movq  %r8, %rax
   cqto
   idivq %r9
   cltq						## promotes an int to an int64
   salq  $3, %rax
-	popq	%rax
-	jmp		*%rax
 int_obj_div_op_end:
 
 ## assume that CallSlotIns* i
@@ -440,14 +428,34 @@ CASE_MUL:
   movq  0(%rdx), %rax          ## %rax has *stack_pointer, i.e., arg
   sarq  $3, %rax
   movslq  %eax, %rax
-  imulq %rax, %r10
+  imulq %rax, %r10             ## in this branch after this instruction, %r10 no longer holds receiver_ptr
 ## push into stack
-	movq %r10, -8(%rdx)					## in this branch after this instruction, %r10 no longer holds receiver_ptr
+	movq %r10, -8(%rdx)
 ## return value
   movq  $1, %r13
   jmp   END_BUILT_BODY
 CASE_DIV:
-## body of DIV:
+  movslq INT_DIV_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_MOD
+## body of div
+	pushq %rbx
+  subq  $8, %rdx               ## stack pop twice and push once
+  movq  0(%rdx), %rbx          ## %rbx has *stack_pointer, i.e., arg
+	pushq %rdx
+  movq  %r10, %rax
+  cqo
+  idivq %rbx
+  salq  $3, %rax
+## push into stack
+	popq  %rdx
+	popq  %rbx
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp   END_BUILT_BODY
+CASE_MOD:
+## body of MOD:
 
   movq  $0, %r13
   jmp   END_BUILT_BODY
