@@ -543,7 +543,7 @@ CASE_LENGTH:
   movslq ARRAY_LENGTH_NAME(%rip), %rax
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_SET
-## body of add
+## body of array length
 	andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
   movslq  8(%r10), %rax
   salq  $3, %rax
@@ -553,8 +553,26 @@ CASE_LENGTH:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_ARR_SET:
+  movslq ARRAY_SET_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_ARR_GET
+## body of array set
+	subq  $16, %rdx   ## pop three times and push once
+	movq  8(%rdx), %r14  ## %r14 holds the value to be pushed
+	movq  0(%rdx), %rax  ## %rax holds the array index
+  andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+  sarq  $3, %rax
+	movslq  %eax, %rax
+  movq  %r14, 16(%r10,%rax,8)
+## push null_obj into stack
+  movq  $2, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp  END_BUILT_BODY
+CASE_ARR_GET:
 
-	movq	$0, %r13
+  movq  $0, %r13
+
 END_BUILT_BODY:
 ## end the swtich structure
 	movq %rsi, heap_pointer (%rip)
