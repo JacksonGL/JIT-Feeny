@@ -887,7 +887,7 @@ int exec_call_op (CallIns * i, int pc) {
 	push_frame(pc+1, aid->locals, i->arity);
 	for(int j = i->arity-1; j >= 0; --j ){
 		IValue* v = stack_pop();
-		set_local(j, v);
+		set_local(j+aid->locals, v);
 	}
 	return i->name;
 }
@@ -939,7 +939,7 @@ int exec_call_slot_op (CallSlotIns * i, int pc) {
 	AllInsData* aid = (AllInsData*) get_ins(method_idx);
 	push_frame(pc+1, aid->locals, i->arity);
 	for(int j = (i->arity-1>0)?i->arity-1:0; j >= 0; --j ){
-		set_local(j, stack_pop());
+		set_local(j+aid->locals, stack_pop());
 	}
 	debugf("Going to method at %d\n", method_idx);
 	return method_idx;
@@ -1488,6 +1488,8 @@ void * make_lit(int64_t value){
 
 extern char method_prelude[];
 extern char method_prelude_end[];
+extern char method_local[];
+extern char method_local_end[];
 void * make_method_prelude(int args, int locals){
 	start_timer("jit_time");
 	if(!code){
@@ -1496,17 +1498,15 @@ void * make_method_prelude(int args, int locals){
 
 	char * ret_true = code;
 	for(int i = 0; i < locals; ++i){
-		int64_t v = i+args;
+		int64_t v = i;//+args;
 		char* ret = code;
 		if(!ret_true){
 			ret_true = ret;
 		}
-		code = mempcpy(code, method_prelude, method_prelude_end - method_prelude);
-
-		// replace values
-		char* to_replace = memmem(ret, method_prelude_end-method_prelude, hole_str, hole_len);
-		char* next_search = mempcpy(to_replace, &v, hole_len);
+		code = mempcpy(code, method_local, method_local_end - method_local);
 	}
+
+	code = mempcpy(code, method_prelude, method_prelude_end - method_prelude);
 	code[0] = '\0';
 	end_timer("jit_time");
 	return ret_true;
@@ -1541,18 +1541,20 @@ void* make_call(int arity){
 
 void update_call(char* location, int locals, int arity, int64_t point){
 	start_timer("jit_time");
-	// replace values
-		// replace values
-	char* to_replace = memmem(location, call_op_pre_end-call_op_pre, hole_str, hole_len);
-	assert(to_replace);
-	int64_t val64 = locals*8; // duh - these are pointers
-	char* next_search = mempcpy(to_replace, &val64, hole_len);
 
 	// if my math is correct, this should be the location of the 'code' before the last mempcpy call in make_call
 	char* real_location = location+ (call_op_pre_end - call_op_pre) + arity*(call_op_push_body_end - call_op_push_body);
-	to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
+
+	// replace locals length
+	/*char* to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
 	assert(to_replace);
-	next_search = mempcpy(to_replace, &point, hole_len);
+	int64_t val64 = locals*8; // duh - these are pointers
+	char* next_search = mempcpy(to_replace, &val64, hole_len);*/
+
+	// replace function ptr
+	char * to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
+	assert(to_replace);
+	char* next_search = mempcpy(to_replace, &point, hole_len);
 	end_timer("jit_time");
 }
 
@@ -1725,7 +1727,7 @@ void update_branch(void* location, int64_t point){
 	end_timer("jit_time");
 }
 
-int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
+int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch, Vector* call_ins, Vector* class_layouts){
 	debugf("In make code ins\n");
 	Vector* cp = p->values;
 	int ret = -1;
@@ -1763,6 +1765,7 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			ByteIns* ii = code_alloc();
 			ii->tag = ins->tag;
 			set_code_point(code_index(ii), make_drop());
+			//set_code_point(code_index(ii), make_trap(code_index(ii)));
 			return code_index(ii);
 		}
 		case ARRAY_OP:{
@@ -1824,7 +1827,8 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			GetLocalIns* gi = code_alloc();
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
-			gi->idx = ogi->idx;
+			/* locals now appear before args in a method */
+			gi->idx = (ogi->idx >= m->nargs)? /* is a local */ ogi->idx-m->nargs:ogi->idx+m->nlocals;
 			set_code_point(code_index(gi), make_get_local(gi->idx));
 			//set_code_point(code_index(gi), make_trap(code_index(gi)));
 			return code_index(gi);
@@ -1834,9 +1838,10 @@ int make_code_ins(ByteIns* ins, Program* p, Vector* goto_branch, Vector* call_in
 			GetLocalIns* gi = code_alloc();
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
-			gi->idx = ogi->idx;
-			set_code_point(code_index(gi), make_set_local(gi->idx));
+			/* locals now appear before args in a method */
+			gi->idx = (ogi->idx >= m->nargs)? /* is a local */ ogi->idx - m->nargs: ogi->idx + m->nlocals;
 			//set_code_point(code_index(gi), make_trap(code_index(gi)));
+			set_code_point(code_index(gi), make_set_local(gi->idx));
 			return code_index(gi);
 		}
 		case GET_GLOBAL_OP:{
@@ -1906,7 +1911,7 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 	for(int i = 0; i < mv->code->size; ++i){
 		ByteIns* ins = vector_get(mv->code, i);
 
-		t = make_code_ins(ins, p, goto_or_branch_todo, call_ins, class_layouts);
+		t = make_code_ins(ins, mv, p, goto_or_branch_todo, call_ins, class_layouts);
 		debugf("Finished make code ins with %d\n", t);
 		if(first_entry == -1){
 			first_entry = t;

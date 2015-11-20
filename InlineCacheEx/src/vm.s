@@ -134,8 +134,6 @@ lit_op_end:
 
 call_op_pre:
 	movq %rcx, %r11 # get the new parent frame
-	movq $0xcafebabecafebabe, %r10 # cannot use 64bit immediates...
-	sub %r10, %rcx # allocate space for aid->locals
 call_op_pre_end:
 call_op_push_body: # need one of these blocks for each arity
 	subq $8, %rcx  # allocate space for 1 arity
@@ -144,20 +142,24 @@ call_op_push_body: # need one of these blocks for each arity
 	movq %r10, 0(%rcx) # set arity value
 call_op_push_body_end:
 call_op_post:
-	subq $16, %rcx # allocate enough room for return pointer and parent frame
 	leaq call_op_post_end(%rip), %r10
-	movq %r10, 8(%rcx) # return address
-	movq %r11, 0(%rcx) # parent frame
 	movq $0xcafebabecafebabe, %rax # function address
 	jmp *%rax # call
 call_op_post_end:
 
 .globl method_prelude
 .globl method_prelude_end
+.globl method_local
+.globl method_local_end
 
+method_local:
+	subq $8, %rcx  # allocate space for 1 arity
+	movq $2, 0(%rcx) # set arity value
+method_local_end:
 method_prelude: # sets locals to null
-    movq  $0xcafebabecafebabe, %rax # local index
-    movq  $2, 16(%rcx,%rax,8) #null value = 2
+	subq $16, %rcx # allocate enough room for return pointer and parent frame
+	movq %r10, 8(%rcx) # return address
+	movq %r11, 0(%rcx) # parent frame
 method_prelude_end:
 
 .globl object_op
@@ -310,6 +312,7 @@ ARR_END_LOOP:
         addq    $8, %rdx
         popq	%r12
 array_op_end:
+
 
 ## implementation of primitive operations
 ## all of the following implementation assumes
@@ -474,3 +477,39 @@ END_BUILT_BODY:
 ##  jmp	%r9
   ret
 exec_built_in_method_end_2:
+
+
+/*
+call_slot_op:
+	movq $0xcafebabecafebabe, %r11 # negative arity
+	movq 0(%rdx,%r11, 8), %r11 # get receiver object
+	movq cached_type(%rip), %r10 # load cached type
+	cmpq %r11, %r10 # compare cached type and actual type
+	je do_call_slot_op # if cache hit, do call
+general_call_slot:
+	leaq do_call_slot(%rip), %rax # get return code point
+	movq instruction_pointer, %r8 # get instruction pointer
+	movq %rax, (%r8) # store return code point in instruciton pointer
+	movq $0xcafebabecafebabe, %rax #value to return
+	ret
+cached_type: .quad -1
+cached_address: .quad -1
+do_call_slot:
+	#basically call_op here
+call_slot_op_pre:
+	movq %rcx, %r11 # get the new parent frame
+call_slot_op_pre_end:
+call_slot_op_push_body: # need one of these blocks for each arity
+	subq $8, %rcx  # allocate space for 1 arity
+	subq $8, %rdx  # pop stack
+	movq 0(%rdx), %r10 # get popped value
+	movq %r10, 0(%rcx) # set arity value
+call_slot_op_push_body_end:
+call_slot_op_post:
+# r11 must have parent frame
+	leaq call_slot_op_end(%rip), %r10
+	leaq cached_addr(%rip), %rax # load cached subroutine address
+	jmp *%rax
+call_slot_op_post_end:
+
+*/
