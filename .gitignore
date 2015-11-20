@@ -41,6 +41,8 @@ TagOptEx/output/*
 TagOptEx/fail/*
 JITEx/output/*
 JITEx/fail/*
+InlineCache/output/*
+InlineCache/fail/*
 *.aux
 *.bbl
 *.blg
@@ -64,3 +66,7 @@ JITEx/cfeeny
 JITEx/cfeeny.dSYM*
 JITEx/assembly/bin/*
 JITEx/tmp/*
+InlineCache/cfeeny
+InlineCache/cfeeny.dSYM*
+InlineCache/assembly/bin/*
+InlineCache/tmp/*
