@@ -494,7 +494,22 @@ CASE_LT:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_LE:
-## body of le:
+  movslq INT_LE_NAME(%rip), %rax
+  cmpq  %rax, %r11             ## compare method name
+  jne CASE_GE
+## body of le
+  subq  $8, %rdx               ## stack pop twice and push once
+  xorq  %rax, %rax
+  cmpq  0(%rdx), %r10
+  setg %al                    ## if greater, %al holds $0, otherwise $1
+  addq  %rax, %rax             ## if greater, %rax holds $0, otherwise $2, which is null_obj
+## push into stack
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp  END_BUILT_BODY
+CASE_GE:
+## body of ge:
 
   movq  $0, %r13
   jmp  END_BUILT_BODY
