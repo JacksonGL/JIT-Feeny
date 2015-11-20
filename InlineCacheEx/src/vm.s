@@ -467,21 +467,34 @@ CASE_MOD:
 CASE_EQ:
   movslq INT_EQ_NAME(%rip), %rax
   cmpq  %rax, %r11  ## compare method name
-  jne CASE_NE
+  jne CASE_LT
 ## body of eq
   subq  $8, %rdx               ## stack pop twice and push once
-  movq  0(%rdx), %r14          ## %r14 has *stack_pointer, i.e., arg
 	xorq  %rax, %rax
-  cmpq  %r10, %r14						
-  setne %al										 ## if equals, %al holds $0, otherwise $1
-  addq  %rax, %rax						 ## if equals, %rax holds $0, otherwise $2, which is null_obj
+  cmpq  %r10, (%rdx)
+	setne %al
+	addq  %rax, %rax						
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp  END_BUILT_BODY
+CASE_LT:
+  movslq INT_LT_NAME(%rip), %rax
+  cmpq  %rax, %r11             ## compare method name
+  jne CASE_LE
+## body of lt
+  subq  $8, %rdx               ## stack pop twice and push once
+  xorq  %rax, %rax
+  cmpq  0(%rdx), %r10
+  setge %al                    ## if greater or eq, %al holds $0, otherwise $1
+  addq  %rax, %rax             ## if greater or eq, %rax holds $0, otherwise $2, which is null_obj
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %r13
   jmp  END_BUILT_BODY
-CASE_NE:
-## body of eq:
+CASE_LE:
+## body of le:
 
   movq  $0, %r13
   jmp  END_BUILT_BODY
