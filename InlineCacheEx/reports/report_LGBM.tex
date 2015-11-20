@@ -1,0 +1,55 @@
+
+\documentclass[notitlepage]{report}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{booktabs}
+\usepackage{verbatim}
+% define the font for code
+\newcommand{\code}[1]{{\ttfamily #1}}
+
+\title{\vspace{-0.5in}Virtual Machines and Managed Runtimes \\ Assignment 6 Answers}
+\date{\vspace{-0.5in}October 22, 2015}
+\author{\vspace{-0.5in}Liang Gong and Ben Mehne\vspace{-0.5in}}
+
+\begin{document}
+\maketitle
+
+\begin{table}[!htp]
+\centering
+\caption{Runtime Statistics}
+\label{statistics}
+{\footnotesize
+\begin{tabular}{lllllll}
+\toprule
+test case & interpreter & garbage collector & \code{halloc} & allocated bytes     & GC time             & interpreter time    \\
+          & time (ms)   & time (ms)         & bytes         & reduction (new/old) & reduction (new/old) & reduction (new/old) \\
+\midrule
+bsearch        & 0.093          & 0.000          & 96             & 0.031		& no reduction		& 0.381 \\
+inheritance    & 0.036          & 0.000          & 16             & 0.0625		& no reduction		& 1.500 \\
+cplx           & 0.045          & 0.000          & 32             & 0.0282		& no reduction		& 0.333 \\
+lists          & 0.097          & 0.000          & 32             & 0.010		& no reduction		& 0.379 \\
+vector         & 0.052          & 0.000          & 80             & 0.026		& no reduction		& 0.185 \\
+fibonacci      & 0.063          & 0.000          & 0              & 0		& no reduction		& 0.100 \\
+sudoku         & 97.070         & 0.000          & 24             & 0.000		& 0		& 0.127 \\
+sudoku2        & 11867.004      & 0.000          & 24             & 0.000		& 0		& 0.079 \\
+hanoi\_BM      & 0.087          & 0.000          & 0              & 0		& no reduction		& 0.075 \\
+stacks\_BM     & 0.043          & 0.000          & 32             & 0.017		& no reduction	& 0.328	\\
+morehanoi\_BM  & 0.263          & 0.000          & 32             & 0.001		& no reduction		& 0.091 \\
+
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{enumerate}
+	\item
+		See Table~\ref{statistics}. Ben Mehne's implementation of hanoi, stacks, and morehanoi is the tested version.
+	\item
+		The first implementation is preferable since $f(x) = 8x$. Using $f(x \cdot y) = f(x) \cdot f^{-1}(f(y))$ has less chance
+		of integer overflow.
+	\item
+		We can directly apply use the function $g$ on the tagged representation: $g (tagged\_x\ op\ tagged\_y)$, since we know that $c \cdot a\ op\ c \cdot b \equiv a\ op\ b$ where $c \neq 0$.
+\end{enumerate}
+
+\end{document}
