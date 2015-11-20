@@ -255,7 +255,7 @@ array_op:
 ##  check if heap_pointer >= top_of_heap
         cmpq    %rdi, %rsi      	## top_of_heap is in %rdi, heap_pointer is in %rsi
         jle     ARR_ASSIGN_SLOTS
-ARR_TRAP_2_C:
+ARR_TRAP_2_Ca:
 ##  restore the stack
 	movq    %r12, -8(%rdx)		## push *lengthi into the stack
 	movq    %r8, 0(%rdx)		## push *init_value into the stack
@@ -320,14 +320,14 @@ array_op_end:
 ## stored in %rax
 int_obj_add_op:
   leaq  (%r8,%r9), %r10
-  jmp 	%rax
+  jmp 	*%rax
 int_obj_add_op_end:
 
 int_obj_sub_op:
 	movq	%r8, %r10
   subq  %r9, %r10
-	jmp   %rax
-int_obj_sub_op_en
+	jmp   *%rax
+int_obj_sub_op_end:
 
 int_obj_mul_op:
 	pushq	%rax
@@ -337,7 +337,7 @@ int_obj_mul_op:
   movslq  %eax, %rax
   imulq %rax, %r10
 	popq	%rax
-	jmp		%rax
+	jmp		*%rax
 int_obj_mul_op_end:
 
 int_obj_div_op:
@@ -348,5 +348,129 @@ int_obj_div_op:
   cltq						## promotes an int to an int64
   salq  $3, %rax
 	popq	%rax
-	jmp		%rax
+	jmp		*%rax
 int_obj_div_op_end:
+
+## assume that CallSlotIns* i
+## has been stored in %rdi
+
+.globl exec_built_in_method_2
+exec_built_in_method_2:
+  movq %rdi, %r8
+  movq top_of_heap(%rip),%rdi
+  movq heap_pointer(%rip), %rsi
+  movq stack_pointer(%rip), %rdx
+  movq frame_pointer(%rip), %rcx
+##  same the return address
+  pushq %r14
+  pushq %r13
+  pushq %r12  
+  pushq	%rax
+##  start the function body -----------------------------
+  movslq  8(%r8), %r9
+  movq  %rdx, %rax
+  salq  $3, %r9		## %r9 contains i->arity
+##  IValue* receiver_ptr = *(stack_pointer - i->arity);
+  subq  %r9, %rax
+  movq  (%rax), %r10	## receiver_ptr
+##  arity = (i->arity-1>0)? i->arity-1:0;
+  cmpq  $1, %r9
+  jl    ARITY_DECREMENT
+  movq $0, %r9
+  jmp   AFTER_ARITY
+ARITY_DECREMENT:  
+  subq $1, %r9
+AFTER_ARITY:
+##  int method_name = i->name
+  movl  4(%r8), %eax
+  movslq %eax, %r11
+## get object type -------------------------------------
+## result will be stored in %r12
+BUILT_IN_OBJ_TYPE:
+  pushq %r10
+  cmpq  $2, %r10
+  je    OBJ_TYPE_NULL
+  movq  %r10, %rax
+  andq  $1, %rax
+## if (v%2 == 1)
+  cmpq  $1, %rax
+  je    OBJ_TYPE_V2_EQ_1
+## return INT_OBJ;
+  movq  $0, %rax
+  jmp   END_BUILT_IN_OBJ_TYPE
+OBJ_TYPE_V2_EQ_1:
+## get_tag
+  andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+## return tag > OBJ_OBJ? OBJ_OBJ : tag;
+  movq  $4, %rax
+  cmpq  $4, (%r10)
+  cmovbe  (%r10), %rax
+  jmp   END_BUILT_IN_OBJ_TYPE
+OBJ_TYPE_NULL:
+  movq  $1, %rax
+END_BUILT_IN_OBJ_TYPE:
+  popq  %r10
+  movq  %rax, %r12
+## start doing the swtich statements ------------------
+  cmpq  $0, %rax
+  je    BUILT_IN_CASE_INT
+  cmpq  $2, %rax
+  je    BUILT_IN_CASE_ARRAY
+  movq  $0, %r13
+  jmp   END_BUILT_BODY
+BUILT_IN_CASE_INT:
+## body of case int -----------------------------------
+## IValue* arg = stack_pop();
+## stack_pop();
+## start comparing method name
+CASE_ADD:
+  movslq INT_ADD_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_SUB
+## body of add
+  subq  $16, %rdx               ## stack pop twice
+  movq  8(%rdx), %r14           ## %r14 has *stack_pointer
+  leaq  (%r10,%r14), %rax
+## push into stack
+	movq  %rax, (%rdx)
+  addq  $8, %rdx
+## return value
+  movq  $1, %r13
+  jmp   END_BUILT_BODY
+CASE_SUB:
+  movslq INT_SUB_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_MUL
+## body of sub
+  subq  $16, %rdx               ## stack pop twice
+  movq  8(%rdx), %r14           ## %r14 has *stack_pointer
+  movq  %r10, (%rdx)
+  subq  %r14, (%rdx)
+## push into stack
+  addq  $8, %rdx
+## return value
+  movq  $1, %r13
+  jmp   END_BUILT_BODY
+CASE_MUL:
+## body of mul:
+
+  movq  $0, %r13
+  jmp   END_BUILT_BODY
+BUILT_IN_CASE_ARRAY:
+## body of case array ---------------------------------
+
+  movq  $0, %r13
+END_BUILT_BODY:
+## end the swtich structure
+  movq %rsi, heap_pointer (%rip)
+  movq %rdx, stack_pointer (%rip)
+  movq %rcx, frame_pointer (%rip)
+##  pop the return address
+  popq %r9    ## save the return address
+  movq %r13, %rax   ## save the return value
+  popq %r12
+  popq %r13
+  popq %r14
+##  jmp	%r9
+  ret
+exec_built_in_method_end_2:
