@@ -61,7 +61,7 @@ branch_op_end:
 
 set_local_op:
 ## get local index
-	movq    $0xcafebabecafebabe, %rax	
+	movq    $0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -83,7 +83,7 @@ get_local_op_end:
 
 set_global_op:
 ## get local index
-	movq    $0xcafebabecafebabe, %rax	
+	movq    $0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -134,8 +134,6 @@ lit_op_end:
 
 call_op_pre:
 	movq %rcx, %r11 # get the new parent frame
-	movq $0xcafebabecafebabe, %r10 # cannot use 64bit immediates...
-	sub %r10, %rcx # allocate space for aid->locals
 call_op_pre_end:
 call_op_push_body: # need one of these blocks for each arity
 	subq $8, %rcx  # allocate space for 1 arity
@@ -144,20 +142,24 @@ call_op_push_body: # need one of these blocks for each arity
 	movq %r10, 0(%rcx) # set arity value
 call_op_push_body_end:
 call_op_post:
-	subq $16, %rcx # allocate enough room for return pointer and parent frame
 	leaq call_op_post_end(%rip), %r10
-	movq %r10, 8(%rcx) # return address
-	movq %r11, 0(%rcx) # parent frame
 	movq $0xcafebabecafebabe, %rax # function address
 	jmp *%rax # call
 call_op_post_end:
 
 .globl method_prelude
 .globl method_prelude_end
+.globl method_local
+.globl method_local_end
 
+method_local:
+	subq $8, %rcx  # allocate space for 1 arity
+	movq $2, 0(%rcx) # set arity value
+method_local_end:
 method_prelude: # sets locals to null
-    movq  $0xcafebabecafebabe, %rax # local index
-    movq  $2, 16(%rcx,%rax,8) #null value = 2
+	subq $16, %rcx # allocate enough room for return pointer and parent frame
+	movq %r10, 8(%rcx) # return address
+	movq %r11, 0(%rcx) # parent frame
 method_prelude_end:
 
 .globl object_op
