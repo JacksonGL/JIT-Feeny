@@ -61,7 +61,7 @@ branch_op_end:
 
 set_local_op:
 ## get local index
-	movq    $0xcafebabecafebabe, %rax
+	movq    $0xcafebabecafebabe, %rax	
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -83,7 +83,7 @@ get_local_op_end:
 
 set_global_op:
 ## get local index
-	movq    $0xcafebabecafebabe, %rax
+	movq    $0xcafebabecafebabe, %rax	
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -313,6 +313,46 @@ ARR_END_LOOP:
         popq	%r12
 array_op_end:
 
+
+## implementation of primitive operations
+## all of the following implementation assumes
+## that the 1st, 2nd and 3rd asguments are in
+## %r8, %r9, %r10
+## result will be stored in %r10
+## after execution it will jump to the address
+## stored in %rax
+int_obj_add_op:
+  leaq  (%r8,%r9), %r10
+  jmp 	%rax
+int_obj_add_op_end:
+
+int_obj_sub_op:
+	movq	%r8, %r10
+  subq  %r9, %r10
+	jmp   %rax
+int_obj_sub_op_en
+
+int_obj_mul_op:
+	pushq	%rax
+	movq	%r9, %rax
+  sarq  $3, %rax
+  movq  %r8, %r10
+  movslq  %eax, %rax
+  imulq %rax, %r10
+	popq	%rax
+	jmp		%rax
+int_obj_mul_op_end:
+
+int_obj_div_op:
+	pushq	%rax
+  movq  %r8, %rax
+  cqto
+  idivq %r9
+  cltq						## promotes an int to an int64
+  salq  $3, %rax
+	popq	%rax
+	jmp		%rax
+int_obj_div_op_end:
 
 call_slot_op:
 	movq $0xcafebabecafebabe, %r11 # negative arity
