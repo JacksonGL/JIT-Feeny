@@ -432,17 +432,15 @@ CASE_DIV:
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_MOD
 ## body of div
-	pushq %rbx
 	subq	$8, %rdx							 ## stack pop twice and push once
-	movq	0(%rdx), %rbx		 	 		 ## %rbx has *stack_pointer, i.e., arg
+	movq	0(%rdx), %r14		 	 		 ## %r14 has *stack_pointer, i.e., arg
 	pushq %rdx
 	movq	%r10, %rax
 	cqo
-	idivq %rbx
+	idivq %r14
 	salq	$3, %rax
 ## push into stack
 	popq	%rdx
-	popq	%rbx
 	movq	%rax, -8(%rdx)
 ## return value
 	movq	$1, %r13
@@ -467,10 +465,27 @@ CASE_MOD:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_EQ:
+  movslq INT_EQ_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_NE
+## body of eq
+  subq  $8, %rdx               ## stack pop twice and push once
+  movq  0(%rdx), %r14          ## %r14 has *stack_pointer, i.e., arg
+	xorq  %rax, %rax
+  cmpq  %r10, %r14						
+  setne %al										 ## if equals, %al holds $0, otherwise $1
+  addq  %rax, %rax						 ## if equals, %rax holds $0, otherwise $2, which is null_obj
+## push into stack
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
+  jmp  END_BUILT_BODY
+CASE_NE:
 ## body of eq:
-  
+
   movq  $0, %r13
   jmp  END_BUILT_BODY
+
 BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
 
