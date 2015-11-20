@@ -570,9 +570,14 @@ CASE_ARR_SET:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_ARR_GET:
-
-  movq  $0, %r13
-
+	subq  $8, %rdx   ## pop twice and push once
+	movq  0(%rdx), %rax ## %rax holds the array index
+  andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+  sarq  $3, %rax
+  movslq  %eax, %rax
+  movq  16(%r10,%rax,8), %rax
+	movq  %rax, -8(%rdx) 	## push into stack the value pointed by the array index
+  movq  $1, %r13
 END_BUILT_BODY:
 ## end the swtich structure
 	movq %rsi, heap_pointer (%rip)
