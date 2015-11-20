@@ -524,10 +524,18 @@ CASE_GE:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_GT:
-## body of gt:
-
-  movq  $0, %r13
+## body of gt
+  subq  $8, %rdx               ## stack pop twice and push once
+  xorq  %rax, %rax
+  cmpq  0(%rdx), %r10
+  setle %al                    ## if less, %al holds $0, otherwise $1
+  addq  %rax, %rax             ## if less, %rax holds $0, otherwise $2, which is null_obj
+## push into stack
+  movq  %rax, -8(%rdx)
+## return value
+  movq  $1, %r13
   jmp  END_BUILT_BODY
+
 BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
 
