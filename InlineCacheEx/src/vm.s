@@ -314,33 +314,12 @@ ARR_END_LOOP:
 array_op_end:
 
 
-## implementation of primitive operations
-## all of the following implementation assumes
-## that the 1st, 2nd and 3rd asguments are in
-## %r8, %r9, %r10
-## result will be stored in %r10
-## after execution it will jump to the address
-## stored in %rax
-int_obj_add_op:
-  leaq  (%r8,%r9), %r10
-  jmp 	*%rax
-int_obj_add_op_end:
-
-int_obj_sub_op:
-	movq	%r8, %r10
-  subq  %r9, %r10
-	jmp   *%rax
-int_obj_sub_op_end:
-
 int_obj_mul_op:
-	pushq	%rax
 	movq	%r9, %rax
   sarq  $3, %rax
   movq  %r8, %r10
   movslq  %eax, %rax
   imulq %rax, %r10
-	popq	%rax
-	jmp		*%rax
 int_obj_mul_op_end:
 
 int_obj_div_op:
@@ -445,17 +424,30 @@ CASE_SUB:
   cmpq  %rax, %r11  ## compare method name
   jne CASE_MUL
 ## body of sub
-  subq  $16, %rdx               ## stack pop twice
-  movq  8(%rdx), %r14           ## %r14 has *stack_pointer
-  movq  %r10, (%rdx)
-  subq  %r14, (%rdx)
-## push into stack
-  addq  $8, %rdx
+  subq  $8, %rdx                ## stack pop twice and push once
+  movq  0(%rdx), %r14           ## %r14 has *stack_pointer, i.e., arg
+  movq  %r10, -8(%rdx)
+  subq  %r14, -8(%rdx)
 ## return value
   movq  $1, %r13
   jmp   END_BUILT_BODY
 CASE_MUL:
-## body of mul:
+  movslq INT_MUL_NAME(%rip), %rax
+  cmpq  %rax, %r11  ## compare method name
+  jne CASE_DIV
+## body of mul
+  subq  $8, %rdx               ## stack pop twice and push once
+  movq  0(%rdx), %rax          ## %rax has *stack_pointer, i.e., arg
+  sarq  $3, %rax
+  movslq  %eax, %rax
+  imulq %rax, %r10
+## push into stack
+	movq %r10, -8(%rdx)					## in this branch after this instruction, %r10 no longer holds receiver_ptr
+## return value
+  movq  $1, %r13
+  jmp   END_BUILT_BODY
+CASE_DIV:
+## body of DIV:
 
   movq  $0, %r13
   jmp   END_BUILT_BODY
