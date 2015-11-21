@@ -609,11 +609,11 @@ START_CALL_SLOT:
 	movq 0(%rdx,%r11, 8), %r11 # get receiver object
 	movq cached_type(%rip), %r10 # load cached type
 	cmpq $-1, %r10
-	je do_get_slot_op
-	cmpq %r11, -1(%r10) # compare cached type and actual type
+	je general_call_slot
+	cmpq -1(%r11), %r10 # compare cached type and actual type
 	je do_call_slot_op # if cache hit, do call
 general_call_slot:
-	movq %r10, receiver_shared(%rip)
+	movq %r11, receiver_shared
 	leaq do_call_slot_op(%rip), %rax # get return code point
 	movq instruction_pointer, %r8 # get instruction pointer
 	movq %rax, (%r8) # store return code point in instruciton pointer
@@ -652,13 +652,15 @@ get_slot_op:
 	je do_get_slot_op # if cache hit, do call
 general_get_slot:
 	movq %r11, receiver_shared
-	leaq do_get_slot_op(%rip), %rax # get return code point
+	leaq general_get_slot_end(%rip), %rax # get return code point
 	movq instruction_pointer, %r8 # get instruction pointer
 	movq %rax, (%r8) # store return code point in instruciton pointer
 	movq $0xcafebabecafebabe, %rax #value to return
 	ret
 gslot_cached_type: .quad -1
 gslot_cached_offset: .quad -1
+general_get_slot_end:
+	movq receiver_shared, %r11
 do_get_slot_op:
 	movq gslot_cached_offset(%rip), %rax # load cached slot idx
 	movq 15(%r11,%rax,8), %r10
@@ -677,13 +679,15 @@ set_slot_op:
 	je do_set_slot_op # if cache hit, do call
 general_set_slot:
 	movq %r11, receiver_shared
-	leaq do_set_slot_op(%rip), %rax # get return code point
+	leaq general_set_slot_end(%rip), %rax # get return code point
 	movq instruction_pointer, %r8 # get instruction pointer
 	movq %rax, (%r8) # store return code point in instruciton pointer
 	movq $0xcafebabecafebabe, %rax #value to return
 	ret
 sslot_cached_type: .quad -1
 sslot_cached_offset: .quad -1
+general_set_slot_end:
+	movq receiver_shared, %r11
 do_set_slot_op:
 	movq sslot_cached_offset(%rip), %rax # load cached slot idx
 	movq -8(%rdx), %r10

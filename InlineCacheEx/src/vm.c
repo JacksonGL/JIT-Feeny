@@ -1713,9 +1713,10 @@ void* make_call_slot(int arity, int name) {
   mempcpy(to_replace, &val64, hole_len);	
 
 	// assembly code for handling call slot
-  code = mempcpy(code, call_slot_op, call_slot_op_pre - call_slot_op);
+  char* first_part = code;
+  code = mempcpy(code, call_slot_op, call_slot_op_pre_end - call_slot_op);
 
-  for(int i = 0; i < arity; ++i){
+  for(int i = 0; i < arity-1; ++i){
     code = mempcpy(code, call_slot_op_push_body, call_slot_op_push_body_end - call_slot_op_push_body);
   }
 
@@ -1723,15 +1724,15 @@ void* make_call_slot(int arity, int name) {
 	
   code[0] = '\0';
 
-  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  to_replace = memmem(first_part, call_slot_op_pre_end-call_slot_op, hole_str, hole_len);
   val64 = code; 
   mempcpy(to_replace, &val64, hole_len);
    
-  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  to_replace = memmem(first_part, call_slot_op_pre_end-call_slot_op, hole_str, hole_len);
   val64 = -arity;
   mempcpy(to_replace, &val64, hole_len);
 
-  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  to_replace = memmem(first_part, call_slot_op_pre_end-call_slot_op, hole_str, hole_len);
   val64 = TO_GET_METHOD(name);
   mempcpy(to_replace, &val64, hole_len);
 
@@ -1998,8 +1999,8 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			si->tag = osi->tag;
 			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
 			si->arity = osi->arity;
-			set_code_point(code_index(si), make_trap(code_index(si)));
-			// set_code_point(code_index(si), make_call_slot(si->arity, si->name));
+			//set_code_point(code_index(si), make_trap(code_index(si)));
+			set_code_point(code_index(si), make_call_slot(si->arity, si->name));
 			return code_index(si);
 		}
 		case CALL_OP: {
