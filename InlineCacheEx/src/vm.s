@@ -336,7 +336,7 @@ built_in_method_op:
 ##	start the function body -----------------------------
 ##	movslq	8(%r8), %r9
 	movq	%rdx, %rax
-##	salq	$3, %r9		## %r9 contains i->arity
+	salq	$3, %r9		## %r9 contains i->arity
 ##	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	subq	%r9, %rax
 	movq	(%rax), %r10	## receiver_ptr
