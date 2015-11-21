@@ -327,7 +327,6 @@ exec_built_in_method_2:
 ##	same the return address
 	pushq %r14
 	pushq %r13
-	pushq %r12	
 	pushq	%rax
 ##	start the function body -----------------------------
 	movslq	8(%r8), %r9
@@ -340,7 +339,7 @@ exec_built_in_method_2:
 	movl	4(%r8), %eax
 	movslq %eax, %r11
 ## get object type -------------------------------------
-## result will be stored in %r12
+## result will be stored in %rax
 BUILT_IN_OBJ_TYPE:
 	pushq %r10
 	cmpq	$2, %r10
@@ -352,7 +351,7 @@ BUILT_IN_OBJ_TYPE:
 	je		OBJ_TYPE_V2_EQ_1
 ## return INT_OBJ;
 	movq	$0, %rax
-	jmp	 END_BUILT_IN_OBJ_TYPE
+	jmp	 	END_BUILT_IN_OBJ_TYPE
 OBJ_TYPE_V2_EQ_1:
 ## get_tag
 	andq	$0xFFFFFFFFFFFFFFF8, %r10
@@ -360,12 +359,11 @@ OBJ_TYPE_V2_EQ_1:
 	movq	$4, %rax
 	cmpq	$4, (%r10)
 	cmovbe	(%r10), %rax
-	jmp	 END_BUILT_IN_OBJ_TYPE
+	jmp	 	END_BUILT_IN_OBJ_TYPE
 OBJ_TYPE_NULL:
 	movq	$1, %rax
 END_BUILT_IN_OBJ_TYPE:
 	popq	%r10
-	movq	%rax, %r12
 ## start doing the swtich statements ------------------
 	cmpq	$0, %rax
 	je		BUILT_IN_CASE_INT
@@ -578,7 +576,6 @@ END_BUILT_BODY:
 ##	pop the return address
 	popq %r9					## save the return address
 	movq %r13, %rax	 ## save the return value
-	popq %r12
 	popq %r13
 	popq %r14
 ##	jmp	%r9
