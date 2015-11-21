@@ -602,8 +602,8 @@ built_in_method_op_end:
 call_slot_op:
   cmpq $0, %rax
   je START_CALL_SLOT
-  movq $0xcafebabecafebabe, %r8
-  jmp *%r8
+  movq $0xcafebabecafebabe, %rax
+  jmp *%rax
 START_CALL_SLOT:
 	movq $0xcafebabecafebabe, %r11 # negative arity
 	movq 0(%rdx,%r11, 8), %r11 # get receiver object
@@ -622,11 +622,8 @@ general_call_slot:
 cached_type: .quad -1
 cached_addr: .quad -1
 do_call_slot_op:
-	leaq cached_addr(%rip), %rax # load cached subroutine address
-	#basically call_op here
-call_slot_op_pre:
 	movq %rcx, %r11 # get the new parent frame
-	leaq cached_addr(%rip), %rax # load cached subroutine address
+	movq cached_addr(%rip), %rax # load cached subroutine address
 call_slot_op_pre_end:
 call_slot_op_push_body: # need one of these blocks for each arity
 	subq $8, %rcx	# allocate space for 1 arity
