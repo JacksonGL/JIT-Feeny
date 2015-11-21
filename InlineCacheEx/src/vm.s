@@ -356,9 +356,10 @@ OBJ_TYPE_V2_EQ_1:
 ## get_tag
 	andq	$0xFFFFFFFFFFFFFFF8, %r10
 ## return tag > OBJ_OBJ? OBJ_OBJ : tag;
-	movq	$4, %rax
-	cmpq	$4, (%r10)
-	cmovbe	(%r10), %rax
+	movq	(%r10), %rax
+  movq  $4, %r8
+	cmpq	$4, %rax
+	cmovg	%r8, %rax
 	jmp	 	END_BUILT_IN_OBJ_TYPE
 OBJ_TYPE_NULL:
 	movq	$1, %rax
