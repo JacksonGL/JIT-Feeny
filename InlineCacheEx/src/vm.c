@@ -1460,15 +1460,15 @@ void * make_object(int index) {
         int64_t val64 = index;
         mempcpy(to_replace, &val64, hole_len);
 
-	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+				to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
         val64 = &class_objs;
        	mempcpy(to_replace, &val64, hole_len);
 
-	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+				to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
         val64 = &instruction_pointer;
         mempcpy(to_replace, &val64, hole_len);
 
-	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+				to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
         val64 = index;
         mempcpy(to_replace, &val64, hole_len);
 
@@ -1476,7 +1476,7 @@ void * make_object(int index) {
         val64 = &class_objs;
         mempcpy(to_replace, &val64, hole_len);
 
-	to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
+				to_replace = memmem(ret, object_op_end-object_op, hole_str, hole_len);
         val64 = ARRAY_OBJ_MASK;
         mempcpy(to_replace, &val64, hole_len);
 
@@ -1598,6 +1598,107 @@ void update_call(char* location, int locals, int arity, int64_t point){
 	assert(to_replace);
 	char* next_search = mempcpy(to_replace, &point, hole_len);
 	end_timer("jit_time");
+}
+
+extern char built_in_method_op[];
+extern char built_in_method_op_end[];
+extern char call_slot_op[];
+extern char general_call_slot[];
+extern char do_call_slot_op[];
+extern char call_slot_op_pre[];
+extern char call_slot_op_pre_end[];
+extern char call_slot_op_push_body[];
+extern char call_slot_op_push_body_end[];
+extern char call_slot_op_post[];
+extern char call_slot_op_post_end[];
+
+void* make_call_slot(int arity, int name) {
+  start_timer("jit_time");
+  if(!code){
+    code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+  }
+  char * ret = code;
+  code = mempcpy(code, built_in_method_op, built_in_method_op_end - built_in_method_op);
+
+	// replace values
+  // set the return address
+  char* to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  int64_t val64 = arity;
+  mempcpy(to_replace, &val64, hole_len);
+
+  to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = name;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_ADD_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_SUB_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_MUL_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_DIV_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_MOD_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_EQ_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+	
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_LT_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_LE_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = INT_GE_NAME;;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = ARRAY_LENGTH_NAME;
+  mempcpy(to_replace, &val64, hole_len);
+
+	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
+  val64 = ARRAY_SET_NAME;
+  mempcpy(to_replace, &val64, hole_len);	
+
+	// assembly code for handling call slot
+  code = mempcpy(code, call_slot_op, call_slot_op_pre - call_slot_op);
+
+  for(int i = 0; i < arity; ++i){
+    code = mempcpy(code, call_slot_op_push_body, call_slot_op_push_body_end - call_slot_op_push_body);
+  }
+
+  code = mempcpy(code, call_slot_op_post, call_slot_op_post_end - call_slot_op_post);
+	
+  code[0] = '\0';
+
+  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  val64 = code; 
+  mempcpy(to_replace, &val64, hole_len);
+   
+  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  val64 = -arity;
+  mempcpy(to_replace, &val64, hole_len);
+
+  to_replace = memmem(ret, call_slot_op_pre-call_slot_op, hole_str, hole_len);
+  val64 = TO_GET_METHOD(name);
+  mempcpy(to_replace, &val64, hole_len);
+
+  end_timer("jit_time");
+  return ret;
 }
 
 extern char return_op[];
@@ -1850,6 +1951,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
 			si->arity = osi->arity;
 			set_code_point(code_index(si), make_trap(code_index(si)));
+			// set_code_point(code_index(si), make_call_slot(si->arity, si->name));
 			return code_index(si);
 		}
 		case CALL_OP: {

@@ -317,27 +317,32 @@ array_op_end:
 ## assume that CallSlotIns* i
 ## has been stored in %rdi
 
-.globl exec_built_in_method_2
-exec_built_in_method_2:
-	movq %rdi, %r8
-	movq top_of_heap(%rip),%rdi
-	movq heap_pointer(%rip), %rsi
-	movq stack_pointer(%rip), %rdx
-	movq frame_pointer(%rip), %rcx
+.globl built_in_method_op
+.globl built_in_method_op_end
+
+built_in_method_op:
+##	movq %rdi, %r8
+##	movq top_of_heap(%rip),%rdi
+##	movq heap_pointer(%rip), %rsi
+##	movq stack_pointer(%rip), %rdx
+##	movq frame_pointer(%rip), %rcx
 ##	same the return address
+##  movq 	$0xcafebabecafebabe, %rax ## return address
+  movq  $0xcafebabecafebabe, %r9  ## arity
+  movq  $0xcafebabecafebabe, %r11 ## method name
 	pushq %r14
 	pushq %r13
-	pushq	%rax
+##	pushq	%rax
 ##	start the function body -----------------------------
-	movslq	8(%r8), %r9
+##	movslq	8(%r8), %r9
 	movq	%rdx, %rax
-	salq	$3, %r9		## %r9 contains i->arity
+##	salq	$3, %r9		## %r9 contains i->arity
 ##	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	subq	%r9, %rax
 	movq	(%rax), %r10	## receiver_ptr
 ##	int method_name = i->name
-	movl	4(%r8), %eax
-	movslq %eax, %r11
+##	movl	4(%r8), %eax
+##	movslq %eax, %r11
 ## get object type -------------------------------------
 ## result will be stored in %rax
 BUILT_IN_OBJ_TYPE:
@@ -378,7 +383,7 @@ BUILT_IN_CASE_INT:
 ## stack_pop();
 ## start comparing method name
 CASE_ADD:
-	movslq INT_ADD_NAME(%rip), %rax
+	movq $0xcafebabecafebabe, %rax   ## INT_ADD_NAME
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_SUB
 ## body of add
@@ -392,7 +397,7 @@ CASE_ADD:
 	movq	$1, %r13
 	jmp	 END_BUILT_BODY
 CASE_SUB:
-	movslq INT_SUB_NAME(%rip), %rax
+	movq $0xcafebabecafebabe, %rax  ## INT_SUB_NAME
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_MUL
 ## body of sub
@@ -404,7 +409,7 @@ CASE_SUB:
 	movq	$1, %r13
 	jmp	 END_BUILT_BODY
 CASE_MUL:
-	movslq INT_MUL_NAME(%rip), %rax
+	movq $0xcafebabecafebabe, %rax  ## INT_MUL_NAME
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_DIV
 ## body of mul
@@ -419,7 +424,7 @@ CASE_MUL:
 	movq	$1, %r13
 	jmp	 END_BUILT_BODY
 CASE_DIV:
-	movslq INT_DIV_NAME(%rip), %rax
+	movq $0xcafebabecafebabe, %rax ## INT_DIV_NAME
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_MOD
 ## body of div
@@ -437,7 +442,7 @@ CASE_DIV:
 	movq	$1, %r13
 	jmp	 END_BUILT_BODY
 CASE_MOD:
-  movslq INT_MOD_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax  ## INT_MOD_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_EQ
 ## body of mod
@@ -456,7 +461,7 @@ CASE_MOD:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_EQ:
-  movslq INT_EQ_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax  ## INT_EQ_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_LT
 ## body of eq
@@ -470,7 +475,7 @@ CASE_EQ:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_LT:
-  movslq INT_LT_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax ## INT_LT_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_LE
 ## body of lt
@@ -485,7 +490,7 @@ CASE_LT:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_LE:
-  movslq INT_LE_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax  ## INT_LE_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_GE
 ## body of le
@@ -500,7 +505,7 @@ CASE_LE:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_GE:
-  movslq INT_GE_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax ## INT_GE_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_GT
 ## body of ge
@@ -531,7 +536,7 @@ BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
 ## start comparing method name
 CASE_LENGTH:
-  movslq ARRAY_LENGTH_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax  ## ARRAY_LENGTH_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_SET
 ## body of array length
@@ -544,7 +549,7 @@ CASE_LENGTH:
   movq  $1, %r13
   jmp  END_BUILT_BODY
 CASE_ARR_SET:
-  movslq ARRAY_SET_NAME(%rip), %rax
+  movq $0xcafebabecafebabe, %rax  ## ARRAY_SET_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_GET
 ## body of array set
@@ -571,21 +576,35 @@ CASE_ARR_GET:
   movq  $1, %r13
 END_BUILT_BODY:
 ## end the swtich structure
-	movq %rsi, heap_pointer (%rip)
-	movq %rdx, stack_pointer (%rip)
-	movq %rcx, frame_pointer (%rip)
+##	movq %rsi, heap_pointer (%rip)
+##	movq %rdx, stack_pointer (%rip)
+##	movq %rcx, frame_pointer (%rip)
 ##	pop the return address
-	popq %r9					## save the return address
+##	popq %r9					## save the return address
 	movq %r13, %rax	 ## save the return value
 	popq %r13
 	popq %r14
 ##	jmp	%r9
-	ret
-exec_built_in_method_end_2:
+##	ret
+built_in_method_op_end:
 
 
+.globl call_slot_op
+.globl general_call_slot
+.globl do_call_slot_op
+.globl call_slot_op_pre
+.globl call_slot_op_pre_end
+.globl call_slot_op_push_body
+.globl call_slot_op_push_body_end
+.globl call_slot_op_post
+.globl call_slot_op_post_end
 
 call_slot_op:
+  cmpq $0, %rax
+  je START_CALL_SLOT
+  movq $0xcafebabecafebabe, %r8
+  jmp *%r8
+START_CALL_SLOT:
 	movq $0xcafebabecafebabe, %r11 # negative arity
 	movq 0(%rdx,%r11, 8), %r11 # get receiver object
 	movq cached_type(%rip), %r10 # load cached type
