@@ -384,6 +384,7 @@ void get_method(int64_t * after_ptr, int name_idx){
 			void* code_ptr = cl->slots_and_methods[i].ptr;
 			after_ptr[-1] = code_ptr;
 			after_ptr[-2] = cl;
+			add_int("lookup_count", 1);
 			return;
 		}
 	}
@@ -405,6 +406,7 @@ void get_set_attr(int64_t * after_ptr, int name_idx){
 		if(cl->slots_and_methods[i].name == name_idx){
 			after_ptr[-1] = slot_idx;
 			after_ptr[-2] = cl;
+			add_int("lookup_count", 1);
 			return;
 		}
 		slot_idx +=1;
