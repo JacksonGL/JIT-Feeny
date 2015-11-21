@@ -321,7 +321,7 @@ int ARRAY_GET_NAME = -1;
 #define TO_GET_METHOD(m) ((GC-m-1) * 2)+1
 #define FROM_GET_METHOD(x) (GC-(x-1)/2-1)
 
-#define IS_GET_SET_ATTR_(x) (x < GC && x %2 == 0)
+#define IS_GET_SET_ATTR(x) (x < GC && x %2 == 0)
 #define TO_GET_SET_ATTR(m) ((GC-m-1) * 2)
 #define FROM_GET_SET_ATTR(x) (GC-(x)/2-1)
 
@@ -1186,10 +1186,10 @@ void drive (int pc) {
 
 		if(pc == GC) {
 			garbage_collector();
-		/*} else if(IS_GET_METHOD(pc)) { // GET_METHOD
+		} else if(IS_GET_METHOD(pc)) { // GET_METHOD
 			get_method(instruction_pointer, FROM_GET_METHOD(pc));
 		} else if(IS_GET_SET_ATTR(pc)) { // GET_SET_ATTR
-			get_attr(instruction_pointer, FROM_GET_SET_ATTR(pc));*/
+			get_set_attr(instruction_pointer, FROM_GET_SET_ATTR(pc));
 		} else if(pc != FINISHED){
 			pc = exec_ins(pc);
 			*instruction_pointer = code_point(pc);

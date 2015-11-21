@@ -591,6 +591,7 @@ call_slot_op:
 	cmpq %r11, 7(%r10) # compare cached type and actual type
 	je do_call_slot_op # if cache hit, do call
 general_call_slot:
+	movq %r10, receiver_shared(%rip)
 	leaq do_call_slot_op(%rip), %rax # get return code point
 	movq instruction_pointer, %r8 # get instruction pointer
 	movq %rax, (%r8) # store return code point in instruciton pointer
@@ -616,3 +617,47 @@ call_slot_op_post:
 	leaq call_slot_op_post_end(%rip), %r10
 	jmp *%rax
 call_slot_op_post_end:
+
+
+get_slot_op:
+	movq -8(%rdx), %r11 # get receiver object
+	movq gslot_cached_type(%rip), %r10 # load cached type
+	cmpq %r11, 7(%r10) # compare cached type and actual type
+	je do_get_slot_op # if cache hit, do call
+general_get_slot:
+	movq %r10, receiver_shared(%rip)
+	leaq do_get_slot_op(%rip), %rax # get return code point
+	movq instruction_pointer, %r8 # get instruction pointer
+	movq %rax, (%r8) # store return code point in instruciton pointer
+	movq $0xcafebabecafebabe, %rax #value to return
+	ret
+gslot_cached_type: .quad -1
+gslot_cached_offset: .quad -1
+do_get_slot_op:
+	leaq gslot_cached_offset(%rip), %rax # load cached slot idx
+	movq 7(%r11,%rax,8), %r10
+	movq %r10, -8(%rdx)
+get_slot_op_end:
+
+
+set_slot_op:
+	movq -16(%rdx), %r11 # get receiver object
+	movq sslot_cached_type(%rip), %r10 # load cached type
+	cmpq %r11, -1(%r10) # compare cached type and actual type
+	je do_set_slot_op # if cache hit, do call
+general_set_slot:
+	movq %r10, receiver_shared(%rip)
+	leaq do_set_slot_op(%rip), %rax # get return code point
+	movq instruction_pointer, %r8 # get instruction pointer
+	movq %rax, (%r8) # store return code point in instruciton pointer
+	movq $0xcafebabecafebabe, %rax #value to return
+	ret
+sslot_cached_type: .quad -1
+sslot_cached_offset: .quad -1
+do_set_slot_op:
+	leaq sslot_cached_offset(%rip), %rax # load cached slot idx
+	movq -8(%rdx), %r10
+	movq %r10, 7(%r11,%rax,8)
+	movq %r10, -16(%rdx)
+	subq $8, %rdx # 8 = size of pointer
+set_slot_op_end:
