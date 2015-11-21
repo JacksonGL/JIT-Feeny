@@ -61,7 +61,7 @@ branch_op_end:
 
 set_local_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -83,7 +83,7 @@ get_local_op_end:
 
 set_global_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -327,7 +327,7 @@ exec_built_in_method_2:
 ##	same the return address
 	pushq %r14
 	pushq %r13
-	pushq %r12	
+	pushq %r12
 	pushq	%rax
 ##	start the function body -----------------------------
 	movslq	8(%r8), %r9
@@ -341,7 +341,7 @@ exec_built_in_method_2:
 	jl		ARITY_DECREMENT
 	movq $0, %r9
 	jmp	 AFTER_ARITY
-ARITY_DECREMENT:	
+ARITY_DECREMENT:
 	subq $1, %r9
 AFTER_ARITY:
 ##	int method_name = i->name
@@ -473,7 +473,7 @@ CASE_EQ:
 	xorq  %rax, %rax
   cmpq  %r10, (%rdx)
 	setne %al
-	addq  %rax, %rax						
+	addq  %rax, %rax
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %r13
@@ -594,7 +594,7 @@ END_BUILT_BODY:
 exec_built_in_method_end_2:
 
 
-/*
+
 call_slot_op:
 	movq $0xcafebabecafebabe, %r11 # negative arity
 	movq 0(%rdx,%r11, 8), %r11 # get receiver object
@@ -602,14 +602,15 @@ call_slot_op:
 	cmpq %r11, %r10 # compare cached type and actual type
 	je do_call_slot_op # if cache hit, do call
 general_call_slot:
-	leaq do_call_slot(%rip), %rax # get return code point
+	leaq do_call_slot_op(%rip), %rax # get return code point
 	movq instruction_pointer, %r8 # get instruction pointer
 	movq %rax, (%r8) # store return code point in instruciton pointer
 	movq $0xcafebabecafebabe, %rax #value to return
 	ret
 cached_type: .quad -1
-cached_address: .quad -1
-do_call_slot:
+cached_addr: .quad -1
+do_call_slot_op:
+	leaq cached_addr(%rip), %rax # load cached subroutine address
 	#basically call_op here
 call_slot_op_pre:
 	movq %rcx, %r11 # get the new parent frame
@@ -622,9 +623,8 @@ call_slot_op_push_body: # need one of these blocks for each arity
 call_slot_op_push_body_end:
 call_slot_op_post:
 # r11 must have parent frame
-	leaq call_slot_op_end(%rip), %r10
-	leaq cached_addr(%rip), %rax # load cached subroutine address
+	leaq call_slot_op_post_end(%rip), %r10
 	jmp *%rax
 call_slot_op_post_end:
 
-*/
+
