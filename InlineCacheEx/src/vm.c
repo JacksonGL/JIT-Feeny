@@ -384,6 +384,7 @@ void get_method(int64_t * after_ptr, int name_idx){
 			void* code_ptr = code_point(cl->slots_and_methods[i].value);
 			after_ptr[-1] = code_ptr;
 			after_ptr[-2] = cl;
+			return;
 		}
 	}
 	receiver_shared = to_obj_val(receiver_shared)->parent_obj_ptr;
@@ -391,6 +392,10 @@ void get_method(int64_t * after_ptr, int name_idx){
 }
 
 void get_set_attr(int64_t * after_ptr, int name_idx){
+	debugf("HERERERERERERERERERE\n");
+	debugf("%lx %d\n", receiver_shared, name_idx);
+	debugf("HERERERERERERERERERE\n");
+
 	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
 	int slot_idx = 0;
 	for(int i = 0; i < cl->num_slots+cl->num_methods; ++i){
@@ -398,9 +403,9 @@ void get_set_attr(int64_t * after_ptr, int name_idx){
 			continue;
 		}
 		if(cl->slots_and_methods[i].name == name_idx){
-			void* code_ptr = code_point(to_obj_val(receiver_shared)->var_slots[slot_idx]);
-			after_ptr[-1] = code_ptr;
+			after_ptr[-1] = slot_idx;
 			after_ptr[-2] = cl;
+			return;
 		}
 		slot_idx +=1;
 	}
@@ -1187,9 +1192,9 @@ void drive (int pc) {
 		if(pc == GC) {
 			garbage_collector();
 		} else if(IS_GET_METHOD(pc)) { // GET_METHOD
-			get_method(instruction_pointer, FROM_GET_METHOD(pc));
+			get_method(*instruction_pointer, FROM_GET_METHOD(pc));
 		} else if(IS_GET_SET_ATTR(pc)) { // GET_SET_ATTR
-			get_set_attr(instruction_pointer, FROM_GET_SET_ATTR(pc));
+			get_set_attr(*instruction_pointer, FROM_GET_SET_ATTR(pc));
 		} else if(pc != FINISHED){
 			pc = exec_ins(pc);
 			*instruction_pointer = code_point(pc);
@@ -1443,6 +1448,39 @@ void set_code_point(int i, void * a){
 
 char * code = NULL;
 
+extern char set_slot_op[];
+extern char set_slot_op_end[];
+void * make_set_slot(int slot_name){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, set_slot_op, set_slot_op_end - set_slot_op);
+	code[0] = '\0';
+
+	int64_t value = TO_GET_SET_ATTR(slot_name);
+	char* to_replace = memmem(ret, set_slot_op_end - set_slot_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &value, hole_len);
+
+	return ret;
+}
+
+extern char get_slot_op[];
+extern char get_slot_op_end[];
+void * make_get_slot(int slot_name){
+	if(!code){
+		code = mmap (0 , 1024*1024 , PROT_READ | PROT_WRITE | PROT_EXEC , MAP_PRIVATE | MAP_ANON , -1 , 0) ;
+	}
+	char * ret = code;
+	code = mempcpy(code, get_slot_op, get_slot_op_end - get_slot_op);
+	code[0] = '\0';
+
+	int64_t value = TO_GET_SET_ATTR(slot_name);
+	char* to_replace = memmem(ret, get_slot_op_end - get_slot_op, hole_str, hole_len);
+	char* next_search = mempcpy(to_replace, &value, hole_len);
+
+	return ret;
+}
 
 extern char object_op[];
 extern char object_op_end[];
@@ -1833,14 +1871,24 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			set_code_point(code_index(oi), make_object(oi->class));
 			return code_index(oi);
 		}
-		case SET_SLOT_OP: // these happen to be the same
+		case SET_SLOT_OP: {
+			assert(sizeof(SlotIns) == sizeof(SetSlotIns));
+			SlotIns* si = code_alloc();
+			SlotIns* osi = (SlotIns*) ins;
+			si->tag = osi->tag;
+			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
+			//set_code_point(code_index(si), make_trap(code_index(si)));
+			set_code_point(code_index(si), make_set_slot(si->name));
+			return code_index(si);
+		}
 		case SLOT_OP: {
 			assert(sizeof(SlotIns) == sizeof(SetSlotIns));
 			SlotIns* si = code_alloc();
 			SlotIns* osi = (SlotIns*) ins;
 			si->tag = osi->tag;
 			si->name = get_str_constant_value((StringValue*) vector_get(cp, osi->name));
-			set_code_point(code_index(si), make_trap(code_index(si)));
+			//set_code_point(code_index(si), make_trap(code_index(si)));
+			set_code_point(code_index(si), make_get_slot(si->name));
 			return code_index(si);
 		}
 		case CALL_SLOT_OP:{
@@ -2278,7 +2326,7 @@ NullIValue* to_null_val(IValue* val){
 }
 
 ObjectIValue* to_obj_val(IValue* val){
-  errorif(obj_type(val) != OBJ_OBJ, "Error: to_obj_val.\n");
+  errorif(obj_type(val) != OBJ_OBJ, "Error: to_obj_val %i %lx.\n", obj_type(val), val);
   return (ObjectIValue*)(((uintptr_t)val) & CLEAR_ARRAY_OBJ_MASK);
 }
 
