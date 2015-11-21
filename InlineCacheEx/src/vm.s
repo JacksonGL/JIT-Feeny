@@ -330,7 +330,6 @@ built_in_method_op:
 ##  movq 	$0xcafebabecafebabe, %rax ## return address
   movq  $0xcafebabecafebabe, %r9  ## arity
   movq  $0xcafebabecafebabe, %r11 ## method name
-	pushq %r13
 ##	pushq	%rax
 ##	start the function body -----------------------------
 ##	movslq	8(%r8), %r9
@@ -374,7 +373,7 @@ END_BUILT_IN_OBJ_TYPE:
 	je		BUILT_IN_CASE_INT
 	cmpq	$2, %rax
 	je		BUILT_IN_CASE_ARRAY
-	movq	$0, %r13
+	movq	$0, %rax
 	jmp	 END_BUILT_BODY
 BUILT_IN_CASE_INT:
 ## body of case int -----------------------------------
@@ -393,7 +392,7 @@ CASE_ADD:
 	movq	%rax, (%rdx)
 	addq	$8, %rdx
 ## return value
-	movq	$1, %r13
+	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_SUB:
 	movq $0xcafebabecafebabe, %rax  ## INT_SUB_NAME
@@ -405,7 +404,7 @@ CASE_SUB:
 	movq	%r10, -8(%rdx)
 	subq	%r8, -8(%rdx)
 ## return value
-	movq	$1, %r13
+	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_MUL:
 	movq $0xcafebabecafebabe, %rax  ## INT_MUL_NAME
@@ -420,7 +419,7 @@ CASE_MUL:
 ## push into stack
 	movq %r10, -8(%rdx)
 ## return value
-	movq	$1, %r13
+	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_DIV:
 	movq $0xcafebabecafebabe, %rax ## INT_DIV_NAME
@@ -438,7 +437,7 @@ CASE_DIV:
 	popq	%rdx
 	movq	%rax, -8(%rdx)
 ## return value
-	movq	$1, %r13
+	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_MOD:
   movq $0xcafebabecafebabe, %rax  ## INT_MOD_NAME
@@ -457,7 +456,7 @@ CASE_MOD:
   popq  %rdx
   movq  %r10, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_EQ:
   movq $0xcafebabecafebabe, %rax  ## INT_EQ_NAME
@@ -471,7 +470,7 @@ CASE_EQ:
 	addq  %rax, %rax
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LT:
   movq $0xcafebabecafebabe, %rax ## INT_LT_NAME
@@ -486,7 +485,7 @@ CASE_LT:
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LE:
   movq $0xcafebabecafebabe, %rax  ## INT_LE_NAME
@@ -501,7 +500,7 @@ CASE_LE:
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_GE:
   movq $0xcafebabecafebabe, %rax ## INT_GE_NAME
@@ -516,7 +515,7 @@ CASE_GE:
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_GT:
 ## body of gt
@@ -528,7 +527,7 @@ CASE_GT:
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 
 BUILT_IN_CASE_ARRAY:
@@ -545,7 +544,7 @@ CASE_LENGTH:
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_ARR_SET:
   movq $0xcafebabecafebabe, %rax  ## ARRAY_SET_NAME
@@ -562,7 +561,7 @@ CASE_ARR_SET:
 ## push null_obj into stack
   movq  $2, -8(%rdx)
 ## return value
-  movq  $1, %r13
+  movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_ARR_GET:
 	subq  $8, %rdx   ## pop twice and push once
@@ -572,7 +571,7 @@ CASE_ARR_GET:
   movslq  %eax, %rax
   movq  16(%r10,%rax,8), %rax
 	movq  %rax, -8(%rdx) 	## push into stack the value pointed by the array index
-  movq  $1, %r13
+  movq  $1, %rax
 END_BUILT_BODY:
 ## end the swtich structure
 ##	movq %rsi, heap_pointer (%rip)
@@ -580,8 +579,6 @@ END_BUILT_BODY:
 ##	movq %rcx, frame_pointer (%rip)
 ##	pop the return address
 ##	popq %r9					## save the return address
-	movq %r13, %rax	 ## save the return value
-	popq %r13
 ##	jmp	%r9
 ##	ret
 built_in_method_op_end:
