@@ -83,7 +83,7 @@ typedef struct {
 typedef struct{
 	int num_methods;
 	int num_slots;
-	IntPair slots_and_methods[0];
+	IntPtrPair slots_and_methods[0];
 } ClassLayout;
 
 
@@ -317,7 +317,7 @@ int ARRAY_GET_NAME = -1;
 #define SLOT_ITEM -3
 #define FINISHED -1
 #define GC -2
-#define IS_GET_METHOD(x) (x < GC && x %2 == 1)
+#define IS_GET_METHOD(x) ((x < GC) && (x%2) != 0)
 #define TO_GET_METHOD(m) ((GC-m-1) * 2)+1
 #define FROM_GET_METHOD(x) (GC-(x-1)/2-1)
 
@@ -381,7 +381,7 @@ void get_method(int64_t * after_ptr, int name_idx){
 	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
 	for(int i = 0; i < cl->num_methods + cl->num_slots; ++i){
 		if(cl->slots_and_methods[i].name == name_idx){
-			void* code_ptr = code_point(cl->slots_and_methods[i].value);
+			void* code_ptr = cl->slots_and_methods[i].ptr;
 			after_ptr[-1] = code_ptr;
 			after_ptr[-2] = cl;
 			return;
@@ -1295,7 +1295,7 @@ int make_class(ClassValue *ci, Program *p, Vector* class_layouts){
 	}
 
 	int index = position;
-	size_t class_size = sizeof(ClassLayout)+(slots+methods)*sizeof(IntPair);
+	size_t class_size = sizeof(ClassLayout)+(slots+methods)*sizeof(IntPtrPair);
 	ClassLayout* cl = &class_objs[position];
 	cl->num_methods = methods;
 	cl->num_slots = slots;
@@ -1716,7 +1716,7 @@ void* make_call_slot(int arity, int name) {
   char* first_part = code;
   code = mempcpy(code, call_slot_op, call_slot_op_pre_end - call_slot_op);
 
-  for(int i = 0; i < arity-1; ++i){
+  for(int i = 0; i < arity; ++i){
     code = mempcpy(code, call_slot_op_push_body, call_slot_op_push_body_end - call_slot_op_push_body);
   }
 
@@ -2092,7 +2092,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 // we need two passes
 // once to get label strings to label code points
 PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_layouts){
-	debugf("In make code\n");
+	debugf("In make code on method with %d arity and %d locals\n", mv->nargs, mv->nlocals);
 	Vector* constant_idx_to_label_idx = make_vector();
 	Vector* goto_or_branch_todo = make_vector();
 
@@ -2248,6 +2248,7 @@ int quicken(Program * p){
 				continue;
 			}
 			int code_point = -1;
+			void* code_ptr = NULL;
 			debugf("Working on class %d's %d method\n", i, j);
 			for(int k = 0; k < constant_idx_to_method->size; ++k){
 				IntPtrPair* p = vector_get(constant_idx_to_method, k);
@@ -2255,6 +2256,7 @@ int quicken(Program * p){
 						p->name, cl->slots_and_methods[j].name);
 				if(p->name == cl->slots_and_methods[j].name){
 					code_point = p->value;
+					code_ptr = p->ptr;
 					break;
 				}
 			}
@@ -2262,6 +2264,7 @@ int quicken(Program * p){
 			MethodValue* mv = vector_get(p->values, cl->slots_and_methods[j].name);
 			cl->slots_and_methods[j].name = get_str_constant_value((StringValue*)vector_get(p->values, mv->name));
 			cl->slots_and_methods[j].value = code_point;
+			cl->slots_and_methods[j].ptr = code_ptr;
 		}
 	}
 
