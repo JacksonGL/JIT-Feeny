@@ -603,6 +603,7 @@ do_call_slot_op:
 	#basically call_op here
 call_slot_op_pre:
 	movq %rcx, %r11 # get the new parent frame
+	leaq cached_addr(%rip), %rax # load cached subroutine address
 call_slot_op_pre_end:
 call_slot_op_push_body: # need one of these blocks for each arity
 	subq $8, %rcx	# allocate space for 1 arity
@@ -612,7 +613,6 @@ call_slot_op_push_body: # need one of these blocks for each arity
 call_slot_op_push_body_end:
 call_slot_op_post:
 # r11 must have parent frame
-	leaq call_slot_op_end(%rip), %r10
-	leaq cached_addr(%rip), %rax # load cached subroutine address
+	leaq call_slot_op_post_end(%rip), %r10
 	jmp *%rax
 call_slot_op_post_end:
