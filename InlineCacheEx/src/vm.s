@@ -336,14 +336,6 @@ exec_built_in_method_2:
 ##	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	subq	%r9, %rax
 	movq	(%rax), %r10	## receiver_ptr
-##	arity = (i->arity-1>0)? i->arity-1:0;
-	cmpq	$1, %r9
-	jl		ARITY_DECREMENT
-	movq $0, %r9
-	jmp	 AFTER_ARITY
-ARITY_DECREMENT:	
-	subq $1, %r9
-AFTER_ARITY:
 ##	int method_name = i->name
 	movl	4(%r8), %eax
 	movslq %eax, %r11
@@ -363,7 +355,7 @@ BUILT_IN_OBJ_TYPE:
 	jmp	 END_BUILT_IN_OBJ_TYPE
 OBJ_TYPE_V2_EQ_1:
 ## get_tag
-	andq	CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+	andq	$0xFFFFFFFFFFFFFFF8, %r10
 ## return tag > OBJ_OBJ? OBJ_OBJ : tag;
 	movq	$4, %rax
 	cmpq	$4, (%r10)
@@ -544,7 +536,7 @@ CASE_LENGTH:
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_SET
 ## body of array length
-	andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+	andq  $0xFFFFFFFFFFFFFFF8, %r10
   movslq  8(%r10), %rax
   salq  $3, %rax
 ## push into stack
@@ -560,7 +552,7 @@ CASE_ARR_SET:
 	subq  $16, %rdx   ## pop three times and push once
 	movq  8(%rdx), %r14  ## %r14 holds the value to be pushed
 	movq  0(%rdx), %rax  ## %rax holds the array index
-  andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+  andq  $0xFFFFFFFFFFFFFFF8, %r10
   sarq  $3, %rax
 	movslq  %eax, %rax
   movq  %r14, 16(%r10,%rax,8)
@@ -572,7 +564,7 @@ CASE_ARR_SET:
 CASE_ARR_GET:
 	subq  $8, %rdx   ## pop twice and push once
 	movq  0(%rdx), %rax ## %rax holds the array index
-  andq  CLEAR_ARRAY_OBJ_MASK(%rip), %r10
+  andq  $0xFFFFFFFFFFFFFFF8, %r10
   sarq  $3, %rax
   movslq  %eax, %rax
   movq  16(%r10,%rax,8), %rax
