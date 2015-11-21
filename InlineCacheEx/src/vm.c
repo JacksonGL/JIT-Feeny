@@ -378,7 +378,7 @@ int find_method_by_name(ObjectIValue* receiver, int name_idx){
 
 IValue* receiver_shared = NULL;
 void get_method(int64_t * after_ptr, int name_idx){
-	ClassLayout* cl = to_obj_val(receiver)->class_ptr;
+	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
 	for(int i = 0; i < cl->num_methods + cl->num_slots; ++i){
 		if(cl->slots_and_methods[i].name == name_idx){
 			void* code_ptr = code_point(cl->slots_and_methods[i].value);
@@ -386,25 +386,25 @@ void get_method(int64_t * after_ptr, int name_idx){
 			after_ptr[-2] = cl;
 		}
 	}
-	receiver = to_obj_val(receiver)->parent_obj_ptr;
-	return get_method(after_ptr, name_idx)
+	receiver_shared = to_obj_val(receiver_shared)->parent_obj_ptr;
+	return get_method(after_ptr, name_idx);
 }
 
 void get_set_attr(int64_t * after_ptr, int name_idx){
-	lassLayout* cl = to_obj_val(receiver)->class_ptr;
+	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
 	int slot_idx = 0;
 	for(int i = 0; i < cl->num_slots+cl->num_methods; ++i){
 		if(cl->slots_and_methods[i].value != SLOT_ITEM){
 			continue;
 		}
 		if(cl->slots_and_methods[i].name == name_idx){
-			void* code_ptr = code_point(receiver->var_slots[slot_idx]);
+			void* code_ptr = code_point(to_obj_val(receiver_shared)->var_slots[slot_idx]);
 			after_ptr[-1] = code_ptr;
 			after_ptr[-2] = cl;
 		}
 		slot_idx +=1;
 	}
-	receiver = to_obj_val(receiver)->parent_obj_ptr;
+	receiver_shared = to_obj_val(receiver_shared)->parent_obj_ptr;
 	return get_set_attr(after_ptr, name_idx);
 }
 
