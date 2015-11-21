@@ -330,7 +330,6 @@ built_in_method_op:
 ##  movq 	$0xcafebabecafebabe, %rax ## return address
   movq  $0xcafebabecafebabe, %r9  ## arity
   movq  $0xcafebabecafebabe, %r11 ## method name
-	pushq %r14
 	pushq %r13
 ##	pushq	%rax
 ##	start the function body -----------------------------
@@ -388,8 +387,8 @@ CASE_ADD:
 	jne CASE_SUB
 ## body of add
 	subq	$16, %rdx							 ## stack pop twice
-	movq	8(%rdx), %r14					 ## %r14 has *stack_pointer
-	leaq	(%r10,%r14), %rax
+	movq	8(%rdx), %r8					 ## %r8 has *stack_pointer
+	leaq	(%r10,%r8), %rax
 ## push into stack
 	movq	%rax, (%rdx)
 	addq	$8, %rdx
@@ -402,9 +401,9 @@ CASE_SUB:
 	jne CASE_MUL
 ## body of sub
 	subq	$8, %rdx								## stack pop twice and push once
-	movq	0(%rdx), %r14					 ## %r14 has *stack_pointer, i.e., arg
+	movq	0(%rdx), %r8					 ## %r8 has *stack_pointer, i.e., arg
 	movq	%r10, -8(%rdx)
-	subq	%r14, -8(%rdx)
+	subq	%r8, -8(%rdx)
 ## return value
 	movq	$1, %r13
 	jmp	 END_BUILT_BODY
@@ -429,11 +428,11 @@ CASE_DIV:
 	jne CASE_MOD
 ## body of div
 	subq	$8, %rdx							 ## stack pop twice and push once
-	movq	0(%rdx), %r14		 	 		 ## %r14 has *stack_pointer, i.e., arg
+	movq	0(%rdx), %r8		 	 		 ## %r8 has *stack_pointer, i.e., arg
 	pushq %rdx
 	movq	%r10, %rax
 	cqo
-	idivq %r14
+	idivq %r8
 	salq	$3, %rax
 ## push into stack
 	popq	%rdx
@@ -447,11 +446,11 @@ CASE_MOD:
   jne CASE_EQ
 ## body of mod
   subq  $8, %rdx               ## stack pop twice and push once
-  movq  0(%rdx), %r14          ## %r14 has *stack_pointer, i.e., arg
+  movq  0(%rdx), %r8          ## %r8 has *stack_pointer, i.e., arg
   pushq %rdx
   movq  %r10, %rax
   cqo
-  idivq %r14
+  idivq %r8
   salq  $3, %rax
 ## push into stack
 	movq  %rdx, %r10						## %r10 no longer holds receiver_ptr
@@ -554,12 +553,12 @@ CASE_ARR_SET:
   jne CASE_ARR_GET
 ## body of array set
 	subq  $16, %rdx   ## pop three times and push once
-	movq  8(%rdx), %r14  ## %r14 holds the value to be pushed
+	movq  8(%rdx), %r8  ## %r8 holds the value to be pushed
 	movq  0(%rdx), %rax  ## %rax holds the array index
   andq  $0xFFFFFFFFFFFFFFF8, %r10
   sarq  $3, %rax
 	movslq  %eax, %rax
-  movq  %r14, 16(%r10,%rax,8)
+  movq  %r8, 16(%r10,%rax,8)
 ## push null_obj into stack
   movq  $2, -8(%rdx)
 ## return value
@@ -583,7 +582,6 @@ END_BUILT_BODY:
 ##	popq %r9					## save the return address
 	movq %r13, %rax	 ## save the return value
 	popq %r13
-	popq %r14
 ##	jmp	%r9
 ##	ret
 built_in_method_op_end:
