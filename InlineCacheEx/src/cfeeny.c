@@ -36,11 +36,8 @@ int main (int argc, char** argvs) {
 		end_timer("interpret_time");
 		fprintf(stat, "interpret: %f\n",
 				get_double("interpret_time"));
-
-		fprintf(stat, "JIT/Quicken Gen time: %f\n",
-				get_double("quicken_time"));
-		fprintf(stat, "Percent time in Quicken: %f\n",
-				get_double("quicken_time")/get_double("interpret_time")*100);
+		fprintf(stat, "General or slot lookup count: %ld\n",
+				get_int("lookup_count"));
 		fclose(stat);
 	}
   return 0;
