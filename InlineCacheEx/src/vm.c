@@ -317,6 +317,14 @@ int ARRAY_GET_NAME = -1;
 #define SLOT_ITEM -3
 #define FINISHED -1
 #define GC -2
+#define IS_GET_METHOD(x) (x < GC && x %2 == 1)
+#define TO_GET_METHOD(m) ((GC-m-1) * 2)+1
+#define FROM_GET_METHOD(x) (GC-(x-1)/2-1)
+
+#define IS_GET_SET_ATTR_(x) (x < GC && x %2 == 0)
+#define TO_GET_SET_ATTR(m) ((GC-m-1) * 2)
+#define FROM_GET_SET_ATTR(x) (GC-(x)/2-1)
+
 intptr_t CLEAR_ARRAY_OBJ_MASK = (intptr_t)(((intptr_t)-1)<<3);
 intptr_t ARRAY_OBJ_MASK = ((intptr_t)1);
 
@@ -366,6 +374,38 @@ int find_method_by_name(ObjectIValue* receiver, int name_idx){
 		debugf("passing over item with name = %d\n", cl->slots_and_methods[i].name);
 	}
 	return find_method_by_name(to_obj_val(receiver->parent_obj_ptr), name_idx);
+}
+
+IValue* receiver_shared = NULL;
+void get_method(int64_t * after_ptr, int name_idx){
+	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
+	for(int i = 0; i < cl->num_methods + cl->num_slots; ++i){
+		if(cl->slots_and_methods[i].name == name_idx){
+			void* code_ptr = code_point(cl->slots_and_methods[i].value);
+			after_ptr[-1] = code_ptr;
+			after_ptr[-2] = cl;
+		}
+	}
+	receiver_shared = to_obj_val(receiver_shared)->parent_obj_ptr;
+	return get_method(after_ptr, name_idx);
+}
+
+void get_set_attr(int64_t * after_ptr, int name_idx){
+	ClassLayout* cl = to_obj_val(receiver_shared)->class_ptr;
+	int slot_idx = 0;
+	for(int i = 0; i < cl->num_slots+cl->num_methods; ++i){
+		if(cl->slots_and_methods[i].value != SLOT_ITEM){
+			continue;
+		}
+		if(cl->slots_and_methods[i].name == name_idx){
+			void* code_ptr = code_point(to_obj_val(receiver_shared)->var_slots[slot_idx]);
+			after_ptr[-1] = code_ptr;
+			after_ptr[-2] = cl;
+		}
+		slot_idx +=1;
+	}
+	receiver_shared = to_obj_val(receiver_shared)->parent_obj_ptr;
+	return get_set_attr(after_ptr, name_idx);
 }
 
 #define GLOBAL_SIZE 100
@@ -1128,6 +1168,7 @@ void start_exec(int pc) {
 void drive (int pc) {
 	CallIns ci = {CALL_OP, pc, 0};
 	pc = exec_call_op(&ci, FINISHED-1); // return address is incremented so -2 + 1 == -1
+	*instruction_pointer = code_point(pc);
 	while(pc != FINISHED){
 #ifdef DEBUG
 		debugf("\n\n");
@@ -1141,16 +1182,17 @@ void drive (int pc) {
 		debug_frame();
 		debugf("\n");
 #endif
-		//garbage_collector();
-		if (pc != GC) {
-			*instruction_pointer = code_point(pc);
-		}
 		pc = call_feeny(instruction_pointer);
 
 		if(pc == GC) {
 			garbage_collector();
+		/*} else if(IS_GET_METHOD(pc)) { // GET_METHOD
+			get_method(instruction_pointer, FROM_GET_METHOD(pc));
+		} else if(IS_GET_SET_ATTR(pc)) { // GET_SET_ATTR
+			get_attr(instruction_pointer, FROM_GET_SET_ATTR(pc));*/
 		} else if(pc != FINISHED){
 			pc = exec_ins(pc);
+			*instruction_pointer = code_point(pc);
 		} else {
 			break;
 		}
