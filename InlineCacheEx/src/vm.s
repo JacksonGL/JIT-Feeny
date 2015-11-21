@@ -61,7 +61,7 @@ branch_op_end:
 
 set_local_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -83,7 +83,7 @@ get_local_op_end:
 
 set_global_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -463,7 +463,7 @@ CASE_EQ:
 	xorq  %rax, %rax
   cmpq  %r10, (%rdx)
 	setne %al
-	addq  %rax, %rax						
+	addq  %rax, %rax
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %r13
@@ -616,5 +616,3 @@ call_slot_op_post:
 	leaq cached_addr(%rip), %rax # load cached subroutine address
 	jmp *%rax
 call_slot_op_post_end:
-
-*/
