@@ -61,7 +61,7 @@ branch_op_end:
 
 set_local_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -83,7 +83,7 @@ get_local_op_end:
 
 set_global_op:
 ## get local index
-	movq		$0xcafebabecafebabe, %rax	
+	movq		$0xcafebabecafebabe, %rax
 ## get the top of the value from the stack at -8($sp)
 ## move to destination value = $fp + (index+2)*8
 	movq -8(%rdx), %r10
@@ -327,7 +327,7 @@ exec_built_in_method_2:
 ##	same the return address
 	pushq %r14
 	pushq %r13
-	pushq %r12	
+	pushq %r12
 	pushq	%rax
 ##	start the function body -----------------------------
 	movslq	8(%r8), %r9
@@ -465,7 +465,7 @@ CASE_EQ:
 	xorq  %rax, %rax
   cmpq  %r10, (%rdx)
 	setne %al
-	addq  %rax, %rax						
+	addq  %rax, %rax
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %r13
@@ -591,7 +591,7 @@ call_slot_op:
 	movq $0xcafebabecafebabe, %r11 # negative arity
 	movq 0(%rdx,%r11, 8), %r11 # get receiver object
 	movq cached_type(%rip), %r10 # load cached type
-	cmpq %r11, %r10 # compare cached type and actual type
+	cmpq %r11, 3(%r10) # compare cached type and actual type
 	je do_call_slot_op # if cache hit, do call
 general_call_slot:
 	leaq do_call_slot_op(%rip), %rax # get return code point
@@ -614,6 +614,7 @@ call_slot_op_push_body: # need one of these blocks for each arity
 	movq %r10, 0(%rcx) # set arity value
 call_slot_op_push_body_end:
 call_slot_op_post:
+	subq $8, %rdx	# pop receiver object
 # r11 must have parent frame
 	leaq call_slot_op_post_end(%rip), %r10
 	jmp *%rax
