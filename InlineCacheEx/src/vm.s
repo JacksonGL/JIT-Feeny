@@ -313,36 +313,20 @@ ARR_END_LOOP:
 				popq	%r12
 array_op_end:
 
-
-## assume that CallSlotIns* i
-## has been stored in %rdi
-
 .globl built_in_method_op
 .globl built_in_method_op_end
 
 built_in_method_op:
-##	movq %rdi, %r8
-##	movq top_of_heap(%rip),%rdi
-##	movq heap_pointer(%rip), %rsi
-##	movq stack_pointer(%rip), %rdx
-##	movq frame_pointer(%rip), %rcx
-##	same the return address
-##  movq 	$0xcafebabecafebabe, %rax ## return address
   movq  $0xcafebabecafebabe, %r9  ## arity
   movq  $0xcafebabecafebabe, %r11 ## method name
-##	pushq	%rax
 ##	start the function body -----------------------------
-##	movslq	8(%r8), %r9
 	movq	%rdx, %rax
 	salq	$3, %r9		## %r9 contains i->arity
-##	IValue* receiver_ptr = *(stack_pointer - i->arity);
 	subq	%r9, %rax
 	movq	(%rax), %r10	## receiver_ptr
 ##	int method_name = i->name
-##	movl	4(%r8), %eax
-##	movslq %eax, %r11
-## get object type -------------------------------------
-## result will be stored in %rax
+##	get object type -------------------------------------
+##	result will be stored in %rax
 BUILT_IN_OBJ_TYPE:
 	pushq %r10
 	cmpq	$2, %r10
@@ -377,8 +361,6 @@ END_BUILT_IN_OBJ_TYPE:
 	jmp	 END_BUILT_BODY
 BUILT_IN_CASE_INT:
 ## body of case int -----------------------------------
-## IValue* arg = stack_pop();
-## stack_pop();
 ## start comparing method name
 CASE_ADD:
 	movq $0xcafebabecafebabe, %rax   ## INT_ADD_NAME
@@ -389,7 +371,7 @@ CASE_ADD:
 	movq	8(%rdx), %r8					 ## %r8 has *stack_pointer
 	leaq	(%r10,%r8), %rax
 ## push into stack
-	movq	%rax, (%rdx)
+	movq	%rax, 0(%rdx)
 	addq	$8, %rdx
 ## return value
 	movq	$1, %rax
@@ -399,10 +381,10 @@ CASE_SUB:
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_MUL
 ## body of sub
-	subq	$8, %rdx								## stack pop twice and push once
+	subq	$8, %rdx							 ## stack pop twice and push once
 	movq	0(%rdx), %r8					 ## %r8 has *stack_pointer, i.e., arg
+	subq  %r8, %r10
 	movq	%r10, -8(%rdx)
-	subq	%r8, -8(%rdx)
 ## return value
 	movq	$1, %rax
 	jmp	 END_BUILT_BODY
@@ -412,7 +394,7 @@ CASE_MUL:
 	jne CASE_DIV
 ## body of mul
 	subq	$8, %rdx							 ## stack pop twice and push once
-	movq	0(%rdx), %rax					## %rax has *stack_pointer, i.e., arg
+	movq	0(%rdx), %rax					 ## %rax has *stack_pointer, i.e., arg
 	sarq	$3, %rax
 	movslq	%eax, %rax
 	imulq %rax, %r10						 ## in this branch after this instruction, %r10 no longer holds receiver_ptr
@@ -420,9 +402,9 @@ CASE_MUL:
 	movq %r10, -8(%rdx)
 ## return value
 	movq	$1, %rax
-	jmp	 END_BUILT_BODY
+	jmp	 	END_BUILT_BODY
 CASE_DIV:
-	movq $0xcafebabecafebabe, %rax ## INT_DIV_NAME
+	movq 	$0xcafebabecafebabe, %rax ## INT_DIV_NAME
 	cmpq	%rax, %r11	## compare method name
 	jne CASE_MOD
 ## body of div
@@ -440,7 +422,7 @@ CASE_DIV:
 	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_MOD:
-  movq $0xcafebabecafebabe, %rax  ## INT_MOD_NAME
+  movq 	$0xcafebabecafebabe, %rax  ## INT_MOD_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_EQ
 ## body of mod
@@ -473,7 +455,7 @@ CASE_EQ:
   movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LT:
-  movq $0xcafebabecafebabe, %rax ## INT_LT_NAME
+  movq 	$0xcafebabecafebabe, %rax ## INT_LT_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_LE
 ## body of lt
@@ -488,29 +470,29 @@ CASE_LT:
   movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LE:
-  movq $0xcafebabecafebabe, %rax  ## INT_LE_NAME
+  movq 	$0xcafebabecafebabe, %rax  ## INT_LE_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_GE
 ## body of le
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
   cmpq  0(%rdx), %r10
-  setg %al                     ## if greater, %al holds $0, otherwise $1
+  setg 	%al                    ## if greater, %al holds $0, otherwise $1
   addq  %rax, %rax             ## if greater, %rax holds $0, otherwise $2, which is null_obj
 ## push into stack
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %rax
-  jmp  END_BUILT_BODY
+  jmp  	END_BUILT_BODY
 CASE_GE:
-  movq $0xcafebabecafebabe, %rax ## INT_GE_NAME
+  movq 	$0xcafebabecafebabe, %rax ## INT_GE_NAME
   cmpq  %rax, %r11             ## compare method name
   jne CASE_GT
 ## body of ge
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
   cmpq  0(%rdx), %r10
-  setl %al                     ## if less, %al holds $0, otherwise $1
+  setl 	%al                     ## if less, %al holds $0, otherwise $1
   addq  %rax, %rax             ## if less, %rax holds $0, otherwise $2, which is null_obj
 ## push into stack
   movq  %rax, -8(%rdx)
@@ -528,13 +510,12 @@ CASE_GT:
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %rax
-  jmp  END_BUILT_BODY
-
+  jmp  	END_BUILT_BODY
 BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
 ## start comparing method name
 CASE_LENGTH:
-  movq $0xcafebabecafebabe, %rax  ## ARRAY_LENGTH_NAME
+  movq 	$0xcafebabecafebabe, %rax  ## ARRAY_LENGTH_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_SET
 ## body of array length
@@ -545,9 +526,9 @@ CASE_LENGTH:
   movq  %rax, -8(%rdx)
 ## return value
   movq  $1, %rax
-  jmp  END_BUILT_BODY
+  jmp  	END_BUILT_BODY
 CASE_ARR_SET:
-  movq $0xcafebabecafebabe, %rax  ## ARRAY_SET_NAME
+  movq 	$0xcafebabecafebabe, %rax  ## ARRAY_SET_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_GET
 ## body of array set
@@ -562,7 +543,7 @@ CASE_ARR_SET:
   movq  $2, -8(%rdx)
 ## return value
   movq  $1, %rax
-  jmp  END_BUILT_BODY
+  jmp  	END_BUILT_BODY
 CASE_ARR_GET:
 	subq  $8, %rdx   ## pop twice and push once
 	movq  0(%rdx), %rax ## %rax holds the array index
@@ -574,15 +555,7 @@ CASE_ARR_GET:
   movq  $1, %rax
 END_BUILT_BODY:
 ## end the swtich structure
-##	movq %rsi, heap_pointer (%rip)
-##	movq %rdx, stack_pointer (%rip)
-##	movq %rcx, frame_pointer (%rip)
-##	pop the return address
-##	popq %r9					## save the return address
-##	jmp	%r9
-##	ret
 built_in_method_op_end:
-
 
 .globl call_slot_op
 .globl general_call_slot
