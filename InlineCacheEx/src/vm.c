@@ -477,7 +477,7 @@ Frame* frame_pointer = (Frame*)&frames[FRAME_SIZE];
 Frame* frame_alloc(int slots){
 	size_t frame_size = sizeof(Frame)+slots*sizeof(IValue*);
 	Frame* t = ((char*) frame_pointer)-frame_size;
-	// errorif(frame_pointer <= (Frame*)&frames[0], "Ran out of frame space!");
+	errorif(frame_pointer <= (Frame*)&frames[0], "Ran out of frame space!");
 	return t;
 }
 
@@ -1000,9 +1000,9 @@ int exec_built_in_method(CallSlotIns* i){
 	int method_name = i->name;
 	switch (obj_type(receiver_ptr)) {
 		case INT_OBJ: {
-			// assert_msg(arity == 1, "Not enough arguments!\n");
+			assert_msg(arity == 1, "Not enough arguments!\n");
 			IValue* arg = stack_pop();
-			// assert_msg(obj_type(arg) == INT_OBJ, "Wrong argument type!");
+			assert_msg(obj_type(arg) == INT_OBJ, "Wrong argument type!");
 			stack_pop();
 			if (method_name == INT_ADD_NAME) {
 				stack_push(from_int_val(int_obj_add(receiver_ptr, arg)));
@@ -1040,18 +1040,18 @@ int exec_built_in_method(CallSlotIns* i){
 		case ARRAY_OBJ: {
 			if(method_name == ARRAY_LENGTH_NAME){
 				stack_pop();
-				// assert(arity == 0);
+				assert(arity == 0);
 				stack_push(from_int_val(array_length(to_array_val(receiver_ptr))));
 				return 1;
 			} else if(method_name == ARRAY_SET_NAME){
-				// assert(arity == 2);
+				assert(arity == 2);
 				IValue* arg2 = stack_pop();
 				IValue* arg1 = stack_pop();
 				stack_pop();
 				stack_push(from_null_val(array_set(to_array_val(receiver_ptr), to_int_val(arg1), arg2)));
 				return 1;
 			} else if(method_name == ARRAY_GET_NAME){
-				// assert(arity == 1);
+				assert(arity == 1);
 				IValue* arg1 = stack_pop();
 				stack_pop();
 				stack_push(array_get(to_array_val(receiver_ptr), to_int_val(arg1)));
@@ -1302,7 +1302,7 @@ int make_class(ClassValue *ci, Program *p, Vector* class_layouts){
 	cl->num_methods = methods;
 	cl->num_slots = slots;
 	position += class_size;
-	// errorif(position >= CLASS_SIZE, "Ran out of room to store class layouts!");
+	errorif(position >= CLASS_SIZE, "Ran out of room to store class layouts!");
 
 	for(int i = 0; i < ci->slots->size; ++i){
 		Value* v = vector_get(p->values, (int) vector_get(ci->slots, i));
@@ -1403,7 +1403,7 @@ int end_code_section=0;
 void * code_alloc(){
 	void* ptr = &code_data[end_code_section];
 	end_code_section++;
-	// errorif(end_code_section >= CODE_SIZE, "Ran out of code space!");
+	errorif(end_code_section >= CODE_SIZE, "Ran out of code space!");
 	return ptr;
 }
 
@@ -1635,7 +1635,7 @@ void update_call(char* location, int locals, int arity, int64_t point){
 
 	// replace function ptr
 	char * to_replace = memmem(real_location, call_op_post_end-call_op_post, hole_str, hole_len);
-	// assert(to_replace);
+	assert(to_replace);
 	char* next_search = mempcpy(to_replace, &point, hole_len);
 	end_timer("jit_time");
 }
@@ -2027,7 +2027,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(oi);
 		}
 		case SET_SLOT_OP: {
-			// assert(sizeof(SlotIns) == sizeof(SetSlotIns));
+			assert(sizeof(SlotIns) == sizeof(SetSlotIns));
 			SlotIns* si = code_alloc();
 			SlotIns* osi = (SlotIns*) ins;
 			si->tag = osi->tag;
@@ -2037,7 +2037,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(si);
 		}
 		case SLOT_OP: {
-			// assert(sizeof(SlotIns) == sizeof(SetSlotIns));
+			assert(sizeof(SlotIns) == sizeof(SetSlotIns));
 			SlotIns* si = code_alloc();
 			SlotIns* osi = (SlotIns*) ins;
 			si->tag = osi->tag;
@@ -2069,7 +2069,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(ci);
 		}// *LOCAL_OP do not change
 		case GET_LOCAL_OP:{
-			// assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
+			assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
 			GetLocalIns* gi = code_alloc();
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
@@ -2080,7 +2080,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(gi);
 		}
 		case SET_LOCAL_OP:{
-			// assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
+			assert(sizeof(SetLocalIns) == sizeof(GetLocalIns));
 			GetLocalIns* gi = code_alloc();
 			GetLocalIns* ogi= (GetLocalIns*) ins;
 			gi->tag = ogi->tag;
@@ -2091,7 +2091,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(gi);
 		}
 		case GET_GLOBAL_OP:{
-			// assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
+			assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
 			GetGlobalIns* gi = code_alloc();
 			GetGlobalIns* ogi= (GetGlobalIns*) ins;
 			gi->tag = ogi->tag;
@@ -2101,7 +2101,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(gi);
 		}
 		case SET_GLOBAL_OP:{
-			// assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
+			assert(sizeof(SetGlobalIns) == sizeof(GetGlobalIns));
 			GetGlobalIns* gi = code_alloc();
 			GetGlobalIns* ogi= (GetGlobalIns*) ins;
 			gi->tag = ogi->tag;
@@ -2113,7 +2113,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 		// GLOBAL_OP's the slots need to be resolved to an index
 		// BRANCH & GOTO are just copied
 		case BRANCH_OP:{
-			// assert(sizeof(GotoIns) == sizeof(BranchIns));
+			assert(sizeof(GotoIns) == sizeof(BranchIns));
 			GotoIns* gi = code_alloc();
 			GotoIns* ogi = (GotoIns*) ins;
 			gi->tag = ogi->tag;
@@ -2124,7 +2124,7 @@ int make_code_ins(ByteIns* ins, MethodValue* m, Program* p, Vector* goto_branch,
 			return code_index(gi);
 		}
 		case GOTO_OP:{
-			// assert(sizeof(GotoIns) == sizeof(BranchIns));
+			assert(sizeof(GotoIns) == sizeof(BranchIns));
 			GotoIns* gi = code_alloc();
 			GotoIns* ogi = (GotoIns*) ins;
 			gi->tag = ogi->tag;
@@ -2169,7 +2169,7 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 			for(int j = label_index; j < i; ++j){
 				//assign all labels to t
 				LabelIns* lins = vector_get(mv->code,j);
-				// errorif(lins->tag != LABEL_OP, "Unexpected label tag!\n");
+				errorif(lins->tag != LABEL_OP, "Unexpected label tag!\n");
 				IntPair* p = malloc(sizeof(IntPair));
 				p->name = lins->name;
 				p->value = t;
@@ -2184,9 +2184,9 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 		// change the name idx
 		ByteIns* ins = vector_get(goto_or_branch_todo, i);
 
-		// errorif(ins->tag != BRANCH_OP && ins->tag != GOTO_OP, "Unexpected tag for goto or branch!");
+		errorif(ins->tag != BRANCH_OP && ins->tag != GOTO_OP, "Unexpected tag for goto or branch!");
 
-		// assert(sizeof(GotoIns) == sizeof(BranchIns));
+		assert(sizeof(GotoIns) == sizeof(BranchIns));
 
 		GotoIns* gins = (GotoIns*) ins;
 		int code_point_i = -1;
@@ -2196,7 +2196,7 @@ PtrPair make_code(MethodValue* mv, Program* p, Vector* call_ins, Vector * class_
 				code_point_i = p->value;
 			}
 		}
-		// errorif(code_point_i == -1, "Unresolved label!");
+		errorif(code_point_i == -1, "Unresolved label!");
 		gins->name = code_point_i;
 		if(gins->tag == GOTO_OP){
 			update_goto(code_point(code_index(gins)), (int64_t)code_point(code_point_i));
@@ -2286,7 +2286,7 @@ int quicken(Program * p){
 				break;
 			}
 		}
-		// errorif(name == -1, "Could not find method!\n");
+		errorif(name == -1, "Could not find method!\n");
 		ci->name = name;
 		int locals = ((AllInsData*) get_ins(ci->name))->locals;
 		update_call(code_point(code_index(ci)), locals, ci->arity, (int64_t)dest);
@@ -2313,7 +2313,7 @@ int quicken(Program * p){
 					break;
 				}
 			}
-			// errorif(code_point == -1, "Could not find method!\n");
+			errorif(code_point == -1, "Could not find method!\n");
 			MethodValue* mv = vector_get(p->values, cl->slots_and_methods[j].name);
 			cl->slots_and_methods[j].name = get_str_constant_value((StringValue*)vector_get(p->values, mv->name));
 			cl->slots_and_methods[j].value = code_point;
@@ -2475,22 +2475,22 @@ void interpret_bc (Program * p) {
 //================== UTIL FUNCITONS ==========================
 //============================================================
 IntIValue* to_int_val (IValue* val) {
-  // errorif(obj_type(val) != INT_OBJ, "Error: to_int_val.\n");
+  errorif(obj_type(val) != INT_OBJ, "Error: to_int_val.\n");
   return (IntIValue*)val;
 }
 
 NullIValue* to_null_val(IValue* val){
-  // errorif(obj_type(val) != NULL_OBJ, "Error: to_null_val.\n");
+  errorif(obj_type(val) != NULL_OBJ, "Error: to_null_val.\n");
   return (NullIValue*)val;
 }
 
 ObjectIValue* to_obj_val(IValue* val){
-  // errorif(obj_type(val) != OBJ_OBJ, "Error: to_obj_val %i %lx.\n", obj_type(val), val);
+  errorif(obj_type(val) != OBJ_OBJ, "Error: to_obj_val %i %lx.\n", obj_type(val), val);
   return (ObjectIValue*)(((uintptr_t)val) & CLEAR_ARRAY_OBJ_MASK);
 }
 
 ArrayIValue* to_array_val(IValue* val){
-  // errorif(obj_type(val) != ARRAY_OBJ, "Error: to_array_val.\n");
+  errorif(obj_type(val) != ARRAY_OBJ, "Error: to_array_val.\n");
   return (ArrayIValue*)(((uintptr_t)val) & CLEAR_ARRAY_OBJ_MASK);
 }
 
@@ -2511,19 +2511,19 @@ IValue* from_null_val(NullIValue* val){
 }
 
 void set_forward_ptr(IValue* v, IValue* c){
-	// assert_msg(obj_type(v) == BROKEN_HEART, "Cannot set forward ptr for some types %d!\n", obj_type(v));
+	assert_msg(obj_type(v) == BROKEN_HEART, "Cannot set forward ptr for some types %d!\n", obj_type(v));
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	tv->_forward_space = c;
 }
 
 IValue* get_forward_ptr(IValue* v){
-	// assert_msg(obj_type(v) == BROKEN_HEART, "Cannot get forward ptr for some types %d!\n", obj_type(v));
+	assert_msg(obj_type(v) == BROKEN_HEART, "Cannot get forward ptr for some types %d!\n", obj_type(v));
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	return tv->_forward_space;
 }
 
 void set_tag(IValue* v, ObjTag o){
-	// assert_msg(obj_type(v) == ARRAY_OBJ || obj_type(v) == OBJ_OBJ, "Cannot assign tag for some types!");
+	assert_msg(obj_type(v) == ARRAY_OBJ || obj_type(v) == OBJ_OBJ, "Cannot assign tag for some types!");
 	IValue* tv = (((uintptr_t)v) & CLEAR_ARRAY_OBJ_MASK);
 	tv->_tag = o;
 }
@@ -2586,7 +2586,7 @@ IValue* array_get (ArrayIValue* a, IntIValue* i) {
 
 
 IntIValue* int_obj_add (IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = (IntIValue*)(xi + yi);
@@ -2597,76 +2597,76 @@ IntIValue* int_obj_add (IValue * x, IValue * y) {
 }
 
 IntIValue* int_obj_sub (IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = (IntIValue*)(xi - yi);
 #ifdef DEBUG
-  // assert_msg(to_int(v) == to_int(to_int_val(x)) - to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx - 0x%lx\n", v, x, y);
+  assert_msg(to_int(v) == to_int(to_int_val(x)) - to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx - 0x%lx\n", v, x, y);
 #endif
   return v;
 }
 
 IntIValue* int_obj_mul (IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   IntIValue* v =  (IntIValue*)(xi * to_int(to_int_val(y)));
 #ifdef DEBUG
-  // assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
+  assert_msg(to_int(v) == to_int(to_int_val(x)) * to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx * 0x%lx\n", v, x, y);
 #endif
   return v;
 }
 
 IntIValue* int_obj_div (IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue* v = make_int_obj((int)(xi / yi));
 #ifdef DEBUG
-  // assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx / 0x%lx\n", v, x, y);
+  assert_msg(to_int(v) == to_int(to_int_val(x)) / to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx / 0x%lx\n", v, x, y);
 #endif
   return v;
 }
 
 IntIValue* int_obj_mod (IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   IntIValue * v = (IntIValue*)(xi % yi);
 #ifdef DEBUG
-  // assert_msg(to_int(v) == to_int(to_int_val(x)) % to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx %% 0x%lx\n", v, x, y);
+  assert_msg(to_int(v) == to_int(to_int_val(x)) % to_int(to_int_val(y)), "Math failed for 0x%lx = 0x%lx %% 0x%lx\n", v, x, y);
 #endif
   return v;
 }
 
 IValue* eq(IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   return x == y ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
 IValue* lt(IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   return xi < yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
 IValue* le(IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   return xi <= yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
 IValue* gt(IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   return xi > yi ?
          from_int_val(make_int_obj(0)) : from_null_val(make_null_obj());
 }
 IValue* ge(IValue * x, IValue * y) {
-  // assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
+  assert_msg(obj_type(x) == INT_OBJ && obj_type(y) == INT_OBJ, "Expected int arguments!\n");
   intptr_t xi = (intptr_t)x;
   intptr_t yi = (intptr_t)y;
   return xi >= yi ?
