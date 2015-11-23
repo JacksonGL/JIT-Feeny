@@ -316,6 +316,21 @@ array_op_end:
 .globl built_in_method_op
 .globl built_in_method_op_end
 
+.globl BUILT_IN_SWITCH
+.globl CASE_ADD
+.globl CASE_SUB
+.globl CASE_MUL
+.globl CASE_DIV
+.globl CASE_MOD
+.globl CASE_EQ
+.globl CASE_LT
+.globl CASE_LE
+.globl CASE_GT
+.globl CASE_GE
+.globl CASE_LENGTH
+.globl CASE_ARR_SET
+.globl CASE_ARR_GET
+
 built_in_method_op:
   movq  $0xcafebabecafebabe, %r9  ## arity
   movq  $0xcafebabecafebabe, %r11 ## method name
@@ -360,6 +375,9 @@ END_BUILT_IN_OBJ_TYPE:
 	movq	$0, %rax
 	jmp	 END_BUILT_BODY
 BUILT_IN_CASE_INT:
+	movq $0xcafebabecafebabe, %rax
+BUILT_IN_SWITCH:
+  jmp *%rax
 ## body of case int -----------------------------------
 ## start comparing method name
 CASE_ADD:
