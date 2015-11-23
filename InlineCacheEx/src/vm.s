@@ -327,7 +327,7 @@ array_op_end:
 .globl CASE_LE
 .globl CASE_GT
 .globl CASE_GE
-.globl CASE_LENGTH
+.globl CASE_ARR_LENGTH
 .globl CASE_ARR_SET
 .globl CASE_ARR_GET
 
@@ -381,9 +381,9 @@ BUILT_IN_SWITCH:
 ## body of case int -----------------------------------
 ## start comparing method name
 CASE_ADD:
-	movq $0xcafebabecafebabe, %rax   ## INT_ADD_NAME
-	cmpq	%rax, %r11	## compare method name
-	jne CASE_SUB
+##	movq $0xcafebabecafebabe, %rax   ## INT_ADD_NAME
+##	cmpq	%rax, %r11	## compare method name
+##	jne CASE_SUB
 ## body of add
 	subq	$16, %rdx							 ## stack pop twice
 	movq	8(%rdx), %r8					 ## %r8 has *stack_pointer
@@ -395,9 +395,9 @@ CASE_ADD:
 	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_SUB:
-	movq $0xcafebabecafebabe, %rax  ## INT_SUB_NAME
-	cmpq	%rax, %r11	## compare method name
-	jne CASE_MUL
+##	movq $0xcafebabecafebabe, %rax  ## INT_SUB_NAME
+##	cmpq	%rax, %r11	## compare method name
+##	jne CASE_MUL
 ## body of sub
 	subq	$8, %rdx							 ## stack pop twice and push once
 	movq	0(%rdx), %r8					 ## %r8 has *stack_pointer, i.e., arg
@@ -407,9 +407,9 @@ CASE_SUB:
 	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_MUL:
-	movq $0xcafebabecafebabe, %rax  ## INT_MUL_NAME
-	cmpq	%rax, %r11	## compare method name
-	jne CASE_DIV
+##	movq $0xcafebabecafebabe, %rax  ## INT_MUL_NAME
+##	cmpq	%rax, %r11	## compare method name
+##	jne CASE_DIV
 ## body of mul
 	subq	$8, %rdx							 ## stack pop twice and push once
 	movq	0(%rdx), %rax					 ## %rax has *stack_pointer, i.e., arg
@@ -422,9 +422,9 @@ CASE_MUL:
 	movq	$1, %rax
 	jmp	 	END_BUILT_BODY
 CASE_DIV:
-	movq 	$0xcafebabecafebabe, %rax ## INT_DIV_NAME
-	cmpq	%rax, %r11	## compare method name
-	jne CASE_MOD
+##	movq 	$0xcafebabecafebabe, %rax ## INT_DIV_NAME
+##	cmpq	%rax, %r11	## compare method name
+##	jne CASE_MOD
 ## body of div
 	subq	$8, %rdx							 ## stack pop twice and push once
 	movq	0(%rdx), %r8		 	 		 ## %r8 has *stack_pointer, i.e., arg
@@ -440,9 +440,9 @@ CASE_DIV:
 	movq	$1, %rax
 	jmp	 END_BUILT_BODY
 CASE_MOD:
-  movq 	$0xcafebabecafebabe, %rax  ## INT_MOD_NAME
-  cmpq  %rax, %r11  ## compare method name
-  jne CASE_EQ
+##  movq 	$0xcafebabecafebabe, %rax  ## INT_MOD_NAME
+##  cmpq  %rax, %r11  ## compare method name
+##  jne CASE_EQ
 ## body of mod
   subq  $8, %rdx               ## stack pop twice and push once
   movq  0(%rdx), %r8          ## %r8 has *stack_pointer, i.e., arg
@@ -459,9 +459,9 @@ CASE_MOD:
   movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_EQ:
-  movq $0xcafebabecafebabe, %rax  ## INT_EQ_NAME
-  cmpq  %rax, %r11  ## compare method name
-  jne CASE_LT
+##  movq $0xcafebabecafebabe, %rax  ## INT_EQ_NAME
+##  cmpq  %rax, %r11  ## compare method name
+##  jne CASE_LT
 ## body of eq
   subq  $8, %rdx               ## stack pop twice and push once
 	xorq  %rax, %rax
@@ -473,9 +473,9 @@ CASE_EQ:
   movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LT:
-  movq 	$0xcafebabecafebabe, %rax ## INT_LT_NAME
-  cmpq  %rax, %r11             ## compare method name
-  jne CASE_LE
+##  movq 	$0xcafebabecafebabe, %rax ## INT_LT_NAME
+##  cmpq  %rax, %r11             ## compare method name
+##  jne CASE_LE
 ## body of lt
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
@@ -488,9 +488,9 @@ CASE_LT:
   movq  $1, %rax
   jmp  END_BUILT_BODY
 CASE_LE:
-  movq 	$0xcafebabecafebabe, %rax  ## INT_LE_NAME
-  cmpq  %rax, %r11             ## compare method name
-  jne CASE_GE
+##  movq 	$0xcafebabecafebabe, %rax  ## INT_LE_NAME
+##  cmpq  %rax, %r11             ## compare method name
+##  jne CASE_GE
 ## body of le
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
@@ -503,9 +503,9 @@ CASE_LE:
   movq  $1, %rax
   jmp  	END_BUILT_BODY
 CASE_GE:
-  movq 	$0xcafebabecafebabe, %rax ## INT_GE_NAME
-  cmpq  %rax, %r11             ## compare method name
-  jne CASE_GT
+##  movq 	$0xcafebabecafebabe, %rax ## INT_GE_NAME
+##  cmpq  %rax, %r11             ## compare method name
+##  jne CASE_GT
 ## body of ge
   subq  $8, %rdx               ## stack pop twice and push once
   xorq  %rax, %rax
@@ -532,7 +532,7 @@ CASE_GT:
 BUILT_IN_CASE_ARRAY:
 ## body of case array ---------------------------------
 ## start comparing method name
-CASE_LENGTH:
+CASE_ARR_LENGTH:
   movq 	$0xcafebabecafebabe, %rax  ## ARRAY_LENGTH_NAME
   cmpq  %rax, %r11  ## compare method name
   jne CASE_ARR_SET

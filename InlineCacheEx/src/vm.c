@@ -1663,7 +1663,7 @@ extern char CASE_LT[];
 extern char CASE_LE[];
 extern char CASE_GT[];
 extern char CASE_GE[];
-extern char CASE_LENGTH[];
+extern char CASE_ARR_LENGTH[];
 extern char CASE_ARR_SET[];
 extern char CASE_ARR_GET[];
 
@@ -1707,7 +1707,7 @@ void* make_call_slot(int arity, int name) {
   } else if (name == INT_EQ_NAME) {
     val64 = CASE_EQ;
   } else if (name == ARRAY_LENGTH_NAME) {
-    val64 = CASE_LENGTH;
+    val64 = CASE_ARR_LENGTH;
   } else if (name == ARRAY_SET_NAME) {
     val64 = CASE_ARR_SET;
   } else if (name == ARRAY_GET_NAME) {
@@ -1721,10 +1721,11 @@ void* make_call_slot(int arity, int name) {
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   mempcpy(to_replace, &val64, hole_len);
 
+	/*
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   val64 = INT_ADD_NAME;
   mempcpy(to_replace, &val64, hole_len);
-
+	
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   val64 = INT_SUB_NAME;
   mempcpy(to_replace, &val64, hole_len);
@@ -1756,11 +1757,11 @@ void* make_call_slot(int arity, int name) {
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   val64 = INT_GE_NAME;;
   mempcpy(to_replace, &val64, hole_len);
-
+	*/
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   val64 = ARRAY_LENGTH_NAME;
   mempcpy(to_replace, &val64, hole_len);
-
+	
 	to_replace = memmem(ret, built_in_method_op_end-built_in_method_op, hole_str, hole_len);
   val64 = ARRAY_SET_NAME;
   mempcpy(to_replace, &val64, hole_len);	
