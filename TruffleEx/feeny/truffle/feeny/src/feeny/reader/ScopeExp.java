@@ -15,6 +15,6 @@ public class ScopeExp implements ScopeStmt {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        throw new UnsupportedOperationException("ScopeExp is not supported yet");
+        return exp.toTruffle(fd);
     }
 }
