@@ -3,6 +3,8 @@ package feeny.reader;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
+import feeny.nodes.ScopeFnNode;
+
 public class ScopeFn implements ScopeStmt {
     public final String name;
     public final String[] args;
@@ -19,6 +21,6 @@ public class ScopeFn implements ScopeStmt {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        throw new UnsupportedOperationException("ScopeFn is not supported yet");
+        return new ScopeFnNode(name, args, body, fd);
     }
 }
