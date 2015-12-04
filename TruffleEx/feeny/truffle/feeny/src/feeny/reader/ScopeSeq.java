@@ -19,6 +19,6 @@ public class ScopeSeq implements ScopeStmt {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        return new ScopeSeqNode(fd);
+        return new ScopeSeqNode(fd, a, b);
     }
 }

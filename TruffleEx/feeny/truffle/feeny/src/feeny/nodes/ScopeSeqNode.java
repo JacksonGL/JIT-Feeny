@@ -6,14 +6,17 @@ import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.nodes.Node.Children;
 
 import feeny.Feeny;
+import feeny.reader.ScopeStmt;
 
 public class ScopeSeqNode extends RootNode {
 
-    @Children ScopeStmtNode firstNode;
-    @Children ScopeStmtNode nextNode;
+    @Child RootNode firstNode;
+    @Child RootNode nextNode;
 
-    public ScopeSeqNode(FrameDescriptor frameDescriptor) {
+    public ScopeSeqNode(FrameDescriptor frameDescriptor, ScopeStmt a, ScopeStmt b) {
         super(Feeny.class, null, frameDescriptor);
+        firstNode = a.toTruffle(frameDescriptor);
+        nextNode = b.toTruffle(frameDescriptor);
     }
 
     @Override

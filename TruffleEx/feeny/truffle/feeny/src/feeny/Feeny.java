@@ -42,7 +42,7 @@ public final class Feeny extends TruffleLanguage<ExecutionContext> {
             ScopeStmt stmt = reader.read();
             System.out.println(stmt);
             System.out.println("Create and Execute Truffle Feeny AST");
-            exec_node(stmt.toTruffle());
+            exec_node(stmt.toTruffle(new FrameDescriptor()));
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
