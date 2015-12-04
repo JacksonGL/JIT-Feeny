@@ -1,6 +1,9 @@
 package feeny.reader;
 
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
+
+import feeny.nodes.ScopeSeqNode;
 
 public class ScopeSeq implements ScopeStmt {
     public final ScopeStmt a;
@@ -15,7 +18,7 @@ public class ScopeSeq implements ScopeStmt {
         return a + " " + b;
     }
 
-    public RootNode toTruffle() {
-        throw new UnsupportedOperationException("ScopeSeq is not supported yet");
+    public RootNode toTruffle(FrameDescriptor fd) {
+        return new ScopeSeqNode(fd);
     }
 }

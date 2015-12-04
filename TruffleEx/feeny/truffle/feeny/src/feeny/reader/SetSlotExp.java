@@ -1,5 +1,6 @@
 package feeny.reader;
 
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
 public class SetSlotExp implements Exp {
@@ -17,7 +18,7 @@ public class SetSlotExp implements Exp {
         return exp + "." + name + " = " + value;
     }
 
-    public RootNode toTruffle() {
+    public RootNode toTruffle(FrameDescriptor fd) {
         throw new UnsupportedOperationException("Array is not supported yet");
     }
 }

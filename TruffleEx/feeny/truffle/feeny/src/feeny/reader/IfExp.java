@@ -1,5 +1,6 @@
 package feeny.reader;
 
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
 public class IfExp implements Exp {
@@ -17,7 +18,7 @@ public class IfExp implements Exp {
         return "if " + pred + " : (" + conseq + ") else : (" + alt + ")";
     }
 
-    public RootNode toTruffle() {
+    public RootNode toTruffle(FrameDescriptor fd) {
         throw new UnsupportedOperationException("Array is not supported yet");
     }
 }

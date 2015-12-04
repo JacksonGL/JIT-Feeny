@@ -18,8 +18,7 @@ public class IntExp implements Exp {
     }
 
     @SuppressWarnings("cast")
-    public RootNode toTruffle() {
-        FrameDescriptor fd = new FrameDescriptor();
+    public RootNode toTruffle(FrameDescriptor fd) {
         return (RootNode) new IntNode(10, fd);
     }
 }
