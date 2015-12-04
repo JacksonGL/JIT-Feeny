@@ -7,7 +7,7 @@ import com.oracle.truffle.api.nodes.RootNode;
 import feeny.Feeny;
 
 public class PrintfNode extends RootNode {
-    @Children RootNode nodes[];
+    @Children final RootNode nodes[];
     String format;
 
     public PrintfNode(String format, RootNode nodes[], FrameDescriptor frameDescriptor) {

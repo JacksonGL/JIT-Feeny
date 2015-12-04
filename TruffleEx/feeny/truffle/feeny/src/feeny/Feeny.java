@@ -24,13 +24,13 @@ import feeny.reader.ScopeStmt;
 public final class Feeny extends TruffleLanguage<ExecutionContext> {
     public static void main(String[] args) {
         // Example showing creating and executing a simple node
-        test_hello();
+        // test_hello();
         // Example showing creating and executing a node containing children nodes
-        test_plus();
+        // test_plus();
         // Example showing how to create, write, and read a variable
-        test_variables();
+        // test_variables();
         // Example showing how to create and call a function, and read an argument
-        test_function();
+        // test_function();
         // Create a corresponding Truffle AST and execute it
         test_feeny();
     }

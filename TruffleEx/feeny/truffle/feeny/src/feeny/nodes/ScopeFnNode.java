@@ -26,12 +26,36 @@ public class ScopeFnNode extends RootNode {
         }
         this.body = body2.toTruffle(fd2);
         this.name = name;
-        slot = frameDescriptor.addFrameSlot(name, FrameSlotKind.Object);
+        this.slot = frameDescriptor.addFrameSlot(name, FrameSlotKind.Object);
     }
 
     @Override
     public Object execute(VirtualFrame frame) {
-        frame.setObject(slot, Truffle.getRuntime().createCallTarget(body));
+        frame.setObject(slot, this);
         return null;
+    }
+
+    public String[] getArgs() {
+        return args;
+    }
+
+    public void setArgs(String[] args) {
+        this.args = args;
+    }
+
+    public RootNode getBody() {
+        return body;
+    }
+
+    public void setBody(RootNode body) {
+        this.body = body;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }
