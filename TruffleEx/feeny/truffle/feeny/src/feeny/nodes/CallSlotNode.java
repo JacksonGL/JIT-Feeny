@@ -33,7 +33,7 @@ public class CallSlotNode extends RootNode {
         } else if (name.equals("lt")) {
             return ((Integer) reciever.execute(frame)) < ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
         } else {
-            return null;
+            throw new UnsupportedOperationException("Some Built-in functions are not supported yet");
         }
     }
 }
