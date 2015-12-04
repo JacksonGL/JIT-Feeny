@@ -12,26 +12,27 @@ import feeny.Feeny;
 import feeny.reader.ScopeStmt;
 
 public class CallSlotNode extends RootNode {
-    String args[];
-    @Child RootNode body;
     String name;
-    FrameSlot slot;
+    @Child RootNode reciever;
+    @Children RootNode[] args;
 
-    public CallSlotNode(String name, String[] args2, FrameDescriptor frameDescriptor) {
+    public CallSlotNode(String name_, RootNode receiver_, RootNode[] args_, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
-        this.args = args2;
-        FrameDescriptor fd2 = new FrameDescriptor(frameDescriptor);
-        for (int i = 0; i < args.length; i++) {
-            fd2.addFrameSlot(args[i]);
-        }
-        this.body = body2.toTruffle(fd2);
-        this.name = name;
-        slot = frameDescriptor.addFrameSlot(name, FrameSlotKind.Object);
+        name = name_;
+        reciever = receiver_;
+        args = args_;
     }
 
     @Override
     public Object execute(VirtualFrame frame) {
-        frame.setObject(slot, Truffle.getRuntime().createCallTarget(body));
-        return null;
+        if (name.equals("add")) {
+            return ((Integer) reciever.execute(frame)) + ((Integer) args[0].execute(frame));
+        } else if (name.equals("sub")) {
+            return ((Integer) reciever.execute(frame)) - ((Integer) args[0].execute(frame));
+        } else if (name.equals("lt")) {
+            return ((Integer) reciever.execute(frame)) < ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
+        } else {
+            return null;
+        }
     }
 }

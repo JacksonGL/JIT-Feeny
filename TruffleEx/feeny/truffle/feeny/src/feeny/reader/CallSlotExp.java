@@ -2,6 +2,7 @@ package feeny.reader;
 
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
+import feeny.nodes.CallSlotNode;
 
 public class CallSlotExp implements Exp {
     public final String name;
@@ -19,6 +20,10 @@ public class CallSlotExp implements Exp {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        throw new UnsupportedOperationException("Array is not supported yet");
+        RootNode[] args_n = new RootNode[args.length];
+        for (int i = 0; i < args.length; ++i) {
+            args_n[i] = args[i].toTruffle(fd);
+        }
+        return new CallSlotNode(name, exp.toTruffle(fd), args_n, fd);
     }
 }
