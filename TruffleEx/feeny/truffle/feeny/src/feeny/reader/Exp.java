@@ -1,5 +1,7 @@
 package feeny.reader;
 
-public interface Exp {
+import com.oracle.truffle.api.nodes.RootNode;
 
+public interface Exp {
+    public RootNode toTruffle();
 }
