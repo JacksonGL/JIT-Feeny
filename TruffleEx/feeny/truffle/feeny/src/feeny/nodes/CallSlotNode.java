@@ -14,7 +14,7 @@ import feeny.reader.ScopeStmt;
 public class CallSlotNode extends RootNode {
     String name;
     @Child RootNode reciever;
-    @Children RootNode[] args;
+    @Children final RootNode[] args;
 
     public CallSlotNode(String name_, RootNode receiver_, RootNode[] args_, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);

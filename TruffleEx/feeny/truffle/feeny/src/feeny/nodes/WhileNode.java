@@ -12,7 +12,7 @@ public class WhileNode extends RootNode {
     @Child RootNode pred_n;
     @Child RootNode body_n;
 
-    public WhileNode(RootNode pred_, RootNode then_, RootNode else_, FrameDescriptor frameDescriptor) {
+    public WhileNode(RootNode pred_, RootNode then_, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
         this.pred_n = pred_;
         this.body_n = then_;

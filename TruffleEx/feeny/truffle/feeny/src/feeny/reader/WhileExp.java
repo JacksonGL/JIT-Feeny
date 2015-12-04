@@ -3,6 +3,8 @@ package feeny.reader;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
+import feeny.nodes.WhileNode;
+
 public class WhileExp implements Exp {
     public final Exp pred;
     public final ScopeStmt body;
@@ -17,6 +19,6 @@ public class WhileExp implements Exp {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        throw new UnsupportedOperationException("Array is not supported yet");
+        return new WhileNode(pred.toTruffle(fd), body.toTruffle(fd), fd);
     }
 }

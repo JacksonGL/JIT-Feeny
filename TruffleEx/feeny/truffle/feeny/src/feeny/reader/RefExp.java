@@ -3,6 +3,8 @@ package feeny.reader;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
+import feeny.nodes.RefExpNode;
+
 public class RefExp implements Exp {
     public final String name;
 
@@ -15,6 +17,6 @@ public class RefExp implements Exp {
     }
 
     public RootNode toTruffle(FrameDescriptor fd) {
-        throw new UnsupportedOperationException("Array is not supported yet");
+        return new RefExpNode(name, fd);
     }
 }
