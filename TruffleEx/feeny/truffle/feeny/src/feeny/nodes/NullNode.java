@@ -9,7 +9,6 @@ import com.oracle.truffle.api.nodes.RootNode;
 import feeny.Feeny;
 
 public class NullNode extends RootNode {
-    int value;
 
     public NullNode(FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
@@ -17,6 +16,7 @@ public class NullNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         return null;
     }
 }

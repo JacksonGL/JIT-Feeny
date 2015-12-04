@@ -8,8 +8,8 @@ import com.oracle.truffle.api.nodes.RootNode;
 import feeny.Feeny;
 
 public class RefExpNode extends RootNode {
-    String name;
-    FrameSlot slot;
+    final String name;
+    final FrameSlot slot;
 
     public RefExpNode(String name, FrameDescriptor fd) {
         super(Feeny.class, null, fd);
@@ -19,6 +19,7 @@ public class RefExpNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         return frame.getValue(slot);
     }
 

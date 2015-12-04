@@ -22,6 +22,7 @@ public class IfNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         if (pred_n.execute(frame) == null) {
             return else_n.execute(frame);
         } else {

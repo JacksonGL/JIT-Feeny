@@ -69,7 +69,7 @@ public final class Feeny extends TruffleLanguage<ExecutionContext> {
         System.out.println("=== Testing Functions ===");
         PrintArgNode body = new PrintArgNode(new FrameDescriptor());
         RootCallTarget ct = Truffle.getRuntime().createCallTarget(body);
-        exec_node(new CallNode(ct, new FrameDescriptor()));
+        // exec_node(new CallNode(ct, new FrameDescriptor()));
     }
 
     private static void exec_node(RootNode node) {

@@ -22,6 +22,7 @@ public class ArrayNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         int length_i = (Integer) length.execute(frame);
         Object[] eval = new Object[length_i];
         Arrays.fill(eval, init.execute(frame));

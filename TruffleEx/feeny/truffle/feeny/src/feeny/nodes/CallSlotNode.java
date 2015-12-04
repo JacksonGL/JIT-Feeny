@@ -12,7 +12,7 @@ import feeny.Feeny;
 import feeny.reader.ScopeStmt;
 
 public class CallSlotNode extends RootNode {
-    String name;
+    final String name;
     @Child RootNode reciever;
     @Children final RootNode[] args;
 
@@ -25,6 +25,7 @@ public class CallSlotNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
         if (name.equals("add")) {
             return ((Integer) reciever.execute(frame)) + ((Integer) args[0].execute(frame));
         } else if (name.equals("sub")) {

@@ -7,8 +7,8 @@ import com.oracle.truffle.api.nodes.RootNode;
 import feeny.Feeny;
 
 public class PrintfNode extends RootNode {
-    @Children RootNode nodes[];
-    String format;
+    @Children final RootNode nodes[];
+    final String format;
 
     public PrintfNode(String format, RootNode nodes[], FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
@@ -18,6 +18,7 @@ public class PrintfNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         int node_ind = 0;
         int str_index = 0;
 

@@ -3,21 +3,39 @@ package feeny.nodes;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.frame.FrameDescriptor;
+import com.oracle.truffle.api.frame.FrameSlot;
+import com.oracle.truffle.api.frame.FrameSlotTypeException;
+import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.RootNode;
 
 import feeny.Feeny;
 
 public class CallNode extends RootNode {
-    RootCallTarget target;
 
-    public CallNode(RootCallTarget t, FrameDescriptor frameDescriptor) {
+    final FrameSlot slot;
+    final String name;
+    @Children final RootNode[] args;
+
+    public CallNode(String name_, RootNode[] args_, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
-        target = t;
+        name = name_;
+        slot = frameDescriptor.findFrameSlot(name);
+        args = args_;
     }
 
     @Override
     public Object execute(VirtualFrame frame) {
-        return target.call("Hello World");
+        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        RootCallTarget target = null;
+        try {
+            System.err.println(Utils.getTopFrame(frame).toString());
+            target = (RootCallTarget) Utils.getTopFrame(frame).getObject(slot);
+        } catch (FrameSlotTypeException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        System.err.println("### Working on " + name);
+        return target.call((Object[]) args);
     }
 }

@@ -12,10 +12,10 @@ import feeny.Feeny;
 import feeny.reader.ScopeStmt;
 
 public class ScopeFnNode extends RootNode {
-    String args[];
+    final String args[];
     @Child RootNode body;
-    String name;
-    FrameSlot slot;
+    final String name;
+    final FrameSlot slot;
 
     public ScopeFnNode(String name, String[] args2, ScopeStmt body2, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
@@ -31,7 +31,8 @@ public class ScopeFnNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        frame.setObject(slot, Truffle.getRuntime().createCallTarget(body));
+        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        Utils.getTopFrame(frame).setObject(slot, Truffle.getRuntime().createCallTarget(body));
         return null;
     }
 }

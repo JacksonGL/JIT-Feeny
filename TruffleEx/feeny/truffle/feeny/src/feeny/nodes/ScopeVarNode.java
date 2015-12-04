@@ -9,8 +9,8 @@ import feeny.Feeny;
 
 public class ScopeVarNode extends RootNode {
     @Child RootNode valueNode;
-    String name;
-    FrameSlot slot;
+    final String name;
+    final FrameSlot slot;
 
     public ScopeVarNode(String name, RootNode rootNode, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
@@ -21,6 +21,7 @@ public class ScopeVarNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.out.println("Evaluating " + this.getClass().getName());
         frame.setObject(slot, valueNode.execute(frame));
         return null;
     }
