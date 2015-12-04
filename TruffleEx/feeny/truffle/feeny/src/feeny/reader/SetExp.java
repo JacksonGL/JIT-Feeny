@@ -3,7 +3,7 @@ package feeny.reader;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
 
-import feeny.node.SetExpNode;
+import feeny.nodes.SetExpNode;
 
 public class SetExp implements Exp {
     public final String name;

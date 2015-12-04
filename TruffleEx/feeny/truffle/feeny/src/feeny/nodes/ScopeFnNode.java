@@ -25,7 +25,7 @@ public class ScopeFnNode extends RootNode {
         for (int i = 0; i < args.length; i++) {
             fd2.addFrameSlot(args[i]);
         }
-        this.body = body2.toTruffle(fd2);
+        this.body = new FunctionHeaderNode(args2, body2.toTruffle(fd2), fd2);
         this.name = name;
         slot = frameDescriptor.findOrAddFrameSlot(name, FrameSlotKind.Object);
     }

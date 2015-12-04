@@ -1,4 +1,4 @@
-package feeny.node;
+package feeny.nodes;
 
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlot;
@@ -20,6 +20,7 @@ public class SetExpNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
+        System.err.println("Evaluating " + this.getClass().getName() + ":" + name);
         Object val = valueNode.execute(frame);
         frame.setObject(slot, val);
         return val;
