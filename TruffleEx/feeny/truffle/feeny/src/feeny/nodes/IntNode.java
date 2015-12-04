@@ -18,7 +18,7 @@ public class IntNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.out.println("Evaluating " + this.getClass().getName());
+        System.err.println("Evaluating " + this.getClass().getName());
         return new Integer(value);
     }
 }

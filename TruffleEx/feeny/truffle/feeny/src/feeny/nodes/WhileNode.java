@@ -20,7 +20,7 @@ public class WhileNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.out.println("Evaluating " + this.getClass().getName());
+        System.err.println("Evaluating " + this.getClass().getName());
         Object result = null;
         while (pred_n.execute(frame) != null) {
             result = body_n.execute(frame);

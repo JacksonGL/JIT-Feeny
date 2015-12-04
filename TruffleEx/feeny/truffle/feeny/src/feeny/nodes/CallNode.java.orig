@@ -1,0 +1,85 @@
+package feeny.nodes;
+
+import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.Truffle;
+import com.oracle.truffle.api.frame.FrameDescriptor;
+import com.oracle.truffle.api.frame.FrameSlot;
+import com.oracle.truffle.api.frame.FrameSlotTypeException;
+<<<<<<< HEAD
+import com.oracle.truffle.api.frame.MaterializedFrame;
+=======
+>>>>>>> 1823c8361877bec5d12aa4254dbde598a04f5ce7
+import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.nodes.RootNode;
+
+import feeny.Feeny;
+
+public class CallNode extends RootNode {
+<<<<<<< HEAD
+=======
+    RootCallTarget target;
+    String name;
+    @Children final RootNode[] arg_nodes;
+    FrameSlot fnSlot;
+>>>>>>> 1823c8361877bec5d12aa4254dbde598a04f5ce7
+
+    final FrameSlot slot;
+    final String name;
+    @Children final RootNode[] args;
+
+    public CallNode(String name_, RootNode[] args_, FrameDescriptor frameDescriptor) {
+        super(Feeny.class, null, frameDescriptor);
+<<<<<<< HEAD
+        name = name_;
+        slot = frameDescriptor.findFrameSlot(name);
+        args = args_;
+=======
+        target = t;
+        arg_nodes = new RootNode[0];
+    }
+
+    public CallNode(String name, RootNode[] args_n, FrameDescriptor fd) {
+        super(Feeny.class, null, fd);
+        this.name = name;
+        this.arg_nodes = args_n;
+        this.fnSlot = fd.findFrameSlot(name);
+>>>>>>> 1823c8361877bec5d12aa4254dbde598a04f5ce7
+    }
+
+    @Override
+    public Object execute(VirtualFrame frame) {
+<<<<<<< HEAD
+        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        RootCallTarget target = null;
+        try {
+            System.err.println(Utils.getTopFrame(frame).toString());
+            target = (RootCallTarget) Utils.getTopFrame(frame).getObject(slot);
+        } catch (FrameSlotTypeException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        System.err.println("### Working on " + name);
+        return target.call((Object[]) args);
+=======
+        System.out.println("call node");
+        Object ret = null;
+        try {
+            ScopeFnNode fnNode = (ScopeFnNode) frame.getObject(fnSlot);
+            Object[] arguments = new Object[arg_nodes.length];
+            FrameDescriptor fd = fnNode.getFrameDescriptor();
+            // something is wrong, here
+            VirtualFrame calleeFrame = Truffle.getRuntime().createVirtualFrame(arguments, fd);
+            String[] arg_names = fnNode.getArgs();
+            for (int i = 0; i < arg_nodes.length; i++) {
+                FrameSlot slot = fd.findFrameSlot(arg_names[i]);
+                calleeFrame.setObject(slot, arg_nodes[i].execute(frame));
+            }
+            ret = fnNode.getBody().execute(calleeFrame);
+        } catch (FrameSlotTypeException e) {
+            System.out.println("Function " + name + " is not found in scope.");
+            System.exit(0);
+        }
+        return ret;
+>>>>>>> 1823c8361877bec5d12aa4254dbde598a04f5ce7
+    }
+}

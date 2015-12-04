@@ -5,7 +5,6 @@ import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.FrameSlotKind;
-import com.oracle.truffle.api.frame.FrameSlotTypeException;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.RootNode;
 
@@ -27,20 +26,41 @@ public class ScopeFnNode extends RootNode {
         }
         this.body = body2.toTruffle(fd2);
         this.name = name;
-        slot = frameDescriptor.findOrAddFrameSlot(name, FrameSlotKind.Object);
+        this.slot = frameDescriptor.addFrameSlot(name, FrameSlotKind.Object);
     }
 
     @Override
     public Object execute(VirtualFrame frame) {
-        Object target = Truffle.getRuntime().createCallTarget(body);
-        System.err.println("Evaluating " + this.getClass().getName() + ":" + name + " going to " + target);
-        Utils.getTopFrame(frame).setObject(slot, target);
-        try {
-            System.err.println("Evaluating " + this.getClass().getName() + ":" + name + " going to " + Utils.getTopFrame(frame).getObject(slot));
-        } catch (FrameSlotTypeException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+<<<<<<< HEAD
+        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        Utils.getTopFrame(frame).setObject(slot, Truffle.getRuntime().createCallTarget(body));
+=======
+        frame.setObject(slot, this);
+>>>>>>> 1823c8361877bec5d12aa4254dbde598a04f5ce7
         return null;
+    }
+
+    public String[] getArgs() {
+        return args;
+    }
+
+    public void setArgs(String[] args) {
+        this.args = args;
+    }
+
+    public RootNode getBody() {
+        return body;
+    }
+
+    public void setBody(RootNode body) {
+        this.body = body;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

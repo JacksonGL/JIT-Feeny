@@ -25,7 +25,7 @@ public class CallSlotNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        System.err.println("Evaluating " + this.getClass().getName() + ":" + name);
         if (name.equals("add")) {
             return ((Integer) reciever.execute(frame)) + ((Integer) args[0].execute(frame));
         } else if (name.equals("sub")) {

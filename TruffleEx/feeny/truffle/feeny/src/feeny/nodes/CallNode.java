@@ -20,22 +20,19 @@ public class CallNode extends RootNode {
     public CallNode(String name_, RootNode[] args_, FrameDescriptor frameDescriptor) {
         super(Feeny.class, null, frameDescriptor);
         name = name_;
-        slot = frameDescriptor.findFrameSlot(name);
+        slot = frameDescriptor.findOrAddFrameSlot(name);
         args = args_;
     }
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.out.println("Evaluating " + this.getClass().getName() + ":" + name);
+        System.err.println("Evaluating " + this.getClass().getName() + ":" + name);
         RootCallTarget target = null;
         try {
-            System.err.println(Utils.getTopFrame(frame).toString());
             target = (RootCallTarget) Utils.getTopFrame(frame).getObject(slot);
         } catch (FrameSlotTypeException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            System.err.println("Function not found!\n");
         }
-        System.err.println("### Working on " + name);
         return target.call((Object[]) args);
     }
 }

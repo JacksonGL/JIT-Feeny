@@ -21,7 +21,7 @@ public class ScopeSeqNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.out.println("Evaluating " + this.getClass().getName());
+        System.err.println("Evaluating " + this.getClass().getName());
         firstNode.execute(frame);
         return nextNode.execute(frame);
     }
