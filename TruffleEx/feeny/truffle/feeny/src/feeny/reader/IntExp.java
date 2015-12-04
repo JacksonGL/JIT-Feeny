@@ -1,6 +1,10 @@
 package feeny.reader;
 
+import com.oracle.truffle.api.Truffle;
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.nodes.RootNode;
+
+import feeny.nodes.IntNode;
 
 public class IntExp implements Exp {
     public final int value;
@@ -13,7 +17,9 @@ public class IntExp implements Exp {
         return Integer.toString(value);
     }
 
+    @SuppressWarnings("cast")
     public RootNode toTruffle() {
-        throw new UnsupportedOperationException("Array is not supported yet");
+        FrameDescriptor fd = new FrameDescriptor();
+        return (RootNode) new IntNode(10, fd);
     }
 }

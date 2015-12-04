@@ -19,6 +19,7 @@ import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.source.Source;
 import feeny.nodes.*;
 import feeny.reader.Reader;
+import feeny.reader.ScopeStmt;
 
 public final class Feeny extends TruffleLanguage<ExecutionContext> {
     public static void main(String[] args) {
@@ -38,8 +39,10 @@ public final class Feeny extends TruffleLanguage<ExecutionContext> {
         System.out.println("=== Testing Feeny ===");
         try {
             Reader reader = new Reader("tests/fibonacci.ast");
-            System.out.println(reader.read());
+            ScopeStmt stmt = reader.read();
+            System.out.println(stmt);
             System.out.println("Create and Execute Truffle Feeny AST");
+            exec_node(stmt.toTruffle());
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
