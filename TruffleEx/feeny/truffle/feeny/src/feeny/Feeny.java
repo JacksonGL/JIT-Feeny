@@ -40,7 +40,7 @@ public final class Feeny extends TruffleLanguage<ExecutionContext> {
         try {
             Reader reader = new Reader("tests/fibonacci.ast");
             ScopeStmt stmt = reader.read();
-            System.out.println(stmt);
+            // System.out.println(stmt);
             System.out.println("Create and Execute Truffle Feeny AST");
             exec_node(stmt.toTruffle(new FrameDescriptor()));
         } catch (FileNotFoundException e) {

@@ -14,7 +14,7 @@ public class ScopeStmtNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.err.println("Evaluating " + this.getClass().getName());
+        // System.err.println("Evaluating " + this.getClass().getName());
         return null;
     }
 

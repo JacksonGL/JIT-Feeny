@@ -23,8 +23,17 @@ public class FunctionHeaderNode extends RootNode {
         body = body_;
         slots = new FrameSlot[args.length];
         for (int i = 0; i < slots.length; ++i) {
-            slots[i] = frameDescriptor.findOrAddFrameSlot(args[i]);
+            slots[i] = frameDescriptor.findFrameSlot(args[i]);
+            System.out.println(slots[i]);
         }
+    }
+
+    public RootNode getBody() {
+        return body;
+    }
+
+    public void setBody(RootNode body) {
+        this.body = body;
     }
 
     @Override

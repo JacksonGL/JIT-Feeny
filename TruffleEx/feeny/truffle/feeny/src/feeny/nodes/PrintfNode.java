@@ -18,7 +18,7 @@ public class PrintfNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.err.println("Evaluating " + this.getClass().getName());
+        // System.err.println("Evaluating " + this.getClass().getName());
         int node_ind = 0;
         int str_index = 0;
 

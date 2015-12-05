@@ -25,13 +25,27 @@ public class CallSlotNode extends RootNode {
 
     @Override
     public Object execute(VirtualFrame frame) {
-        System.err.println("Evaluating " + this.getClass().getName() + ":" + name);
+        // System.err.println("Evaluating " + this.getClass().getName() + ":" + name);
         if (name.equals("add")) {
-            return ((Integer) reciever.execute(frame)) + ((Integer) args[0].execute(frame));
+            return ((Integer) (reciever.execute(frame))) + ((Integer) args[0].execute(frame));
         } else if (name.equals("sub")) {
-            return ((Integer) reciever.execute(frame)) - ((Integer) args[0].execute(frame));
+            return ((Integer) (reciever.execute(frame))) - ((Integer) args[0].execute(frame));
+        } else if (name.equals("mul")) {
+            return ((Integer) (reciever.execute(frame))) * ((Integer) args[0].execute(frame));
+        } else if (name.equals("div")) {
+            return ((Integer) (reciever.execute(frame))) / ((Integer) args[0].execute(frame));
+        } else if (name.equals("mod")) {
+            return ((Integer) (reciever.execute(frame))) % ((Integer) args[0].execute(frame));
         } else if (name.equals("lt")) {
-            return ((Integer) reciever.execute(frame)) < ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
+            return ((Integer) (reciever.execute(frame))) < ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
+        } else if (name.equals("gt")) {
+            return ((Integer) (reciever.execute(frame))) > ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
+        } else if (name.equals("le")) {
+            return ((Integer) (reciever.execute(frame))) <= ((Integer) args[0].execute(frame)) ? new Integer(0) : null;
+        } else if (name.equals("ge")) {
+            return ((Integer) (reciever.execute(frame))) >= ((Integer) (args[0].execute(frame))) ? new Integer(0) : null;
+        } else if (name.equals("eq")) {
+            return ((Integer) (reciever.execute(frame))) == ((Integer) (args[0].execute(frame))) ? new Integer(0) : null;
         } else {
             throw new UnsupportedOperationException("Some Built-in functions are not supported yet");
         }
